@@ -1,0 +1,43 @@
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+COMMENT    = _{ "//" ~ (!"\n" ~ ANY)* }
+
+program = { SOI ~ (import_decl | function_decl | struct_decl | class_decl)* ~ EOI }
+
+// primitives
+identifier = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+integer    = @{ ASCII_DIGIT+ }
+float      = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+boolean    =  { "true" | "false" }
+string_lit =  { "\"" ~ inner_str ~ "\"" }
+inner_str  = @{ (!"\"" ~ ANY)* }
+
+// top level
+import_decl   = { "import" ~ string_lit }
+struct_decl   = { "struct" ~ identifier ~ "{" ~ struct_field* ~ "}" }
+class_decl    = { "class" ~ identifier ~ "{" ~ (struct_field | function_decl)* ~ "}" }
+function_decl = { "fn" ~ identifier ~ "(" ~ param_list? ~ ")" ~ ("->" ~ type_expr)? ~ block }
+
+struct_field = { identifier ~ ":" ~ type_expr }
+param_list   = { param ~ ("," ~ param)* }
+param        = { identifier ~ ":" ~ type_expr }
+
+// statements
+block     =  { "{" ~ statement* ~ "}" }
+statement = _{ let_stmt | return_stmt | if_stmt | for_stmt | expression }
+
+let_stmt    = { "let" ~ identifier ~ (":" ~ type_expr)? ~ "=" ~ expression }
+return_stmt = { "return" ~ expression? }
+if_stmt     = { "if" ~ expression ~ block ~ ("else" ~ block)? }
+for_stmt    = { "for" ~ identifier ~ "in" ~ expression ~ block }
+
+// expressions — broken into precedence layers, no cycles
+expression   =  { primary ~ (access_chain)* }
+access_chain = _{ field_access | call_suffix }
+field_access =  { "." ~ identifier }
+call_suffix  =  { "(" ~ (expression ~ ("," ~ expression)*)? ~ ")" }
+primary      = _{ float | integer | string_lit | boolean | identifier }
+
+// types — optional is a suffix, not a recursive wrapper
+type_expr  =  { base_type ~ "?"? }
+base_type  = _{ array_type | identifier }
+array_type =  { "[" ~ type_expr ~ "]" }
