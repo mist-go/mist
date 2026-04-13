@@ -1,5 +1,5 @@
-pub mod codegen;
 pub mod errors;
+pub mod gogen;
 pub mod parser;
 
 use std::fs;
@@ -48,8 +48,9 @@ fn cmd_build(path: &str) {
     match parser::parse(&source) {
         Ok(ast) => {
             println!("parsed {} top-level items", ast.statements.len());
-            println!("{:#?}", ast.statements)
-            // codegen will go here
+            let contents = gogen::generate(&ast);
+            fs::write(path.to_string() + ".go", contents).unwrap();
+            println!("build successful");
         }
         Err(e) => {
             eprintln!("parse error:\n{}", e);
