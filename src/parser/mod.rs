@@ -16,12 +16,24 @@ pub fn parse(source: &str) -> Result<Program, ParseError> {
     let pairs = MistParser::parse(Rule::program, source)?;
     let mut statements = vec![];
 
+    // pairs is an iterator over the top-level program pair
+    // we need to get its inner children
     for pair in pairs {
         match pair.as_rule() {
-            Rule::function_decl => statements.push(TopLevel::Function(parse_function(pair))),
-            Rule::struct_decl => statements.push(TopLevel::Struct(parse_struct(pair))),
-            Rule::class_decl => statements.push(TopLevel::Class(parse_class(pair))),
-            Rule::import_decl => statements.push(TopLevel::Import(parse_import(pair))),
+            Rule::program => {
+                for inner in pair.into_inner() {
+                    match inner.as_rule() {
+                        Rule::function_decl => {
+                            statements.push(TopLevel::Function(parse_function(inner)))
+                        }
+                        Rule::struct_decl => statements.push(TopLevel::Struct(parse_struct(inner))),
+                        Rule::class_decl => statements.push(TopLevel::Class(parse_class(inner))),
+                        Rule::import_decl => statements.push(TopLevel::Import(parse_import(inner))),
+                        Rule::EOI => {}
+                        _ => {}
+                    }
+                }
+            }
             Rule::EOI => {}
             _ => {}
         }

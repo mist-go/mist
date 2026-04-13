@@ -48,6 +48,7 @@ fn cmd_build(path: &str) {
     match parser::parse(&source) {
         Ok(ast) => {
             println!("parsed {} top-level items", ast.statements.len());
+            println!("{:#?}", ast.statements)
             // codegen will go here
         }
         Err(e) => {
