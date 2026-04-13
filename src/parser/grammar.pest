@@ -13,40 +13,65 @@ string_lit =  { "\"" ~ inner_str ~ "\"" }
 inner_str  = @{ (!"\"" ~ ANY)* }
 
 // top level
-import_decl  =  { "import" ~ string_lit }
-struct_decl  =  { "struct" ~ identifier ~ "{" ~ struct_field* ~ "}" }
-class_decl   =  { "class" ~ identifier ~ "{" ~ class_member* ~ "}" }
+import_decl = { "import" ~ string_lit ~ ";" }
+
+struct_decl = {
+    "struct" ~ identifier ~ "{" ~ struct_field* ~ "}"
+}
+
+class_decl = {
+    "class" ~ identifier ~ "{" ~ class_member* ~ "}"
+}
+
 class_member = _{ struct_field | function_decl }
 
-function_decl = { "fn" ~ identifier ~ "(" ~ param_list? ~ ")" ~ ("->" ~ type_expr)? ~ block }
+function_decl = {
+    "fn" ~ identifier ~ "(" ~ param_list? ~ ")" ~ ("->" ~ type_expr)? ~ block
+}
 
-struct_field = { identifier ~ ":" ~ type_expr }
-param_list   = { param ~ ("," ~ param)* }
-param        = { identifier ~ ":" ~ type_expr }
+// struct fields (NO commas, Go-style)
+struct_field = { identifier ~ ":" ~ type_expr ~ ";" }
+
+// params (allow trailing comma)
+param_list = { param ~ ("," ~ param)* ~ ","? }
+param      = { identifier ~ ":" ~ type_expr }
 
 // statements
-block     =  { "{" ~ statement* ~ "}" }
+block = { "{" ~ statement* ~ "}" }
+
 statement = _{
     let_stmt
   | return_stmt
   | if_stmt
   | for_stmt
   | assign_stmt
-  | expression
+  | expression_stmt
 }
 
-assign_stmt = { identifier ~ "=" ~ expression }
-let_stmt    = { "let" ~ identifier ~ (":" ~ type_expr)? ~ "=" ~ expression }
-return_stmt = { "return" ~ expression? }
-if_stmt     = { "if" ~ expression ~ block ~ ("else" ~ block)? }
-for_stmt    = { "for" ~ identifier ~ "in" ~ expression ~ block }
+expression_stmt = { expression ~ ";" }
+
+assign_stmt = { identifier ~ "=" ~ expression ~ ";" }
+
+let_stmt = {
+    "let" ~ identifier ~ (":" ~ type_expr)? ~ "=" ~ expression ~ ";"
+}
+
+return_stmt = { "return" ~ expression? ~ ";" }
+
+if_stmt = {
+    "if" ~ expression ~ block ~ ("else" ~ block)?
+}
+
+for_stmt = {
+    "for" ~ identifier ~ "in" ~ expression ~ block
+}
 
 // types
 type_expr  =  { base_type ~ "?"? }
 base_type  = _{ array_type | identifier }
 array_type =  { "[" ~ type_expr ~ "]" }
 
-// expressions (still simple, no precedence yet)
+// expressions (still no precedence yet)
 expression = { term ~ (bin_op ~ term)* }
 
 bin_op = _{
@@ -78,6 +103,7 @@ and = { "&&" }
 or  = { "||" }
 
 // literals
+
 struct_literal = {
     identifier ~ "{" ~ struct_init_list? ~ "}"
 }
@@ -94,7 +120,7 @@ array_literal = {
     "[" ~ (expression ~ ("," ~ expression)*)? ~ ","? ~ "]"
 }
 
-// expressions continuation
+// chaining
 term = { primary ~ (field_access | call_suffix)* }
 
 field_access = { "." ~ identifier }
@@ -103,6 +129,7 @@ call_suffix = {
     "(" ~ (expression ~ ("," ~ expression)*)? ~ ","? ~ ")"
 }
 
+// primary
 primary = _{
     struct_literal
   | array_literal
