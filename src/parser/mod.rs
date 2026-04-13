@@ -14,6 +14,9 @@ pub type ParseError = pest::error::Error<Rule>;
 
 pub fn parse(source: &str) -> Result<Program, ParseError> {
     let pairs = MistParser::parse(Rule::program, source)?;
+
+    println!("Parsed pairs: {:#?}", pairs);
+
     let mut statements = vec![];
 
     // pairs is an iterator over the top-level program pair
@@ -155,6 +158,10 @@ fn parse_statement(pair: Pair<Rule>) -> Option<Statement> {
         Rule::return_stmt => Some(Statement::Return(parse_return(pair))),
         Rule::if_stmt => Some(Statement::If(parse_if(pair))),
         Rule::for_stmt => Some(Statement::For(parse_for(pair))),
+        Rule::expression_stmt => {
+            let expr = pair.into_inner().next().unwrap();
+            Some(Statement::Expression(parse_expression(expr)))
+        }
         Rule::expression => Some(Statement::Expression(parse_expression(pair))),
         _ => None,
     }
