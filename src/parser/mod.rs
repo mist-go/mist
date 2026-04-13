@@ -15,8 +15,6 @@ pub type ParseError = pest::error::Error<Rule>;
 pub fn parse(source: &str) -> Result<Program, ParseError> {
     let pairs = MistParser::parse(Rule::program, source)?;
 
-    println!("Parsed pairs: {:#?}", pairs);
-
     let mut statements = vec![];
 
     // pairs is an iterator over the top-level program pair

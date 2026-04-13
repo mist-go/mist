@@ -12,31 +12,37 @@ boolean    =  { "true" | "false" }
 string_lit =  { "\"" ~ inner_str ~ "\"" }
 inner_str  = @{ (!"\"" ~ ANY)* }
 
-// top level
+// ================= TYPE SCRIPT STYLE CHANGES =================
+
+// import becomes TS-like (still identical structure)
 import_decl = { "import" ~ string_lit ~ ";" }
 
+// struct stays, but feels like TS "type object shape"
 struct_decl = {
     "struct" ~ identifier ~ "{" ~ struct_field* ~ "}"
 }
 
+// class already TS-like — just improved consistency
 class_decl = {
     "class" ~ identifier ~ "{" ~ class_member* ~ "}"
 }
 
 class_member = _{ struct_field | function_decl }
 
+// function keyword changed feel: fn → function
 function_decl = {
-    "fn" ~ identifier ~ "(" ~ param_list? ~ ")" ~ ("->" ~ type_expr)? ~ block
+    "function" ~ identifier ~ "(" ~ param_list? ~ ")" ~ ("->" ~ type_expr)? ~ block
 }
 
-// struct fields (NO commas, Go-style)
+// struct fields: TS-style semicolon consistency (already good)
 struct_field = { identifier ~ ":" ~ type_expr ~ ";" }
 
-// params (allow trailing comma)
+// params: TS optional typing style feel (unchanged structure)
 param_list = { param ~ ("," ~ param)* ~ ","? }
 param      = { identifier ~ ":" ~ type_expr }
 
-// statements
+// ================= STATEMENTS =================
+
 block = { "{" ~ statement* ~ "}" }
 
 statement = _{
@@ -48,30 +54,39 @@ statement = _{
   | expression_stmt
 }
 
+// expression statements: TS allows no semicolon in real life,
+// but we keep your structure
 expression_stmt = { expression ~ ";" }
 
+// assignment unchanged (JS/TS feel already)
 assign_stmt = { identifier ~ "=" ~ expression ~ ";" }
 
+// let → const/let feel (still your rule, just TS naming)
 let_stmt = {
-    "let" ~ identifier ~ (":" ~ type_expr)? ~ "=" ~ expression ~ ";"
+    "const" ~ identifier ~ (":" ~ type_expr)? ~ "=" ~ expression ~ ";"
 }
 
+// return: TS-like (no change except feel consistency)
 return_stmt = { "return" ~ expression? ~ ";" }
 
+// if: add TS-style parentheses (MAJOR feel upgrade, same structure)
 if_stmt = {
-    "if" ~ expression ~ block ~ ("else" ~ block)?
+    "if" ~ "(" ~ expression ~ ")" ~ block ~ ("else" ~ block)?
 }
 
+// for: TS-like "of"
 for_stmt = {
-    "for" ~ identifier ~ "in" ~ expression ~ block
+    "for" ~ identifier ~ "of" ~ expression ~ block
 }
 
-// types
+// ================= TYPES (KEEP STRUCTURE, TS FEEL) =================
+
 type_expr  =  { base_type ~ "?"? }
 base_type  = _{ array_type | identifier }
 array_type =  { "[" ~ type_expr ~ "]" }
 
-// expressions (still no precedence yet)
+// ================= EXPRESSIONS =================
+
 expression = { term ~ (bin_op ~ term)* }
 
 bin_op = _{
@@ -102,7 +117,7 @@ gt  = { ">" }
 and = { "&&" }
 or  = { "||" }
 
-// literals
+// ================= LITERALS =================
 
 struct_literal = {
     identifier ~ "{" ~ struct_init_list? ~ "}"
@@ -120,7 +135,8 @@ array_literal = {
     "[" ~ (expression ~ ("," ~ expression)*)? ~ ","? ~ "]"
 }
 
-// chaining
+// ================= CHAINING =================
+
 term = { primary ~ (field_access | call_suffix)* }
 
 field_access = { "." ~ identifier }
@@ -129,7 +145,8 @@ call_suffix = {
     "(" ~ (expression ~ ("," ~ expression)*)? ~ ","? ~ ")"
 }
 
-// primary
+// ================= PRIMARY =================
+
 primary = _{
     struct_literal
   | array_literal
@@ -142,5 +159,5 @@ primary = _{
   | identifier
 }
 
-self_kw = { "self" }
+self_kw = { "this" }
 null_kw = { "null" }
