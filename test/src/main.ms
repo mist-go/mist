@@ -1,13 +1,9 @@
 import "fmt";
 
 function add(a: int, b: int) -> int {
-    const x = 10;
-    if (x > 5) {
-        return x;
-    }
-    return 0;
+    return a + b;
 }
 
 function main() {
-    fmt.Println("Hello World!");
+    fmt.Println(add(10, 10) / 2);
 }
