@@ -1,0 +1,104 @@
+use std::{fs, path::PathBuf, process, time::Instant};
+
+use crate::{gogen, parser};
+
+pub fn build() {
+    let start = Instant::now();
+
+    // 1. find project root
+    let root = find_project_root().unwrap_or_else(|| {
+        panic!("error: could not find project root (mist.toml)");
+    });
+
+    println!("mistc build ({})", root.display());
+
+    // 2. load config
+    let config = load_config(&root);
+
+    let entry_path = root.join(&config.entry);
+    let out_dir = root.join(&config.out_dir);
+
+    println!("  → entry: {}", entry_path.display());
+
+    // 3. read entry file
+    let source = match fs::read_to_string(&entry_path) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("error: failed to read entry file\n  {}", e);
+            process::exit(1);
+        }
+    };
+
+    println!("  → parsing...");
+
+    let ast = match parser::parse(&source) {
+        Ok(ast) => {
+            println!("  ✓ parsed {} items", ast.statements.len());
+            ast
+        }
+        Err(e) => {
+            eprintln!("error: parse failed\n{}", e);
+            process::exit(1);
+        }
+    };
+
+    println!("  → generating Go code...");
+
+    let output = gogen::generate(&ast);
+
+    // 4. ensure build dir
+    if let Err(e) = fs::create_dir_all(&out_dir) {
+        eprintln!("error: failed to create build dir\n  {}", e);
+        process::exit(1);
+    }
+
+    let out_file = out_dir.join("main.go");
+
+    if let Err(e) = fs::write(&out_file, output) {
+        eprintln!("error: failed to write output\n  {}", e);
+        process::exit(1);
+    }
+
+    let elapsed = start.elapsed();
+
+    println!("  ✓ built {}", out_file.display());
+    println!("build finished in {:.2?}", elapsed);
+}
+
+pub fn find_project_root() -> Option<PathBuf> {
+    let mut dir = std::env::current_dir().ok()?;
+
+    loop {
+        if dir.join("mist.toml").exists() {
+            return Some(dir);
+        }
+
+        if !dir.pop() {
+            return None;
+        }
+    }
+}
+
+struct Config {
+    entry: String,
+    out_dir: String,
+}
+
+fn load_config(root: &std::path::Path) -> Config {
+    let content =
+        std::fs::read_to_string(root.join("mist.toml")).expect("failed to read mist.toml");
+
+    // super minimal parsing (replace later with toml crate)
+    let entry = extract(&content, "entry").unwrap_or("src/main.ms".into());
+    let out_dir = extract(&content, "out_dir").unwrap_or("build".into());
+
+    Config { entry, out_dir }
+}
+
+fn extract(content: &str, key: &str) -> Option<String> {
+    content
+        .lines()
+        .find(|l| l.trim().starts_with(key))
+        .and_then(|l| l.split('=').nth(1))
+        .map(|v| v.trim().trim_matches('"').to_string())
+}

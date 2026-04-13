@@ -1,3 +1,4 @@
+pub mod compiler;
 pub mod errors;
 pub mod gogen;
 pub mod parser;
@@ -16,11 +17,11 @@ fn main() {
 
     match args[1].as_str() {
         "build" => {
-            if args.len() < 3 {
-                eprintln!("error: expected a file path\n  usage: mist build <file.ms>");
+            if args.len() < 2 {
+                eprintln!("error: expected a file path\n  usage: mist build");
                 process::exit(1);
             }
-            cmd_build(&args[2]);
+            cmd_build();
         }
         "check" => {
             if args.len() < 3 {
@@ -43,20 +44,8 @@ fn main() {
     }
 }
 
-fn cmd_build(path: &str) {
-    let source = read_ms_file(path);
-    match parser::parse(&source) {
-        Ok(ast) => {
-            println!("parsed {} top-level items", ast.statements.len());
-            let contents = gogen::generate(&ast);
-            fs::write(path.to_string() + ".go", contents).unwrap();
-            println!("build successful");
-        }
-        Err(e) => {
-            eprintln!("parse error:\n{}", e);
-            process::exit(1);
-        }
-    }
+pub fn cmd_build() {
+    compiler::build();
 }
 
 fn cmd_check(path: &str) {
@@ -95,7 +84,7 @@ fn print_usage() {
     println!("mist - the mist compiler");
     println!();
     println!("usage:");
-    println!("  mist build <file.ms>   compile a .ms file to go");
+    println!("  mist build             compile the project in the current directory");
     println!("  mist check <file.ms>   parse and validate without compiling");
     println!("  mist version           print the compiler version");
     println!("  mist help              print this message");
