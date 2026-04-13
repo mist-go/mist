@@ -219,52 +219,114 @@ fn parse_for(pair: Pair<Rule>) -> ForStatement {
 }
 
 fn parse_expression(pair: Pair<Rule>) -> Expression {
-    // let span = span_of(&pair);
     match pair.as_rule() {
         Rule::expression => {
             let mut inner = pair.into_inner();
-            let mut expr = parse_primary(inner.next().unwrap());
+            let mut expr = parse_term(inner.next().unwrap());
 
-            // chain field accesses and calls as left-to-right suffixes
-            for part in inner {
-                let span = span_of(&part);
-                match part.as_rule() {
-                    Rule::field_access => {
-                        let field = part.into_inner().next().unwrap().as_str().to_string();
-                        expr = Expression::FieldAccess(Box::new(FieldAccess {
-                            object: expr,
-                            field,
-                            span,
-                        }));
-                    }
-                    Rule::call_suffix => {
-                        let args = part.into_inner().map(|p| parse_expression(p)).collect();
-                        expr = Expression::Call(Box::new(CallExpr {
-                            callee: expr,
-                            args,
-                            span,
-                        }));
-                    }
-                    _ => {}
-                }
+            // consume pairs of (bin_op, term)
+            while let Some(op_pair) = inner.next() {
+                let right = parse_term(inner.next().unwrap());
+                let span = span_of(&op_pair);
+                let op = match op_pair.as_rule() {
+                    Rule::add => BinOperator::Add,
+                    Rule::sub => BinOperator::Sub,
+                    Rule::mul => BinOperator::Mul,
+                    Rule::div => BinOperator::Div,
+                    Rule::eq => BinOperator::Eq,
+                    Rule::neq => BinOperator::NotEq,
+                    Rule::lt => BinOperator::Lt,
+                    Rule::gt => BinOperator::Gt,
+                    Rule::lte => BinOperator::LtEq,
+                    Rule::gte => BinOperator::GtEq,
+                    Rule::and => BinOperator::And,
+                    Rule::or => BinOperator::Or,
+                    _ => unreachable!(),
+                };
+                expr = Expression::BinaryOp(Box::new(BinaryOp {
+                    left: expr,
+                    op,
+                    right,
+                    span,
+                }));
             }
 
             expr
         }
-        _ => parse_primary(pair),
+        _ => parse_term(pair),
     }
+}
+
+fn parse_term(pair: Pair<Rule>) -> Expression {
+    let mut inner = pair.into_inner();
+    let mut expr = parse_primary(inner.next().unwrap());
+
+    for part in inner {
+        let span = span_of(&part);
+        match part.as_rule() {
+            Rule::field_access => {
+                let field = part.into_inner().next().unwrap().as_str().to_string();
+                expr = Expression::FieldAccess(Box::new(FieldAccess {
+                    object: expr,
+                    field,
+                    span,
+                }));
+            }
+            Rule::call_suffix => {
+                let args = part.into_inner().map(|p| parse_expression(p)).collect();
+                expr = Expression::Call(Box::new(CallExpr {
+                    callee: expr,
+                    args,
+                    span,
+                }));
+            }
+            _ => {}
+        }
+    }
+
+    expr
 }
 
 fn parse_primary(pair: Pair<Rule>) -> Expression {
     let span = span_of(&pair);
+
     match pair.as_rule() {
+        Rule::struct_literal => {
+            let mut inner = pair.into_inner();
+            let name = inner.next().unwrap().as_str().to_string();
+
+            let mut fields = vec![];
+            for field in inner {
+                let mut f_inner = field.into_inner();
+                let field_name = f_inner.next().unwrap().as_str().to_string();
+                let value = parse_expression(f_inner.next().unwrap());
+                fields.push((field_name, value));
+            }
+
+            Expression::StructInit(Box::new(StructInit { name, fields, span }))
+        }
+
+        Rule::array_literal => {
+            let elements = pair.into_inner().map(|p| parse_expression(p)).collect();
+
+            Expression::ArrayLiteral(Box::new(ArrayLiteral { elements, span }))
+        }
+
         Rule::integer => Expression::Integer(pair.as_str().parse().unwrap(), span),
         Rule::float => Expression::Float(pair.as_str().parse().unwrap(), span),
+
         Rule::string_lit => {
             Expression::StringLit(pair.into_inner().next().unwrap().as_str().to_string(), span)
         }
+
         Rule::boolean => Expression::Bool(pair.as_str() == "true", span),
+
+        Rule::self_kw => Expression::Identifier("self".to_string(), span),
+        Rule::null_kw => Expression::Identifier("null".to_string(), span),
         Rule::identifier => Expression::Identifier(pair.as_str().to_string(), span),
+
+        Rule::term => parse_term(pair),
+
         _ => unreachable!("unexpected primary rule: {:?}", pair.as_rule()),
     }
 }

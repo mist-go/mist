@@ -23,21 +23,50 @@ param        = { identifier ~ ":" ~ type_expr }
 
 // statements
 block     =  { "{" ~ statement* ~ "}" }
-statement = _{ let_stmt | return_stmt | if_stmt | for_stmt | expression }
+statement = _{ let_stmt | return_stmt | if_stmt | for_stmt | assign_stmt | expression }
 
+assign_stmt = { identifier ~ "=" ~ expression }
 let_stmt    = { "let" ~ identifier ~ (":" ~ type_expr)? ~ "=" ~ expression }
 return_stmt = { "return" ~ expression? }
 if_stmt     = { "if" ~ expression ~ block ~ ("else" ~ block)? }
 for_stmt    = { "for" ~ identifier ~ "in" ~ expression ~ block }
 
-// expressions — broken into precedence layers, no cycles
-expression   =  { primary ~ (access_chain)* }
-access_chain = _{ field_access | call_suffix }
-field_access =  { "." ~ identifier }
-call_suffix  =  { "(" ~ (expression ~ ("," ~ expression)*)? ~ ")" }
-primary      = _{ float | integer | string_lit | boolean | identifier }
-
 // types — optional is a suffix, not a recursive wrapper
 type_expr  =  { base_type ~ "?"? }
 base_type  = _{ array_type | identifier }
 array_type =  { "[" ~ type_expr ~ "]" }
+
+// expressions
+expression =  { term ~ (bin_op ~ term)* }
+bin_op     = _{ add | sub | mul | div | eq | neq | lte | gte | lt | gt | and | or }
+add        =  { "+" }
+sub        =  { "-" }
+mul        =  { "*" }
+div        =  { "/" }
+eq         =  { "==" }
+neq        =  { "!=" }
+lte        =  { "<=" }
+gte        =  { ">=" }
+lt         =  { "<" }
+gt         =  { ">" }
+and        =  { "&&" }
+or         =  { "||" }
+
+struct_literal = {
+    identifier ~ "{" ~ (struct_init_field ~ ("," ~ struct_init_field)*)? ~ "}"
+}
+
+struct_init_field = {
+    identifier ~ ":" ~ expression
+}
+
+array_literal = {
+    "[" ~ (expression ~ ("," ~ expression)*)? ~ "]"
+}
+
+term         =  { primary ~ (field_access | call_suffix)* }
+field_access =  { "." ~ identifier }
+call_suffix  =  { "(" ~ (expression ~ ("," ~ expression)*)? ~ ")" }
+primary      = _{ struct_literal | array_literal | float | integer | string_lit | boolean | self_kw | null_kw | identifier }
+self_kw      =  { "self" }
+null_kw      =  { "null" }

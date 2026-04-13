@@ -112,6 +112,7 @@ pub enum Expression {
     Call(Box<CallExpr>),
     FieldAccess(Box<FieldAccess>),
     StructInit(Box<StructInit>),
+    ArrayLiteral(Box<ArrayLiteral>),
 }
 
 #[derive(Debug, Clone)]
@@ -177,4 +178,10 @@ pub enum TypeExpr {
     Named(String),
     Array(Box<TypeExpr>),
     Optional(Box<TypeExpr>),
+}
+
+#[derive(Debug, Clone)]
+pub struct ArrayLiteral {
+    pub elements: Vec<Expression>,
+    pub span: Span,
 }
