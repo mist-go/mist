@@ -295,11 +295,16 @@ fn parse_primary(pair: Pair<Rule>) -> Expression {
             let mut inner = pair.into_inner();
             let name = inner.next().unwrap().as_str().to_string();
 
+            inner = inner.next().unwrap().into_inner();
+
+            // println!("{inner:#?}");
+
             let mut fields = vec![];
             for field in inner {
                 let mut f_inner = field.into_inner();
                 let field_name = f_inner.next().unwrap().as_str().to_string();
                 let value = parse_expression(f_inner.next().unwrap());
+
                 fields.push((field_name, value));
             }
 
