@@ -2,12 +2,20 @@ use std::{fs, path::PathBuf, process, time::Instant};
 
 use crate::{gogen, parser};
 
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct Config {
+    entry: String,
+    out_dir: String,
+}
+
 pub fn build() {
     let start = Instant::now();
 
     // 1. find project root
     let root = find_project_root().unwrap_or_else(|| {
-        panic!("error: could not find project root (mist.toml)");
+        panic!("error: could not find project root (mist.json)");
     });
 
     println!("mistc build ({})", root.display());
@@ -69,7 +77,7 @@ pub fn find_project_root() -> Option<PathBuf> {
     let mut dir = std::env::current_dir().ok()?;
 
     loop {
-        if dir.join("mist.toml").exists() {
+        if dir.join("mist.json").exists() {
             return Some(dir);
         }
 
@@ -79,26 +87,9 @@ pub fn find_project_root() -> Option<PathBuf> {
     }
 }
 
-struct Config {
-    entry: String,
-    out_dir: String,
-}
-
 fn load_config(root: &std::path::Path) -> Config {
     let content =
-        std::fs::read_to_string(root.join("mist.toml")).expect("failed to read mist.toml");
+        std::fs::read_to_string(root.join("mist.json")).expect("failed to read mist.json");
 
-    // super minimal parsing (replace later with toml crate)
-    let entry = extract(&content, "entry").unwrap_or("src/main.ms".into());
-    let out_dir = extract(&content, "out_dir").unwrap_or("build".into());
-
-    Config { entry, out_dir }
-}
-
-fn extract(content: &str, key: &str) -> Option<String> {
-    content
-        .lines()
-        .find(|l| l.trim().starts_with(key))
-        .and_then(|l| l.split('=').nth(1))
-        .map(|v| v.trim().trim_matches('"').to_string())
+    serde_json::from_str(&content).expect("invalid mist.json format")
 }
