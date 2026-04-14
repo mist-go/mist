@@ -43,21 +43,19 @@ expr_stmt = { expr ~ ";" }
 // ================= EXPRESSIONS =================
 type_expr = { identifier }
 
-var_path = { identifier ~ ("." ~ identifier)* }
-
-term = {
+primary = {
     integer
   | float
   | boolean
   | string_lit
-  | var_path
+  | identifier
 }
 
-func_call = {
-    var_path ~ "(" ~ (expr ~ ("," ~ expr)*)? ~ ")"
+postfix = {
+    ("." ~ identifier)
+  | ("(" ~ (expr ~ ("," ~ expr)*)? ~ ")")
 }
 
 expr = {
-    func_call
-  | term
+    primary ~ postfix*
 }

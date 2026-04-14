@@ -6,5 +6,5 @@ struct Point {
 }
 
 function add(a: int, b: int): int {
-    idk.do_something();
+    idk.do_something(123, "abc");
 }

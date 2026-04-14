@@ -169,11 +169,20 @@ impl Statement {
 impl Expression {
     pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
         match pair.as_rule() {
-            Rule::expr | Rule::term => {
-                let inner = pair.into_inner().next().unwrap();
-                Expression::from_pair(inner)
+            Rule::expr => {
+                let mut inner = pair.into_inner();
+                let exp = Expression::from_pair(inner.next().unwrap());
+
+                if inner.len() > 0 {
+                    Expression::Postfix {
+                        initial: Box::new(exp),
+                        postfixes: inner.map(|p| Postfix::from_pair(p)).collect(),
+                    }
+                } else {
+                    exp
+                }
             }
-            Rule::var_path => Expression::Identifier(pair.as_str().to_string()),
+            Rule::primary => Expression::from_pair(pair.into_inner().next().unwrap()),
             Rule::identifier => Expression::Identifier(pair.as_str().to_string()),
             Rule::integer => {
                 let value = pair.as_str().parse::<i64>().unwrap();
@@ -192,20 +201,30 @@ impl Expression {
                 Expression::StringLiteral(inner_str.to_string())
             }
 
-            Rule::func_call => {
-                let mut inner = pair.into_inner();
-                let callee = Expression::from_pair(inner.next().unwrap());
-                let args = inner.map(Expression::from_pair).collect();
-                Expression::FunctionCall {
-                    callee: Box::new(callee),
-                    args,
-                }
-            }
-
             _ => unimplemented!(
                 "Expression parsing not implemented yet {:?}",
                 pair.as_rule()
             ),
+        }
+    }
+}
+
+impl Postfix {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::postfix => {
+                let inner = pair.into_inner();
+                if let Some(field) = inner.peek() {
+                    if field.as_rule() == Rule::identifier {
+                        Postfix::FieldAccess(field.as_str().to_string())
+                    } else {
+                        Postfix::FunctionCall(inner.map(|p| Expression::from_pair(p)).collect())
+                    }
+                } else {
+                    Postfix::FunctionCall(vec![])
+                }
+            }
+            _ => unimplemented!("Postfix parsing not implemented yet {:?}", pair.as_rule()),
         }
     }
 }

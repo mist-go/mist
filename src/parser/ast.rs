@@ -38,10 +38,17 @@ pub enum Expression {
     FloatLiteral(f64),
     BoolLiteral(bool),
     StringLiteral(String),
-    FunctionCall {
-        callee: Box<Expression>,
-        args: Vec<Expression>,
+    Postfix {
+        initial: Box<Expression>,
+        postfixes: Vec<Postfix>,
     },
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "value")]
+pub enum Postfix {
+    FieldAccess(String),
+    FunctionCall(Vec<Expression>),
 }
 
 #[derive(Debug, Clone, Serialize)]
