@@ -341,6 +341,14 @@ impl Postfix {
                     "-" => BinaryOp::Minus,
                     "*" => BinaryOp::Multiply,
                     "/" => BinaryOp::Divide,
+                    "%" => BinaryOp::Modulo,
+                    "==" => BinaryOp::Equal,
+                    "!=" => BinaryOp::NotEqual,
+                    "<" => BinaryOp::LessThan,
+                    ">" => BinaryOp::GreaterThan,
+                    "<=" => BinaryOp::LessThanOrEqual,
+                    ">=" => BinaryOp::GreaterThanOrEqual,
+
                     _ => {
                         unimplemented!("Binary operator not implemented yet: {}", op_pair.as_str())
                     }

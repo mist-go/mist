@@ -105,7 +105,7 @@ field_px  = { "." ~ identifier }
 call_px   = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
 index_px  = { "[" ~ expr ~ "]" }
 binary_px = { bin_op ~ expr }
-bin_op = { "+" | "-" | "*" | "/" | "%" }
+bin_op    = { "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" }
 
 expr = {
     primary ~ postfix*

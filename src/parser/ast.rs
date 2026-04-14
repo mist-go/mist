@@ -18,6 +18,13 @@ pub enum BinaryOp {
     Minus,
     Multiply,
     Divide,
+    Modulo,
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+    LessThanOrEqual,
+    GreaterThanOrEqual,
 }
 
 #[derive(Debug, Clone, Serialize)]
