@@ -169,10 +169,11 @@ impl Statement {
 impl Expression {
     pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
         match pair.as_rule() {
-            Rule::expr => {
+            Rule::expr | Rule::term => {
                 let inner = pair.into_inner().next().unwrap();
                 Expression::from_pair(inner)
             }
+            Rule::var_path => Expression::Identifier(pair.as_str().to_string()),
             Rule::identifier => Expression::Identifier(pair.as_str().to_string()),
             Rule::integer => {
                 let value = pair.as_str().parse::<i64>().unwrap();
@@ -190,7 +191,21 @@ impl Expression {
                 let inner_str = pair.into_inner().next().unwrap().as_str();
                 Expression::StringLiteral(inner_str.to_string())
             }
-            _ => unimplemented!("Expression parsing not implemented yet"),
+
+            Rule::func_call => {
+                let mut inner = pair.into_inner();
+                let callee = Expression::from_pair(inner.next().unwrap());
+                let args = inner.map(Expression::from_pair).collect();
+                Expression::FunctionCall {
+                    callee: Box::new(callee),
+                    args,
+                }
+            }
+
+            _ => unimplemented!(
+                "Expression parsing not implemented yet {:?}",
+                pair.as_rule()
+            ),
         }
     }
 }
