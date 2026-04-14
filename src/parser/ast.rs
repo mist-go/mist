@@ -12,11 +12,11 @@ pub enum TopLevel {
     Import(String),
     StructDecl {
         name: String,
-        fields: Vec<(String, TypeExpr)>,
+        fields: ParamList,
     },
     FunctionDecl {
         name: String,
-        params: Vec<(String, TypeExpr)>,
+        params: ParamList,
         return_type: Option<TypeExpr>,
         body: Vec<Statement>,
     },
@@ -41,3 +41,6 @@ pub enum Expression {
         args: Vec<Expression>,
     },
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ParamList(pub Vec<(String, TypeExpr)>);

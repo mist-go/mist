@@ -38,6 +38,22 @@ impl TypeExpr {
     }
 }
 
+impl ParamList {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+        let params = pair
+            .into_inner()
+            .map(|p| {
+                let mut param_inner = p.into_inner();
+                let param_name = param_inner.next().unwrap().as_str().to_string();
+                let param_type = TypeExpr::from_pair(param_inner.next().unwrap());
+                (param_name, param_type)
+            })
+            .collect();
+
+        ParamList(params)
+    }
+}
+
 impl TopLevel {
     pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Option<Self> {
         match pair.as_rule() {
@@ -60,17 +76,9 @@ impl TopLevel {
                 let name = inner.next().unwrap().as_str().to_string();
                 let params_pair = inner.next().unwrap();
                 let params = if params_pair.as_rule() == Rule::param_list {
-                    params_pair
-                        .into_inner()
-                        .map(|p| {
-                            let mut param_inner = p.into_inner();
-                            let param_name = param_inner.next().unwrap().as_str().to_string();
-                            let param_type = TypeExpr::from_pair(param_inner.next().unwrap());
-                            (param_name, param_type)
-                        })
-                        .collect()
+                    ParamList::from_pair(params_pair)
                 } else {
-                    vec![]
+                    ParamList(vec![])
                 };
                 let return_type = if let Some(next) = inner.peek() {
                     if next.as_rule() == Rule::type_expr {
@@ -89,6 +97,25 @@ impl TopLevel {
                     return_type,
                     body: vec![],
                 })
+            }
+
+            Rule::struct_decl => {
+                let mut inner = pair.into_inner();
+                let export = if let Some(first) = inner.peek() {
+                    if first.as_rule() == Rule::export {
+                        inner.next();
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+                let name = inner.next().unwrap().as_str().to_string();
+                let fields_pair = inner.next().unwrap();
+                let fields = ParamList::from_pair(fields_pair);
+
+                Some(TopLevel::StructDecl { name, fields })
             }
 
             Rule::EOI => None,
