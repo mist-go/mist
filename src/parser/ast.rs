@@ -1,11 +1,13 @@
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "value")]
 pub enum TypeExpr {
     Identifier(String),
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "value")]
 pub enum TopLevel {
     Import(String),
     StructDecl {
@@ -21,11 +23,13 @@ pub enum TopLevel {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "value")]
 pub enum Statement {
     Expression(String),
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "value")]
 pub enum Expression {
     Identifier(String),
     IntLiteral(i64),

@@ -12,12 +12,14 @@ pub struct MistParser;
 pub type ParseError = pest::error::Error<Rule>;
 
 pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
-    let pairs = MistParser::parse(Rule::program, source)?;
+    let mut pairs = MistParser::parse(Rule::program, source)?;
 
     let mut statements = vec![];
 
-    for pair in pairs {
-        statements.push(TopLevel::from_pair(pair));
+    for pair in pairs.next().unwrap().into_inner() {
+        if let Some(stmt) = TopLevel::from_pair(pair) {
+            statements.push(stmt);
+        }
     }
 
     Ok(statements)
@@ -37,15 +39,11 @@ impl TypeExpr {
 }
 
 impl TopLevel {
-    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Option<Self> {
         match pair.as_rule() {
-            Rule::program => {
-                let inner = pair.into_inner().next().unwrap();
-                TopLevel::from_pair(inner)
-            }
             Rule::import => {
                 let path = pair.into_inner().next().unwrap().as_str().to_string();
-                TopLevel::Import(path)
+                Some(TopLevel::Import(path))
             }
             Rule::function_decl => {
                 let mut inner = pair.into_inner();
@@ -83,14 +81,17 @@ impl TopLevel {
                 } else {
                     None
                 };
+
                 // For now, we'll just ignore the function body and return an empty vector
-                TopLevel::FunctionDecl {
+                Some(TopLevel::FunctionDecl {
                     name,
                     params,
                     return_type,
                     body: vec![],
-                }
+                })
             }
+
+            Rule::EOI => None,
             _ => unimplemented!("TopLevel parsing not implemented yet {:?}", pair.as_rule()),
         }
     }
