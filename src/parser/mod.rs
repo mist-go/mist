@@ -320,18 +320,34 @@ impl Expression {
 impl Postfix {
     pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
         match pair.as_rule() {
-            Rule::postfix => {
-                let inner = pair.into_inner();
-                if let Some(field) = inner.peek() {
-                    if field.as_rule() == Rule::identifier {
-                        Postfix::FieldAccess(field.as_str().to_string())
-                    } else {
-                        Postfix::FunctionCall(inner.map(|p| Expression::from_pair(p)).collect())
-                    }
-                } else {
-                    Postfix::FunctionCall(vec![])
-                }
+            Rule::postfix => Postfix::from_pair(pair.into_inner().next().unwrap()),
+
+            Rule::field_px => {
+                let field_name = pair.into_inner().next().unwrap().as_str().to_string();
+                Postfix::FieldAccess(field_name)
             }
+
+            Rule::call_px => Postfix::Call(pair.into_inner().map(Expression::from_pair).collect()),
+
+            Rule::index_px => {
+                Postfix::Index(Expression::from_pair(pair.into_inner().next().unwrap()))
+            }
+
+            Rule::binary_px => {
+                let mut inner = pair.into_inner();
+                let op_pair = inner.next().unwrap();
+                let op = match op_pair.as_str() {
+                    "+" => BinaryOp::Plus,
+                    "-" => BinaryOp::Minus,
+                    "*" => BinaryOp::Multiply,
+                    "/" => BinaryOp::Divide,
+                    _ => {
+                        unimplemented!("Binary operator not implemented yet: {}", op_pair.as_str())
+                    }
+                };
+                Postfix::Binary(op, Expression::from_pair(inner.next().unwrap()))
+            }
+
             _ => unimplemented!("Postfix parsing not implemented yet {:?}", pair.as_rule()),
         }
     }

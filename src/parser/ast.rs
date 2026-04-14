@@ -13,6 +13,14 @@ pub enum TypeExpr {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub enum BinaryOp {
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+}
+
+#[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", content = "value")]
 pub enum TopLevel {
     Import(String),
@@ -34,7 +42,9 @@ pub enum TopLevel {
 #[serde(tag = "type", content = "value")]
 pub enum Postfix {
     FieldAccess(String),
-    FunctionCall(Vec<Expression>),
+    Call(Vec<Expression>),
+    Index(Expression),
+    Binary(BinaryOp, Expression),
 }
 
 #[derive(Debug, Clone, Serialize)]

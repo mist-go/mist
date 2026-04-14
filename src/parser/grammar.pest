@@ -95,12 +95,17 @@ primary = {
 }
 
 postfix = {
-    ("." ~ identifier)
-  | ("(" ~ (expr ~ ("," ~ expr)*)? ~ ")")
-  | ("[" ~ expr ~ "]")
-  | ("++" | "--")
-  | (("+" | "-" | "*" | "/" | "%") ~ primary)
+    field_px
+  | call_px
+  | index_px
+  | binary_px
 }
+
+field_px  = { "." ~ identifier }
+call_px   = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
+index_px  = { "[" ~ expr ~ "]" }
+binary_px = { bin_op ~ expr }
+bin_op = { "+" | "-" | "*" | "/" | "%" }
 
 expr = {
     primary ~ postfix*
