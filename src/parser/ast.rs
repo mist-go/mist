@@ -1,9 +1,11 @@
-#[derive(Debug, Clone)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, Serialize)]
 pub enum TypeExpr {
     Identifier(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum TopLevel {
     Import(String),
     StructDecl {
@@ -18,15 +20,20 @@ pub enum TopLevel {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Statement {
     Expression(String),
 }
 
+#[derive(Debug, Clone, Serialize)]
 pub enum Expression {
     Identifier(String),
     IntLiteral(i64),
     FloatLiteral(f64),
     BoolLiteral(bool),
     StringLiteral(String),
+    FunctionCall {
+        callee: Box<Expression>,
+        args: Vec<Expression>,
+    },
 }
