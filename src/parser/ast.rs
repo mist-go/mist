@@ -70,6 +70,11 @@ pub enum Statement {
         init: Option<Expression>,
     },
 
+    VarAssign {
+        target: Expression,
+        value: Expression,
+    },
+
     // if (...) stmt else stmt
     If {
         condition: Expression,
@@ -85,7 +90,7 @@ pub enum Statement {
 
     // for (...) stmt
     For {
-        init: Option<ForInit>,
+        init: (VarKind, String, Option<Expression>),
         condition: Option<Expression>,
         update: Option<Expression>,
         body: Box<Statement>,
@@ -117,14 +122,4 @@ pub enum VarKind {
     Let,
     Const,
     Var,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub enum ForInit {
-    VarDecl {
-        kind: VarKind,
-        name: String,
-        init: Option<Expression>,
-    },
-    Expr(Expression),
 }

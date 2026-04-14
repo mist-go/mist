@@ -229,30 +229,32 @@ impl Statement {
             Rule::for_stmt => {
                 let mut inner = pair.into_inner();
 
-                let init = inner.next().map(|p| match p.as_rule() {
-                    Rule::var_decl_no_semicolon => {
-                        let mut it = p.into_inner();
+                let init = inner
+                    .next()
+                    .map(|p| match p.as_rule() {
+                        Rule::var_decl => {
+                            let mut it = p.into_inner();
 
-                        let kind = match it.next().unwrap().as_str() {
-                            "let" => VarKind::Let,
-                            "const" => VarKind::Const,
-                            "var" => VarKind::Var,
-                            _ => unreachable!(),
-                        };
+                            let kind = match it.next().unwrap().as_str() {
+                                "let" => VarKind::Let,
+                                "const" => VarKind::Const,
+                                "var" => VarKind::Var,
+                                _ => unreachable!(),
+                            };
 
-                        let name = it.next().unwrap().as_str().to_string();
-                        let init_expr = it
-                            .next()
-                            .map(|e| Expression::from_pair(e.into_inner().next().unwrap()));
+                            let name = it.next().unwrap().as_str().to_string();
+                            let init_expr = it
+                                .next()
+                                .map(|e| Expression::from_pair(e.into_inner().next().unwrap()));
 
-                        ForInit::VarDecl {
-                            kind,
-                            name,
-                            init: init_expr,
+                            (kind, name, init_expr)
                         }
-                    }
-                    _ => ForInit::Expr(Expression::from_pair(p)),
-                });
+                        _ => unimplemented!(
+                            "For loop init parsing not implemented yet: {:?}",
+                            p.as_rule()
+                        ),
+                    })
+                    .unwrap();
 
                 let condition = inner.next().map(Expression::from_pair);
                 let update = inner.next().map(Expression::from_pair);
@@ -260,10 +262,18 @@ impl Statement {
 
                 Statement::For {
                     init,
-                    condition,
-                    update,
+                    condition: None,
+                    update: None,
                     body: Box::new(body),
                 }
+            }
+
+            Rule::var_assign => {
+                let mut inner = pair.into_inner();
+                let target = Expression::from_pair(inner.next().unwrap());
+                let value = Expression::from_pair(inner.next().unwrap());
+
+                Statement::VarAssign { target, value }
             }
 
             _ => unimplemented!(

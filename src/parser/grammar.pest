@@ -39,6 +39,7 @@ statement_list = { statement* }
 statement = _{
     expr_stmt
   | var_decl
+  | var_assign
   | if_stmt
   | while_stmt
   | for_stmt
@@ -66,6 +67,10 @@ var_decl = {
     var_decl_kind ~ identifier ~ ("=" ~ expr)? ~ ";"
 }
 
+var_assign = {
+    expr ~ "=" ~ expr ~ ";"
+}
+
 // --- control flow ---
 
 if_stmt = {
@@ -77,12 +82,11 @@ while_stmt = {
 }
 
 for_stmt = {
-    "for" ~ "(" ~ (var_decl_no_semicolon | expr_stmt | ";") ~ expr? ~ ";" ~ expr? ~ ")" ~ statement
+    "for" ~ "(" ~ var_decl ~ expr ~ ";" ~ var_assign_no_semicolon ~ ")" ~ statement
 }
 
-// helper (same as var_decl but no trailing ;)
-var_decl_no_semicolon = {
-    var_decl_kind ~ identifier ~ ("=" ~ expr)?
+var_assign_no_semicolon = {
+    expr ~ "=" ~ expr
 }
 
 // ================= EXPRESSIONS =================
