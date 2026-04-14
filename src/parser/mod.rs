@@ -75,9 +75,8 @@ impl TopLevel {
                     false
                 };
                 let name = inner.next().unwrap().as_str().to_string();
-                let params_pair = inner.next().unwrap();
-                let params = if params_pair.as_rule() == Rule::param_list {
-                    ParamList::from_pair(params_pair)
+                let params = if inner.peek().unwrap().as_rule() == Rule::param_list {
+                    ParamList::from_pair(inner.next().unwrap())
                 } else {
                     ParamList(vec![])
                 };

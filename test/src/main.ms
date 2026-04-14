@@ -15,3 +15,7 @@ function add(a: int, b: int): int {
         return 0;
     }
 }
+
+function main() {
+    add(10, 10);
+}
