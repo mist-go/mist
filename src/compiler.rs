@@ -41,7 +41,7 @@ pub fn build() {
 
     let ast = match parser::parse(&source) {
         Ok(ast) => {
-            println!("  ✓ parsed {} items", ast.statements.len());
+            println!("  ✓ parsed {} items", ast.len());
             ast
         }
         Err(e) => {
@@ -52,7 +52,8 @@ pub fn build() {
 
     println!("  → generating Go code...");
 
-    let output = gogen::generate(&ast);
+    // let output = gogen::generate(&ast);
+    let output = String::from("// TODO: implement code generation\n");
 
     // 4. ensure build dir
     if let Err(e) = fs::create_dir_all(&out_dir) {
