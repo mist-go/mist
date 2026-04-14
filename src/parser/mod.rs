@@ -257,13 +257,13 @@ impl Statement {
                     .unwrap();
 
                 let condition = inner.next().map(Expression::from_pair);
-                let update = inner.next().map(Expression::from_pair);
+                let update = inner.next().map(parse_var_assign_no_semicolon);
                 let body = Statement::from_pair(inner.next().unwrap());
 
                 Statement::For {
                     init,
-                    condition: None,
-                    update: None,
+                    condition,
+                    update: update.map(Box::new),
                     body: Box::new(body),
                 }
             }
@@ -369,4 +369,12 @@ impl Postfix {
             _ => unimplemented!("Postfix parsing not implemented yet {:?}", pair.as_rule()),
         }
     }
+}
+
+fn parse_var_assign_no_semicolon(pair: pest::iterators::Pair<Rule>) -> Statement {
+    let mut inner = pair.into_inner();
+    let target = Expression::from_pair(inner.next().unwrap());
+    let value = Expression::from_pair(inner.next().unwrap());
+
+    Statement::VarAssign { target, value }
 }

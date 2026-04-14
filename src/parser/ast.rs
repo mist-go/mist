@@ -92,7 +92,7 @@ pub enum Statement {
     For {
         init: (VarKind, String, Option<Expression>),
         condition: Option<Expression>,
-        update: Option<Expression>,
+        update: Option<Box<Statement>>,
         body: Box<Statement>,
     },
 
