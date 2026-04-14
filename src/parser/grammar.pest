@@ -36,9 +36,55 @@ block = { "{" ~ statement_list ~ "}" }
 
 statement_list = { statement* }
 
-statement = _{ expr_stmt }
+statement = _{
+      expr_stmt
+    | var_decl
+    | if_stmt
+    | while_stmt
+    | for_stmt
+    | return_stmt
+    | break_stmt
+    | continue_stmt
+    | block
+}
+
+// --- basic statements ---
 
 expr_stmt = { expr ~ ";" }
+
+return_stmt = { "return" ~ expr? ~ ";" }
+
+break_stmt = { "break" ~ ";" }
+
+continue_stmt = { "continue" ~ ";" }
+
+// --- variable declarations ---
+
+var_decl = {
+    ("let" | "const" | "var") ~ identifier ~ ("=" ~ expr)? ~ ";"
+}
+
+// --- control flow ---
+
+if_stmt = {
+    "if" ~ "(" ~ expr ~ ")" ~ statement ~ ("else" ~ statement)?
+}
+
+while_stmt = {
+    "while" ~ "(" ~ expr ~ ")" ~ statement
+}
+
+for_stmt = {
+    "for" ~ "(" ~ (var_decl_no_semicolon | expr_stmt | ";")
+           ~ expr? ~ ";"
+           ~ expr? ~ ")"
+           ~ statement
+}
+
+// helper (same as var_decl but no trailing ;)
+var_decl_no_semicolon = {
+    ("let" | "const" | "var") ~ identifier ~ ("=" ~ expr)?
+}
 
 // ================= EXPRESSIONS =================
 type_expr = { identifier }

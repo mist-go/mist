@@ -6,5 +6,7 @@ struct Point {
 }
 
 function add(a: int, b: int): int {
-    idk.do_something(123, "abc");
+    if (x) {
+        if (y) return 1;
+    }
 }

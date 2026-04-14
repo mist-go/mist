@@ -1,6 +1,12 @@
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
+pub struct ParamList(pub Vec<(String, TypeExpr)>);
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Block(pub Vec<Statement>);
+
+#[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", content = "value")]
 pub enum TypeExpr {
     Identifier(String),
@@ -26,8 +32,53 @@ pub enum TopLevel {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", content = "value")]
+pub enum Postfix {
+    FieldAccess(String),
+    FunctionCall(Vec<Expression>),
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "value")]
 pub enum Statement {
+    // expr;
     Expression(Expression),
+
+    // { ... }
+    Block(Block),
+
+    // let/const/var x = ...
+    VarDecl {
+        kind: VarKind,
+        name: String,
+        init: Option<Expression>,
+    },
+
+    // if (...) stmt else stmt
+    If {
+        condition: Expression,
+        then_branch: Box<Statement>,
+        else_branch: Option<Box<Statement>>,
+    },
+
+    // while (...) stmt
+    While {
+        condition: Expression,
+        body: Box<Statement>,
+    },
+
+    // for (...) stmt
+    For {
+        init: Option<ForInit>,
+        condition: Option<Expression>,
+        update: Option<Expression>,
+        body: Box<Statement>,
+    },
+
+    // return expr?;
+    Return(Option<Expression>),
+
+    Break,
+    Continue,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -45,14 +96,18 @@ pub enum Expression {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "value")]
-pub enum Postfix {
-    FieldAccess(String),
-    FunctionCall(Vec<Expression>),
+pub enum VarKind {
+    Let,
+    Const,
+    Var,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct ParamList(pub Vec<(String, TypeExpr)>);
-
-#[derive(Debug, Clone, Serialize)]
-pub struct Block(pub Vec<Statement>);
+pub enum ForInit {
+    VarDecl {
+        kind: VarKind,
+        name: String,
+        init: Option<Expression>,
+    },
+    Expr(Expression),
+}

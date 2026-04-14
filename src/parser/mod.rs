@@ -154,10 +154,118 @@ impl Statement {
                 let inner = pair.into_inner().next().unwrap();
                 Statement::from_pair(inner)
             }
+
             Rule::expr_stmt => {
                 let expr_pair = pair.into_inner().next().unwrap();
                 Statement::Expression(Expression::from_pair(expr_pair))
             }
+
+            Rule::block => Statement::Block(Block::from_pair(pair.into_inner().next().unwrap())),
+
+            Rule::var_decl => {
+                let mut inner = pair.into_inner();
+
+                let kind_pair = inner.next().unwrap(); // let/const/var
+                let name_pair = inner.next().unwrap(); // identifier
+
+                let init = inner.next().map(|expr_pair| {
+                    // expects "=" expr
+                    Expression::from_pair(expr_pair.into_inner().next().unwrap())
+                });
+
+                let kind = match kind_pair.as_str() {
+                    "let" => VarKind::Let,
+                    "const" => VarKind::Const,
+                    "var" => VarKind::Var,
+                    _ => unreachable!(),
+                };
+
+                Statement::VarDecl {
+                    kind,
+                    name: name_pair.as_str().to_string(),
+                    init,
+                }
+            }
+
+            Rule::return_stmt => {
+                let mut inner = pair.into_inner();
+
+                let expr = inner.next().map(Expression::from_pair);
+
+                Statement::Return(expr)
+            }
+
+            Rule::break_stmt => Statement::Break,
+
+            Rule::continue_stmt => Statement::Continue,
+
+            Rule::if_stmt => {
+                let mut inner = pair.into_inner();
+
+                let condition = Expression::from_pair(inner.next().unwrap());
+                let then_branch = Statement::from_pair(inner.next().unwrap());
+
+                let else_branch = inner.next().map(Statement::from_pair);
+
+                Statement::If {
+                    condition,
+                    then_branch: Box::new(then_branch),
+                    else_branch: else_branch.map(Box::new),
+                }
+            }
+
+            Rule::while_stmt => {
+                let mut inner = pair.into_inner();
+
+                let condition = Expression::from_pair(inner.next().unwrap());
+                let body = Statement::from_pair(inner.next().unwrap());
+
+                Statement::While {
+                    condition,
+                    body: Box::new(body),
+                }
+            }
+
+            Rule::for_stmt => {
+                let mut inner = pair.into_inner();
+
+                let init = inner.next().map(|p| match p.as_rule() {
+                    Rule::var_decl_no_semicolon => {
+                        let mut it = p.into_inner();
+
+                        let kind = match it.next().unwrap().as_str() {
+                            "let" => VarKind::Let,
+                            "const" => VarKind::Const,
+                            "var" => VarKind::Var,
+                            _ => unreachable!(),
+                        };
+
+                        let name = it.next().unwrap().as_str().to_string();
+                        let init_expr = it
+                            .next()
+                            .map(|e| Expression::from_pair(e.into_inner().next().unwrap()));
+
+                        ForInit::VarDecl {
+                            kind,
+                            name,
+                            init: init_expr,
+                        }
+                    }
+                    _ => ForInit::Expr(Expression::from_pair(p)),
+                });
+
+                let condition = inner.next().map(Expression::from_pair);
+                let update = inner.next().map(Expression::from_pair);
+                let body = Statement::from_pair(inner.next().unwrap());
+
+                Statement::For {
+                    init,
+                    condition,
+                    update,
+                    body: Box::new(body),
+                }
+            }
+
             _ => unimplemented!(
                 "Statement parsing not implemented yet: {:?}",
                 pair.as_rule()
