@@ -60,8 +60,10 @@ continue_stmt = { "continue" ~ ";" }
 
 // --- variable declarations ---
 
+var_decl_kind = { "let" | "const" | "var" }
+
 var_decl = {
-    ("let" | "const" | "var") ~ identifier ~ ("=" ~ expr)? ~ ";"
+    var_decl_kind ~ identifier ~ ("=" ~ expr)? ~ ";"
 }
 
 // --- control flow ---
@@ -80,7 +82,7 @@ for_stmt = {
 
 // helper (same as var_decl but no trailing ;)
 var_decl_no_semicolon = {
-    ("let" | "const" | "var") ~ identifier ~ ("=" ~ expr)?
+    var_decl_kind ~ identifier ~ ("=" ~ expr)?
 }
 
 // ================= EXPRESSIONS =================
