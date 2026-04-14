@@ -92,6 +92,7 @@ impl TopLevel {
 
                 // For now, we'll just ignore the function body and return an empty vector
                 Some(TopLevel::FunctionDecl {
+                    export,
                     name,
                     params,
                     return_type,
@@ -115,7 +116,11 @@ impl TopLevel {
                 let fields_pair = inner.next().unwrap();
                 let fields = ParamList::from_pair(fields_pair);
 
-                Some(TopLevel::StructDecl { name, fields })
+                Some(TopLevel::StructDecl {
+                    export,
+                    name,
+                    fields,
+                })
             }
 
             Rule::EOI => None,

@@ -11,10 +11,12 @@ pub enum TypeExpr {
 pub enum TopLevel {
     Import(String),
     StructDecl {
+        export: bool,
         name: String,
         fields: ParamList,
     },
     FunctionDecl {
+        export: bool,
         name: String,
         params: ParamList,
         return_type: Option<TypeExpr>,
