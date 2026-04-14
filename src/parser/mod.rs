@@ -63,6 +63,7 @@ impl TopLevel {
             }
             Rule::function_decl => {
                 let mut inner = pair.into_inner();
+
                 let export = if let Some(first) = inner.peek() {
                     if first.as_rule() == Rule::export {
                         inner.next();
@@ -90,13 +91,14 @@ impl TopLevel {
                     None
                 };
 
-                // For now, we'll just ignore the function body and return an empty vector
+                let body = Block::from_pair(inner.next().unwrap());
+
                 Some(TopLevel::FunctionDecl {
                     export,
                     name,
                     params,
                     return_type,
-                    body: vec![],
+                    body,
                 })
             }
 
@@ -125,6 +127,41 @@ impl TopLevel {
 
             Rule::EOI => None,
             _ => unimplemented!("TopLevel parsing not implemented yet {:?}", pair.as_rule()),
+        }
+    }
+}
+
+impl Block {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+        let statements = pair
+            .into_inner()
+            .flat_map(|pair| {
+                if pair.as_rule() == Rule::statement_list {
+                    pair.into_inner().map(Statement::from_pair).collect()
+                } else {
+                    vec![Statement::from_pair(pair)]
+                }
+            })
+            .collect();
+        Block(statements)
+    }
+}
+
+impl Statement {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::statement => {
+                let inner = pair.into_inner().next().unwrap();
+                Statement::from_pair(inner)
+            }
+            Rule::expr_stmt => {
+                let expr_pair = pair.into_inner().next().unwrap();
+                Statement::Expression(Expression::from_pair(expr_pair))
+            }
+            _ => unimplemented!(
+                "Statement parsing not implemented yet: {:?}",
+                pair.as_rule()
+            ),
         }
     }
 }

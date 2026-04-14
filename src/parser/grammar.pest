@@ -15,7 +15,7 @@ inner_str  = @{ (!"\"" ~ ANY)* }
 
 top_level = _{ import | function_decl | struct_decl }
 
-export = { "export"? }
+export = { "export" }
 
 import = { "import" ~ string_lit ~ ";" }
 
@@ -23,11 +23,11 @@ param_list = { param ~ ("," ~ param)* ~ ","? }
 param      = { identifier ~ ":" ~ type_expr }
 
 struct_decl = {
-    export ~ "struct" ~ identifier ~ "{" ~ param_list? ~ "}"
+    export? ~ "struct" ~ identifier ~ "{" ~ param_list? ~ "}"
 }
 
 function_decl = {
-    export ~ "function" ~ identifier ~ "(" ~ param_list? ~ ")" ~ (":" ~ type_expr)? ~ block
+    export? ~ "function" ~ identifier ~ "(" ~ param_list? ~ ")" ~ (":" ~ type_expr)? ~ block
 }
 
 // ================= STATEMENTS =================
@@ -41,6 +41,6 @@ statement = _{ expr_stmt }
 expr_stmt = { expr ~ ";" }
 
 // ================= EXPRESSIONS =================
-type_expr = _{ identifier }
+type_expr = { identifier }
 
 expr = { identifier | integer | float | boolean | string_lit }

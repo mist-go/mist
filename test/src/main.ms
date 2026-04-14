@@ -5,4 +5,6 @@ struct Point {
     y: int
 }
 
-function add(a: int, b: int): int {}
+function add(a: int, b: int): int {
+    do_something;
+}

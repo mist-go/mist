@@ -20,14 +20,14 @@ pub enum TopLevel {
         name: String,
         params: ParamList,
         return_type: Option<TypeExpr>,
-        body: Vec<Statement>,
+        body: Block,
     },
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", content = "value")]
 pub enum Statement {
-    Expression(String),
+    Expression(Expression),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -46,3 +46,6 @@ pub enum Expression {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ParamList(pub Vec<(String, TypeExpr)>);
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Block(pub Vec<Statement>);
