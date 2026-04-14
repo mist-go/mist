@@ -1,8 +1,7 @@
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 COMMENT    = _{ "//" ~ (!"\n" ~ ANY)* }
 
-program =  { SOI ~ item* ~ EOI }
-item    = _{ import_decl | function_decl }
+program = { SOI ~ top_level* ~ EOI }
 
 // primitives
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
@@ -14,9 +13,11 @@ inner_str  = @{ (!"\"" ~ ANY)* }
 
 // ================= TOP LEVEL =================
 
+top_level = _{ import | function_decl }
+
 export = { "export"? }
 
-import_decl = { "import" ~ string_lit ~ ";" }
+import = { "import" ~ string_lit ~ ";" }
 
 param_list    = { param ~ ("," ~ param)* ~ ","? }
 param         = { identifier ~ ":" ~ type_expr }
@@ -26,9 +27,13 @@ function_decl = {
 
 // ================= STATEMENTS =================
 
-block = { "{" ~ "}" }
+block = { "{" ~ statement_list ~ "}" }
 
-statement = _{ "idk" }
+statement_list = { statement* }
+
+statement = _{ expr_stmt }
+
+expr_stmt = { expr ~ ";" }
 
 // ================= EXPRESSIONS =================
 type_expr = _{ identifier }

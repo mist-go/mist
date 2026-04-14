@@ -16,28 +16,84 @@ pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
 
     let mut statements = vec![];
 
-    // pairs is an iterator over the top-level program pair
-    // we need to get its inner children
     for pair in pairs {
-        match pair.as_rule() {
-            Rule::program => {
-                for inner in pair.into_inner() {
-                    match inner.as_rule() {
-                        Rule::import_decl => {
-                            let path = inner.into_inner().next().unwrap().as_str().to_string();
-                            statements.push(TopLevel::Import(path));
-                        }
-                        Rule::EOI => {}
-                        _ => {}
-                    }
-                }
-            }
-            Rule::EOI => {}
-            _ => {}
-        }
+        statements.push(TopLevel::from_pair(pair));
     }
 
     Ok(statements)
+}
+
+impl TypeExpr {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::type_expr => {
+                let inner = pair.into_inner().next().unwrap();
+                TypeExpr::from_pair(inner)
+            }
+            Rule::identifier => TypeExpr::Identifier(pair.as_str().to_string()),
+            _ => unimplemented!("TypeExpr parsing not implemented yet"),
+        }
+    }
+}
+
+impl TopLevel {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::program => {
+                let inner = pair.into_inner().next().unwrap();
+                TopLevel::from_pair(inner)
+            }
+            Rule::import => {
+                let path = pair.into_inner().next().unwrap().as_str().to_string();
+                TopLevel::Import(path)
+            }
+            Rule::function_decl => {
+                let mut inner = pair.into_inner();
+                let export = if let Some(first) = inner.peek() {
+                    if first.as_rule() == Rule::export {
+                        inner.next();
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+                let name = inner.next().unwrap().as_str().to_string();
+                let params_pair = inner.next().unwrap();
+                let params = if params_pair.as_rule() == Rule::param_list {
+                    params_pair
+                        .into_inner()
+                        .map(|p| {
+                            let mut param_inner = p.into_inner();
+                            let param_name = param_inner.next().unwrap().as_str().to_string();
+                            let param_type = TypeExpr::from_pair(param_inner.next().unwrap());
+                            (param_name, param_type)
+                        })
+                        .collect()
+                } else {
+                    vec![]
+                };
+                let return_type = if let Some(next) = inner.peek() {
+                    if next.as_rule() == Rule::type_expr {
+                        Some(TypeExpr::from_pair(inner.next().unwrap()))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                // For now, we'll just ignore the function body and return an empty vector
+                TopLevel::FunctionDecl {
+                    name,
+                    params,
+                    return_type,
+                    body: vec![],
+                }
+            }
+            _ => unimplemented!("TopLevel parsing not implemented yet {:?}", pair.as_rule()),
+        }
+    }
 }
 
 impl Expression {
