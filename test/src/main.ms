@@ -1,9 +1,17 @@
-import "fmt";
+function add(a: int, b: int): int {
+    let sum = 0;
 
-function add(a: int, b: int) -> int {
-    return a + b;
-}
+    for (let i = 0; i < 10; i = i + 1) {
+        if (i == 5) {
+            continue;
+        }
 
-function main() {
-    fmt.Println(add(10, 10) / 2);
+        sum = sum + i;
+    }
+
+    if (sum > 20) {
+        return sum;
+    } else {
+        return 0;
+    }
 }

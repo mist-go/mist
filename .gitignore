@@ -26,3 +26,4 @@ target
 /target
 
 /test/build
+/test/output.json

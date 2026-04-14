@@ -30,6 +30,13 @@ fn main() {
             }
             cmd_check(&args[2]);
         }
+        "parse" => {
+            if args.len() < 3 {
+                eprintln!("error: expected a file path\n  usage: mist check <file.ms>");
+                process::exit(1);
+            }
+            cmd_parse(&args[2]);
+        }
         "version" | "--version" | "-v" => {
             println!("mist {}", env!("CARGO_PKG_VERSION"));
         }
@@ -53,6 +60,26 @@ fn cmd_check(path: &str) {
     match parser::parse(&source) {
         Ok(_) => {
             println!("ok");
+        }
+        Err(e) => {
+            eprintln!("parse error:\n{}", e);
+            process::exit(1);
+        }
+    }
+}
+
+fn cmd_parse(path: &str) {
+    let source = read_ms_file(path);
+    match parser::parse(&source) {
+        Ok(output) => {
+            fs::write(
+                "output.json",
+                serde_json::to_string_pretty(&output).unwrap(),
+            )
+            .unwrap_or_else(|e| {
+                eprintln!("error: could not write output.json: {}", e);
+                process::exit(1);
+            });
         }
         Err(e) => {
             eprintln!("parse error:\n{}", e);

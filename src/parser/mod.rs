@@ -1,5 +1,4 @@
 use pest::Parser;
-use pest::iterators::Pair;
 use pest_derive::Parser;
 
 pub mod ast;
@@ -12,352 +11,370 @@ pub struct MistParser;
 // convenience alias for pest errors
 pub type ParseError = pest::error::Error<Rule>;
 
-pub fn parse(source: &str) -> Result<Program, ParseError> {
-    let pairs = MistParser::parse(Rule::program, source)?;
+pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
+    let mut pairs = MistParser::parse(Rule::program, source)?;
 
     let mut statements = vec![];
 
-    // pairs is an iterator over the top-level program pair
-    // we need to get its inner children
-    for pair in pairs {
+    for pair in pairs.next().unwrap().into_inner() {
+        if let Some(stmt) = TopLevel::from_pair(pair) {
+            statements.push(stmt);
+        }
+    }
+
+    Ok(statements)
+}
+
+impl TypeExpr {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
         match pair.as_rule() {
-            Rule::program => {
-                for inner in pair.into_inner() {
-                    match inner.as_rule() {
-                        Rule::function_decl => {
-                            statements.push(TopLevel::Function(parse_function(inner)))
-                        }
-                        Rule::struct_decl => statements.push(TopLevel::Struct(parse_struct(inner))),
-                        Rule::class_decl => statements.push(TopLevel::Class(parse_class(inner))),
-                        Rule::import_decl => statements.push(TopLevel::Import(parse_import(inner))),
-                        Rule::EOI => {}
-                        _ => {}
+            Rule::type_expr => {
+                let inner = pair.into_inner().next().unwrap();
+                TypeExpr::from_pair(inner)
+            }
+            Rule::identifier => TypeExpr::Identifier(pair.as_str().to_string()),
+            _ => unimplemented!("TypeExpr parsing not implemented yet"),
+        }
+    }
+}
+
+impl ParamList {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+        let params = pair
+            .into_inner()
+            .map(|p| {
+                let mut param_inner = p.into_inner();
+                let param_name = param_inner.next().unwrap().as_str().to_string();
+                let param_type = TypeExpr::from_pair(param_inner.next().unwrap());
+                (param_name, param_type)
+            })
+            .collect();
+
+        ParamList(params)
+    }
+}
+
+impl TopLevel {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Option<Self> {
+        match pair.as_rule() {
+            Rule::import => {
+                let path = pair.into_inner().next().unwrap().as_str().to_string();
+                Some(TopLevel::Import(path))
+            }
+            Rule::function_decl => {
+                let mut inner = pair.into_inner();
+
+                let export = if let Some(first) = inner.peek() {
+                    if first.as_rule() == Rule::export {
+                        inner.next();
+                        true
+                    } else {
+                        false
                     }
+                } else {
+                    false
+                };
+                let name = inner.next().unwrap().as_str().to_string();
+                let params_pair = inner.next().unwrap();
+                let params = if params_pair.as_rule() == Rule::param_list {
+                    ParamList::from_pair(params_pair)
+                } else {
+                    ParamList(vec![])
+                };
+                let return_type = if let Some(next) = inner.peek() {
+                    if next.as_rule() == Rule::type_expr {
+                        Some(TypeExpr::from_pair(inner.next().unwrap()))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                let body = Block::from_pair(inner.next().unwrap());
+
+                Some(TopLevel::FunctionDecl {
+                    export,
+                    name,
+                    params,
+                    return_type,
+                    body,
+                })
+            }
+
+            Rule::struct_decl => {
+                let mut inner = pair.into_inner();
+                let export = if let Some(first) = inner.peek() {
+                    if first.as_rule() == Rule::export {
+                        inner.next();
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+                let name = inner.next().unwrap().as_str().to_string();
+                let fields_pair = inner.next().unwrap();
+                let fields = ParamList::from_pair(fields_pair);
+
+                Some(TopLevel::StructDecl {
+                    export,
+                    name,
+                    fields,
+                })
+            }
+
+            Rule::EOI => None,
+            _ => unimplemented!("TopLevel parsing not implemented yet {:?}", pair.as_rule()),
+        }
+    }
+}
+
+impl Block {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+        let statements = pair
+            .into_inner()
+            .flat_map(|pair| {
+                if pair.as_rule() == Rule::statement_list {
+                    pair.into_inner().map(Statement::from_pair).collect()
+                } else {
+                    vec![Statement::from_pair(pair)]
                 }
+            })
+            .collect();
+        Block(statements)
+    }
+}
+
+impl Statement {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::statement => {
+                let inner = pair.into_inner().next().unwrap();
+                Statement::from_pair(inner)
             }
-            Rule::EOI => {}
-            _ => {}
-        }
-    }
 
-    Ok(Program { statements })
-}
-
-fn span_of(pair: &Pair<Rule>) -> Span {
-    let s = pair.as_span();
-    Span {
-        start: s.start(),
-        end: s.end(),
-    }
-}
-
-fn parse_function(pair: Pair<Rule>) -> Function {
-    let span = span_of(&pair);
-    let mut inner = pair.into_inner();
-
-    let name = inner.next().unwrap().as_str().to_string();
-
-    let mut params = vec![];
-    let mut return_type = None;
-    let mut body = vec![];
-
-    for part in inner {
-        match part.as_rule() {
-            Rule::param_list => params = parse_param_list(part),
-            Rule::type_expr => return_type = Some(parse_type_expr(part)),
-            Rule::block => body = parse_block(part),
-            _ => {}
-        }
-    }
-
-    Function {
-        name,
-        params,
-        return_type,
-        body,
-        span,
-    }
-}
-
-fn parse_param_list(pair: Pair<Rule>) -> Vec<Param> {
-    pair.into_inner()
-        .map(|p| {
-            let span = span_of(&p);
-            let mut inner = p.into_inner();
-            let name = inner.next().unwrap().as_str().to_string();
-            let type_expr = parse_type_expr(inner.next().unwrap());
-            Param {
-                name,
-                type_expr,
-                span,
+            Rule::expr_stmt => {
+                let expr_pair = pair.into_inner().next().unwrap();
+                Statement::Expression(Expression::from_pair(expr_pair))
             }
-        })
-        .collect()
-}
 
-fn parse_struct(pair: Pair<Rule>) -> Struct {
-    let span = span_of(&pair);
-    let mut inner = pair.into_inner();
-    let name = inner.next().unwrap().as_str().to_string();
-    let fields = inner.map(|f| parse_struct_field(f)).collect();
-    Struct { name, fields, span }
-}
+            Rule::block => Statement::Block(Block::from_pair(pair.into_inner().next().unwrap())),
 
-fn parse_struct_field(pair: Pair<Rule>) -> StructField {
-    let span = span_of(&pair);
-    let mut inner = pair.into_inner();
-    let name = inner.next().unwrap().as_str().to_string();
-    let type_expr = parse_type_expr(inner.next().unwrap());
-    StructField {
-        name,
-        type_expr,
-        span,
-    }
-}
+            Rule::var_decl => {
+                let mut inner = pair.into_inner();
 
-fn parse_class(pair: Pair<Rule>) -> Class {
-    let span = span_of(&pair);
-    let mut inner = pair.into_inner();
-    let name = inner.next().unwrap().as_str().to_string();
-    let mut fields = vec![];
-    let mut methods = vec![];
+                let kind_pair = inner.next().unwrap(); // let/const/var
+                let name_pair = inner.next().unwrap(); // identifier
 
-    for part in inner {
-        match part.as_rule() {
-            Rule::struct_field => fields.push(parse_struct_field(part)),
-            Rule::function_decl => methods.push(parse_function(part)),
-            _ => {}
-        }
-    }
+                let init = inner.next().map(|expr_pair| {
+                    // expects "=" expr
+                    Expression::from_pair(expr_pair.into_inner().next().unwrap())
+                });
 
-    Class {
-        name,
-        fields,
-        methods,
-        span,
-    }
-}
-
-fn parse_import(pair: Pair<Rule>) -> Import {
-    let span = span_of(&pair);
-    let path = pair.into_inner().next().unwrap().as_str().to_string();
-    Import { path, span }
-}
-
-fn parse_block(pair: Pair<Rule>) -> Vec<Statement> {
-    pair.into_inner()
-        .filter_map(|p| parse_statement(p))
-        .collect()
-}
-
-fn parse_statement(pair: Pair<Rule>) -> Option<Statement> {
-    match pair.as_rule() {
-        Rule::let_stmt => Some(Statement::Let(parse_let(pair))),
-        Rule::return_stmt => Some(Statement::Return(parse_return(pair))),
-        Rule::if_stmt => Some(Statement::If(parse_if(pair))),
-        Rule::for_stmt => Some(Statement::For(parse_for(pair))),
-        Rule::expression_stmt => {
-            let expr = pair.into_inner().next().unwrap();
-            Some(Statement::Expression(parse_expression(expr)))
-        }
-        Rule::expression => Some(Statement::Expression(parse_expression(pair))),
-        _ => None,
-    }
-}
-
-fn parse_let(pair: Pair<Rule>) -> LetStatement {
-    let span = span_of(&pair);
-    let mut inner = pair.into_inner();
-    let name = inner.next().unwrap().as_str().to_string();
-
-    // peek ahead — next is either a type or an expression
-    let next = inner.next().unwrap();
-    let (type_expr, value) = if next.as_rule() == Rule::type_expr {
-        (
-            Some(parse_type_expr(next)),
-            parse_expression(inner.next().unwrap()),
-        )
-    } else {
-        (None, parse_expression(next))
-    };
-
-    LetStatement {
-        name,
-        type_expr,
-        value,
-        span,
-    }
-}
-
-fn parse_return(pair: Pair<Rule>) -> ReturnStatement {
-    let span = span_of(&pair);
-    let value = pair.into_inner().next().map(|p| parse_expression(p));
-    ReturnStatement { value, span }
-}
-
-fn parse_if(pair: Pair<Rule>) -> IfStatement {
-    let span = span_of(&pair);
-    let mut inner = pair.into_inner();
-    let condition = parse_expression(inner.next().unwrap());
-    let body = parse_block(inner.next().unwrap());
-    let else_body = inner.next().map(|p| parse_block(p));
-    IfStatement {
-        condition,
-        body,
-        else_body,
-        span,
-    }
-}
-
-fn parse_for(pair: Pair<Rule>) -> ForStatement {
-    let span = span_of(&pair);
-    let mut inner = pair.into_inner();
-    let var = inner.next().unwrap().as_str().to_string();
-    let iterator = parse_expression(inner.next().unwrap());
-    let body = parse_block(inner.next().unwrap());
-    ForStatement {
-        var,
-        iterator,
-        body,
-        span,
-    }
-}
-
-fn parse_expression(pair: Pair<Rule>) -> Expression {
-    match pair.as_rule() {
-        Rule::expression => {
-            let mut inner = pair.into_inner();
-            let mut expr = parse_term(inner.next().unwrap());
-
-            // consume pairs of (bin_op, term)
-            while let Some(op_pair) = inner.next() {
-                let right = parse_term(inner.next().unwrap());
-                let span = span_of(&op_pair);
-                let op = match op_pair.as_rule() {
-                    Rule::add => BinOperator::Add,
-                    Rule::sub => BinOperator::Sub,
-                    Rule::mul => BinOperator::Mul,
-                    Rule::div => BinOperator::Div,
-                    Rule::eq => BinOperator::Eq,
-                    Rule::neq => BinOperator::NotEq,
-                    Rule::lt => BinOperator::Lt,
-                    Rule::gt => BinOperator::Gt,
-                    Rule::lte => BinOperator::LtEq,
-                    Rule::gte => BinOperator::GtEq,
-                    Rule::and => BinOperator::And,
-                    Rule::or => BinOperator::Or,
+                let kind = match kind_pair.as_str() {
+                    "let" => VarKind::Let,
+                    "const" => VarKind::Const,
+                    "var" => VarKind::Var,
                     _ => unreachable!(),
                 };
-                expr = Expression::BinaryOp(Box::new(BinaryOp {
-                    left: expr,
-                    op,
-                    right,
-                    span,
-                }));
+
+                Statement::VarDecl {
+                    kind,
+                    name: name_pair.as_str().to_string(),
+                    init,
+                }
             }
 
-            expr
+            Rule::return_stmt => {
+                let mut inner = pair.into_inner();
+
+                let expr = inner.next().map(Expression::from_pair);
+
+                Statement::Return(expr)
+            }
+
+            Rule::break_stmt => Statement::Break,
+
+            Rule::continue_stmt => Statement::Continue,
+
+            Rule::if_stmt => {
+                let mut inner = pair.into_inner();
+
+                let condition = Expression::from_pair(inner.next().unwrap());
+                let then_branch = Statement::from_pair(inner.next().unwrap());
+
+                let else_branch = inner.next().map(Statement::from_pair);
+
+                Statement::If {
+                    condition,
+                    then_branch: Box::new(then_branch),
+                    else_branch: else_branch.map(Box::new),
+                }
+            }
+
+            Rule::while_stmt => {
+                let mut inner = pair.into_inner();
+
+                let condition = Expression::from_pair(inner.next().unwrap());
+                let body = Statement::from_pair(inner.next().unwrap());
+
+                Statement::While {
+                    condition,
+                    body: Box::new(body),
+                }
+            }
+
+            Rule::for_stmt => {
+                let mut inner = pair.into_inner();
+
+                let init = inner
+                    .next()
+                    .map(|p| match p.as_rule() {
+                        Rule::var_decl => {
+                            let mut it = p.into_inner();
+
+                            let kind = match it.next().unwrap().as_str() {
+                                "let" => VarKind::Let,
+                                "const" => VarKind::Const,
+                                "var" => VarKind::Var,
+                                _ => unreachable!(),
+                            };
+
+                            let name = it.next().unwrap().as_str().to_string();
+                            let init_expr = it
+                                .next()
+                                .map(|e| Expression::from_pair(e.into_inner().next().unwrap()));
+
+                            (kind, name, init_expr)
+                        }
+                        _ => unimplemented!(
+                            "For loop init parsing not implemented yet: {:?}",
+                            p.as_rule()
+                        ),
+                    })
+                    .unwrap();
+
+                let condition = inner.next().map(Expression::from_pair);
+                let update = inner.next().map(parse_var_assign_no_semicolon);
+                let body = Statement::from_pair(inner.next().unwrap());
+
+                Statement::For {
+                    init,
+                    condition,
+                    update: update.map(Box::new),
+                    body: Box::new(body),
+                }
+            }
+
+            Rule::var_assign => {
+                let mut inner = pair.into_inner();
+                let target = Expression::from_pair(inner.next().unwrap());
+                let value = Expression::from_pair(inner.next().unwrap());
+
+                Statement::VarAssign { target, value }
+            }
+
+            _ => unimplemented!(
+                "Statement parsing not implemented yet: {:?}",
+                pair.as_rule()
+            ),
         }
-        _ => parse_term(pair),
     }
 }
 
-fn parse_term(pair: Pair<Rule>) -> Expression {
+impl Expression {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::expr => {
+                let mut inner = pair.into_inner();
+                let exp = Expression::from_pair(inner.next().unwrap());
+
+                if inner.len() > 0 {
+                    Expression::Postfix {
+                        initial: Box::new(exp),
+                        postfixes: inner.map(|p| Postfix::from_pair(p)).collect(),
+                    }
+                } else {
+                    exp
+                }
+            }
+            Rule::primary => Expression::from_pair(pair.into_inner().next().unwrap()),
+            Rule::identifier => Expression::Identifier(pair.as_str().to_string()),
+            Rule::integer => {
+                let value = pair.as_str().parse::<i64>().unwrap();
+                Expression::IntLiteral(value)
+            }
+            Rule::float => {
+                let value = pair.as_str().parse::<f64>().unwrap();
+                Expression::FloatLiteral(value)
+            }
+            Rule::boolean => {
+                let value = pair.as_str().parse::<bool>().unwrap();
+                Expression::BoolLiteral(value)
+            }
+            Rule::string_lit => {
+                let inner_str = pair.into_inner().next().unwrap().as_str();
+                Expression::StringLiteral(inner_str.to_string())
+            }
+
+            _ => unimplemented!(
+                "Expression parsing not implemented yet {:?}",
+                pair.as_rule()
+            ),
+        }
+    }
+}
+
+impl Postfix {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::postfix => Postfix::from_pair(pair.into_inner().next().unwrap()),
+
+            Rule::field_px => {
+                let field_name = pair.into_inner().next().unwrap().as_str().to_string();
+                Postfix::FieldAccess(field_name)
+            }
+
+            Rule::call_px => Postfix::Call(pair.into_inner().map(Expression::from_pair).collect()),
+
+            Rule::index_px => {
+                Postfix::Index(Expression::from_pair(pair.into_inner().next().unwrap()))
+            }
+
+            Rule::binary_px => {
+                let mut inner = pair.into_inner();
+                let op_pair = inner.next().unwrap();
+                let op = match op_pair.as_str() {
+                    "+" => BinaryOp::Plus,
+                    "-" => BinaryOp::Minus,
+                    "*" => BinaryOp::Multiply,
+                    "/" => BinaryOp::Divide,
+                    "%" => BinaryOp::Modulo,
+                    "==" => BinaryOp::Equal,
+                    "!=" => BinaryOp::NotEqual,
+                    "<" => BinaryOp::LessThan,
+                    ">" => BinaryOp::GreaterThan,
+                    "<=" => BinaryOp::LessThanOrEqual,
+                    ">=" => BinaryOp::GreaterThanOrEqual,
+
+                    _ => {
+                        unimplemented!("Binary operator not implemented yet: {}", op_pair.as_str())
+                    }
+                };
+                Postfix::Binary(op, Expression::from_pair(inner.next().unwrap()))
+            }
+
+            _ => unimplemented!("Postfix parsing not implemented yet {:?}", pair.as_rule()),
+        }
+    }
+}
+
+fn parse_var_assign_no_semicolon(pair: pest::iterators::Pair<Rule>) -> Statement {
     let mut inner = pair.into_inner();
-    let mut expr = parse_primary(inner.next().unwrap());
+    let target = Expression::from_pair(inner.next().unwrap());
+    let value = Expression::from_pair(inner.next().unwrap());
 
-    for part in inner {
-        let span = span_of(&part);
-        match part.as_rule() {
-            Rule::field_access => {
-                let field = part.into_inner().next().unwrap().as_str().to_string();
-                expr = Expression::FieldAccess(Box::new(FieldAccess {
-                    object: expr,
-                    field,
-                    span,
-                }));
-            }
-            Rule::call_suffix => {
-                let args = part.into_inner().map(|p| parse_expression(p)).collect();
-                expr = Expression::Call(Box::new(CallExpr {
-                    callee: expr,
-                    args,
-                    span,
-                }));
-            }
-            _ => {}
-        }
-    }
-
-    expr
-}
-
-fn parse_primary(pair: Pair<Rule>) -> Expression {
-    let span = span_of(&pair);
-
-    match pair.as_rule() {
-        Rule::struct_literal => {
-            let mut inner = pair.into_inner();
-            let name = inner.next().unwrap().as_str().to_string();
-
-            inner = inner.next().unwrap().into_inner();
-
-            // println!("{inner:#?}");
-
-            let mut fields = vec![];
-            for field in inner {
-                let mut f_inner = field.into_inner();
-                let field_name = f_inner.next().unwrap().as_str().to_string();
-                let value = parse_expression(f_inner.next().unwrap());
-
-                fields.push((field_name, value));
-            }
-
-            Expression::StructInit(Box::new(StructInit { name, fields, span }))
-        }
-
-        Rule::array_literal => {
-            let elements = pair.into_inner().map(|p| parse_expression(p)).collect();
-
-            Expression::ArrayLiteral(Box::new(ArrayLiteral { elements, span }))
-        }
-
-        Rule::integer => Expression::Integer(pair.as_str().parse().unwrap(), span),
-        Rule::float => Expression::Float(pair.as_str().parse().unwrap(), span),
-
-        Rule::string_lit => {
-            Expression::StringLit(pair.into_inner().next().unwrap().as_str().to_string(), span)
-        }
-
-        Rule::boolean => Expression::Bool(pair.as_str() == "true", span),
-
-        Rule::self_kw => Expression::Identifier("self".to_string(), span),
-        Rule::null_kw => Expression::Identifier("null".to_string(), span),
-        Rule::identifier => Expression::Identifier(pair.as_str().to_string(), span),
-
-        Rule::term => parse_term(pair),
-
-        _ => unreachable!("unexpected primary rule: {:?}", pair.as_rule()),
-    }
-}
-
-fn parse_type_expr(pair: Pair<Rule>) -> TypeExpr {
-    let mut inner = pair.into_inner();
-    let base = inner.next().unwrap();
-
-    let base_type = match base.as_rule() {
-        Rule::array_type => {
-            let inner_type = parse_type_expr(base.into_inner().next().unwrap());
-            TypeExpr::Array(Box::new(inner_type))
-        }
-        Rule::identifier => TypeExpr::Named(base.as_str().to_string()),
-        _ => unreachable!(),
-    };
-
-    // if a "?" suffix was present, wrap in Optional
-    if inner.next().is_some() {
-        TypeExpr::Optional(Box::new(base_type))
-    } else {
-        base_type
-    }
+    Statement::VarAssign { target, value }
 }

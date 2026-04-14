@@ -1,187 +1,125 @@
-#[derive(Debug, Clone)]
-pub struct Span {
-    pub start: usize,
-    pub end: usize,
-}
+use serde::Serialize;
 
-#[derive(Debug, Clone)]
-pub struct Program {
-    pub statements: Vec<TopLevel>,
-}
+#[derive(Debug, Clone, Serialize)]
+pub struct ParamList(pub Vec<(String, TypeExpr)>);
 
-#[derive(Debug, Clone)]
-pub enum TopLevel {
-    Function(Function),
-    Struct(Struct),
-    Class(Class),
-    Import(Import),
-}
+#[derive(Debug, Clone, Serialize)]
+pub struct Block(pub Vec<Statement>);
 
-#[derive(Debug, Clone)]
-pub struct Function {
-    pub name: String,
-    pub params: Vec<Param>,
-    pub return_type: Option<TypeExpr>,
-    pub body: Vec<Statement>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub struct Param {
-    pub name: String,
-    pub type_expr: TypeExpr,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub struct Struct {
-    pub name: String,
-    pub fields: Vec<StructField>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub struct StructField {
-    pub name: String,
-    pub type_expr: TypeExpr,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub struct Class {
-    pub name: String,
-    pub fields: Vec<StructField>,
-    pub methods: Vec<Function>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub struct Import {
-    pub path: String,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub enum Statement {
-    Let(LetStatement),
-    Return(ReturnStatement),
-    Expression(Expression),
-    If(IfStatement),
-    For(ForStatement),
-}
-
-#[derive(Debug, Clone)]
-pub struct LetStatement {
-    pub name: String,
-    pub type_expr: Option<TypeExpr>,
-    pub value: Expression,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub struct ReturnStatement {
-    pub value: Option<Expression>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub struct IfStatement {
-    pub condition: Expression,
-    pub body: Vec<Statement>,
-    pub else_body: Option<Vec<Statement>>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub struct ForStatement {
-    pub var: String,
-    pub iterator: Expression,
-    pub body: Vec<Statement>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub enum Expression {
-    Identifier(String, Span),
-    Integer(i64, Span),
-    Float(f64, Span),
-    StringLit(String, Span),
-    Bool(bool, Span),
-    BinaryOp(Box<BinaryOp>),
-    UnaryOp(Box<UnaryOp>),
-    Call(Box<CallExpr>),
-    FieldAccess(Box<FieldAccess>),
-    StructInit(Box<StructInit>),
-    ArrayLiteral(Box<ArrayLiteral>),
-}
-
-#[derive(Debug, Clone)]
-pub struct BinaryOp {
-    pub left: Expression,
-    pub op: BinOperator,
-    pub right: Expression,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub enum BinOperator {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Eq,
-    NotEq,
-    Lt,
-    Gt,
-    LtEq,
-    GtEq,
-    And,
-    Or,
-}
-
-#[derive(Debug, Clone)]
-pub struct UnaryOp {
-    pub op: UnaryOperator,
-    pub expr: Expression,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub enum UnaryOperator {
-    Neg,
-    Not,
-}
-
-#[derive(Debug, Clone)]
-pub struct CallExpr {
-    pub callee: Expression,
-    pub args: Vec<Expression>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub struct FieldAccess {
-    pub object: Expression,
-    pub field: String,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub struct StructInit {
-    pub name: String,
-    pub fields: Vec<(String, Expression)>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "value")]
 pub enum TypeExpr {
-    Named(String),
-    Array(Box<TypeExpr>),
-    Optional(Box<TypeExpr>),
+    Identifier(String),
 }
 
-#[derive(Debug, Clone)]
-pub struct ArrayLiteral {
-    pub elements: Vec<Expression>,
-    pub span: Span,
+#[derive(Debug, Clone, Serialize)]
+pub enum BinaryOp {
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Modulo,
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+    LessThanOrEqual,
+    GreaterThanOrEqual,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "value")]
+pub enum TopLevel {
+    Import(String),
+    StructDecl {
+        export: bool,
+        name: String,
+        fields: ParamList,
+    },
+    FunctionDecl {
+        export: bool,
+        name: String,
+        params: ParamList,
+        return_type: Option<TypeExpr>,
+        body: Block,
+    },
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "value")]
+pub enum Postfix {
+    FieldAccess(String),
+    Call(Vec<Expression>),
+    Index(Expression),
+    Binary(BinaryOp, Expression),
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "value")]
+pub enum Statement {
+    // expr;
+    Expression(Expression),
+
+    // { ... }
+    Block(Block),
+
+    // let/const/var x = ...
+    VarDecl {
+        kind: VarKind,
+        name: String,
+        init: Option<Expression>,
+    },
+
+    VarAssign {
+        target: Expression,
+        value: Expression,
+    },
+
+    // if (...) stmt else stmt
+    If {
+        condition: Expression,
+        then_branch: Box<Statement>,
+        else_branch: Option<Box<Statement>>,
+    },
+
+    // while (...) stmt
+    While {
+        condition: Expression,
+        body: Box<Statement>,
+    },
+
+    // for (...) stmt
+    For {
+        init: (VarKind, String, Option<Expression>),
+        condition: Option<Expression>,
+        update: Option<Box<Statement>>,
+        body: Box<Statement>,
+    },
+
+    // return expr?;
+    Return(Option<Expression>),
+
+    Break,
+    Continue,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "value")]
+pub enum Expression {
+    Identifier(String),
+    IntLiteral(i64),
+    FloatLiteral(f64),
+    BoolLiteral(bool),
+    StringLiteral(String),
+    Postfix {
+        initial: Box<Expression>,
+        postfixes: Vec<Postfix>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum VarKind {
+    Let,
+    Const,
+    Var,
 }
