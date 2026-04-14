@@ -14,12 +14,14 @@ inner_str  = @{ (!"\"" ~ ANY)* }
 
 // ================= TOP LEVEL =================
 
+export = { "export"? }
+
 import_decl = { "import" ~ string_lit ~ ";" }
 
 param_list    = { param ~ ("," ~ param)* ~ ","? }
 param         = { identifier ~ ":" ~ type_expr }
 function_decl = {
-    "function" ~ identifier ~ "(" ~ param_list? ~ ")" ~ (":" ~ type_expr)? ~ block
+    export ~ "function" ~ identifier ~ "(" ~ param_list? ~ ")" ~ (":" ~ type_expr)? ~ block
 }
 
 // ================= STATEMENTS =================
@@ -30,3 +32,5 @@ statement = _{ "idk" }
 
 // ================= EXPRESSIONS =================
 type_expr = _{ identifier }
+
+expr = { identifier | integer | float | boolean | string_lit }

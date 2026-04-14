@@ -39,3 +39,32 @@ pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
 
     Ok(statements)
 }
+
+impl Expression {
+    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::expr => {
+                let inner = pair.into_inner().next().unwrap();
+                Expression::from_pair(inner)
+            }
+            Rule::identifier => Expression::Identifier(pair.as_str().to_string()),
+            Rule::integer => {
+                let value = pair.as_str().parse::<i64>().unwrap();
+                Expression::IntLiteral(value)
+            }
+            Rule::float => {
+                let value = pair.as_str().parse::<f64>().unwrap();
+                Expression::FloatLiteral(value)
+            }
+            Rule::boolean => {
+                let value = pair.as_str().parse::<bool>().unwrap();
+                Expression::BoolLiteral(value)
+            }
+            Rule::string_lit => {
+                let inner_str = pair.into_inner().next().unwrap().as_str();
+                Expression::StringLiteral(inner_str.to_string())
+            }
+            _ => unimplemented!("Expression parsing not implemented yet"),
+        }
+    }
+}
