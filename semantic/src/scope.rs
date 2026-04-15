@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use parser::ast::Statement;
+use parser::ast::{ParamList, Statement};
 
 use crate::{
     hir::{FunctionRef, TopLevelHirScope, TypeRef, VarRef},
@@ -65,6 +65,25 @@ impl LocalScope {
             }
         }
     }
+
+    pub fn with_params(self: &Arc<Self>, param_list: &ParamList) {
+        for (param_name, type_expr) in &param_list.0 {
+            match type_expr {
+                parser::ast::TypeExpr::Identifier(id) => match self.parent.get_refrence(id) {
+                    Some(Refrence::Type(type_ref)) => {
+                        self.variables.lock().unwrap().insert(
+                            param_name.clone(),
+                            Arc::new(VarRef {
+                                var_type: type_ref,
+                                name: param_name.clone(),
+                            }),
+                        );
+                    }
+                    _ => unimplemented!(),
+                },
+            }
+        }
+    }
 }
 
 pub fn walk_ast(top_scope: Arc<Scope>, tl: &mut Vec<parser::ast::TopLevel>) {
@@ -80,6 +99,9 @@ pub fn walk_ast(top_scope: Arc<Scope>, tl: &mut Vec<parser::ast::TopLevel>) {
                 body,
             } => {
                 let scope = LocalScope::new(top_scope.clone());
+
+                scope.with_params(params);
+
                 scope.with_block(body);
 
                 println!("{:?}", scope);
@@ -89,9 +111,7 @@ pub fn walk_ast(top_scope: Arc<Scope>, tl: &mut Vec<parser::ast::TopLevel>) {
                 export,
                 name,
                 fields,
-            } => {
-                
-            }
+            } => {}
         }
     }
 }
