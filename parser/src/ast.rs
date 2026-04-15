@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
@@ -122,4 +124,10 @@ pub enum VarKind {
     Let,
     Const,
     Var,
+}
+
+impl ParamList {
+    pub fn to_hashmap<T>(&self, f: impl Fn(&String, &TypeExpr) -> T) -> HashMap<String, T> {
+        self.0.iter().map(|(k, v)| (k.clone(), f(k, v))).collect()
+    }
 }
