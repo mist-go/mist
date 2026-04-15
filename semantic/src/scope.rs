@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use parser::ast::{ParamList, Statement};
+use parser::ast::{self, ParamList, Statement};
 
 use crate::{
     hir::{FunctionRef, TopLevelHirScope, TypeRef, VarRef},
@@ -61,9 +61,34 @@ impl LocalScope {
         for statement in &mut block.0 {
             match statement {
                 Statement::Block(b) => self.clone().with_block(b),
-                Statement::VarDecl { kind, name, init } => unimplemented!(),
+                Statement::VarDecl { kind, name, init } => {
+                    if let Some(init) = init {
+                        self.variables.lock().unwrap().insert(
+                            name.clone(),
+                            Arc::new(VarRef {
+                                name: name.to_string(),
+                                var_type: self.get_type_from_expr(init).unwrap(),
+                            }),
+                        );
+                    }
+                }
                 _ => {}
             }
+        }
+    }
+
+    pub fn get_type_from_expr(self: &Arc<Self>, expr: &ast::Expression) -> Option<Arc<TypeRef>> {
+        match expr {
+            ast::Expression::IntLiteral(_) => {
+                self.parent.get_refrence(&"int".to_string()).map(|r| {
+                    if let Refrence::Type(tr) = &r {
+                        tr.clone()
+                    } else {
+                        unimplemented!()
+                    }
+                })
+            }
+            _ => unimplemented!(),
         }
     }
 
