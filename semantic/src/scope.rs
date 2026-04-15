@@ -32,13 +32,7 @@ impl Scope {
     pub fn get_reference(&self, name: &String) -> Option<Reference> {
         match self {
             Scope::TopLevel(tl) => tl.get_reference(name),
-            Scope::Local(l) => l
-                .variables
-                .lock()
-                .unwrap()
-                .get(name)
-                .cloned()
-                .map(Reference::Var),
+            Scope::Local(l) => l.get_reference(name),
         }
     }
 }
@@ -57,17 +51,29 @@ impl LocalScope {
         })
     }
 
+    pub fn get_reference(&self, name: &String) -> Option<Reference> {
+        self.variables
+            .lock()
+            .unwrap()
+            .get(name)
+            .cloned()
+            .map(Reference::Var)
+            .or_else(|| self.parent.get_reference(name))
+    }
+
     pub fn with_block(self: &Arc<Self>, block: &mut parser::ast::Block) {
         for statement in &mut block.0 {
             match statement {
                 Statement::Block(b) => self.clone().with_block(b),
                 Statement::VarDecl { name, init, .. } => {
                     if let Some(init) = init {
+                        let var_type = self.get_type_from_expr(init).unwrap();
+
                         self.variables.lock().unwrap().insert(
                             name.clone(),
                             Arc::new(VarRef {
                                 name: name.to_string(),
-                                var_type: self.get_type_from_expr(init).unwrap(),
+                                var_type,
                             }),
                         );
                     }
@@ -88,6 +94,43 @@ impl LocalScope {
                     }
                 })
             }
+
+            ast::Expression::FloatLiteral(_) => {
+                self.parent.get_reference(&"float".to_string()).map(|r| {
+                    if let Reference::Type(tr) = &r {
+                        tr.clone()
+                    } else {
+                        unimplemented!()
+                    }
+                })
+            }
+
+            ast::Expression::BoolLiteral(_) => {
+                self.parent.get_reference(&"bool".to_string()).map(|r| {
+                    if let Reference::Type(tr) = &r {
+                        tr.clone()
+                    } else {
+                        unimplemented!()
+                    }
+                })
+            }
+
+            ast::Expression::StringLiteral(_) => {
+                self.parent.get_reference(&"string".to_string()).map(|r| {
+                    if let Reference::Type(tr) = &r {
+                        tr.clone()
+                    } else {
+                        unimplemented!()
+                    }
+                })
+            }
+
+            ast::Expression::Identifier(id) => match self.get_reference(id) {
+                Some(Reference::Var(var_ref)) => Some(var_ref.var_type.clone()),
+                Some(Reference::Func(func_ref)) => func_ref.return_type.clone(),
+                _ => None,
+            },
+
             _ => unimplemented!(),
         }
     }
