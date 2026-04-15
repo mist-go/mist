@@ -1,6 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
-use crate::top_level::{FunctionSymbol, StructSymbol, TopLevelSymbolScope, TypeSymbol, VarSymbol};
+use crate::{
+    scope::Refrence,
+    top_level::{FunctionSymbol, StructSymbol, TopLevelSymbolScope, TypeSymbol, VarSymbol},
+};
 
 #[derive(Clone, Debug)]
 pub enum TypeRef {
@@ -156,6 +159,16 @@ impl TopLevelHirScope {
                     }
                 }
             }
+        }
+    }
+
+    pub fn get_refrence(&self, name: &String) -> Option<Refrence> {
+        if let Some(r) = self.functions.get(name) {
+            Some(Refrence::Func(r.clone()))
+        } else if let Some(r) = self.types.get(name) {
+            Some(Refrence::Type(r.clone()))
+        } else {
+            None
         }
     }
 }
