@@ -11,7 +11,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-pub enum Refrence {
+pub enum Reference {
     Type(Arc<TypeRef>),
     Var(Arc<VarRef>),
     Func(Arc<FunctionRef>),
@@ -29,16 +29,16 @@ impl Scope {
         Arc::new(Self::TopLevel(TopLevelHirScope::from_tlss(&tl)))
     }
 
-    pub fn get_refrence(&self, name: &String) -> Option<Refrence> {
+    pub fn get_reference(&self, name: &String) -> Option<Reference> {
         match self {
-            Scope::TopLevel(tl) => tl.get_refrence(name),
+            Scope::TopLevel(tl) => tl.get_reference(name),
             Scope::Local(l) => l
                 .variables
                 .lock()
                 .unwrap()
                 .get(name)
                 .cloned()
-                .map(Refrence::Var),
+                .map(Reference::Var),
         }
     }
 }
@@ -61,7 +61,7 @@ impl LocalScope {
         for statement in &mut block.0 {
             match statement {
                 Statement::Block(b) => self.clone().with_block(b),
-                Statement::VarDecl { kind, name, init } => {
+                Statement::VarDecl { name, init, .. } => {
                     if let Some(init) = init {
                         self.variables.lock().unwrap().insert(
                             name.clone(),
@@ -80,8 +80,8 @@ impl LocalScope {
     pub fn get_type_from_expr(self: &Arc<Self>, expr: &ast::Expression) -> Option<Arc<TypeRef>> {
         match expr {
             ast::Expression::IntLiteral(_) => {
-                self.parent.get_refrence(&"int".to_string()).map(|r| {
-                    if let Refrence::Type(tr) = &r {
+                self.parent.get_reference(&"int".to_string()).map(|r| {
+                    if let Reference::Type(tr) = &r {
                         tr.clone()
                     } else {
                         unimplemented!()
@@ -95,8 +95,8 @@ impl LocalScope {
     pub fn with_params(self: &Arc<Self>, param_list: &ParamList) {
         for (param_name, type_expr) in &param_list.0 {
             match type_expr {
-                parser::ast::TypeExpr::Identifier(id) => match self.parent.get_refrence(id) {
-                    Some(Refrence::Type(type_ref)) => {
+                parser::ast::TypeExpr::Identifier(id) => match self.parent.get_reference(id) {
+                    Some(Reference::Type(type_ref)) => {
                         self.variables.lock().unwrap().insert(
                             param_name.clone(),
                             Arc::new(VarRef {

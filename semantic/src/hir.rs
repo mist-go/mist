@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
-    scope::Refrence,
+    scope::Reference,
     top_level::{FunctionSymbol, StructSymbol, TopLevelSymbolScope, TypeSymbol, VarSymbol},
 };
 
@@ -162,11 +162,11 @@ impl TopLevelHirScope {
         }
     }
 
-    pub fn get_refrence(&self, name: &String) -> Option<Refrence> {
+    pub fn get_reference(&self, name: &String) -> Option<Reference> {
         if let Some(r) = self.functions.get(name) {
-            Some(Refrence::Func(r.clone()))
+            Some(Reference::Func(r.clone()))
         } else if let Some(r) = self.types.get(name) {
-            Some(Refrence::Type(r.clone()))
+            Some(Reference::Type(r.clone()))
         } else {
             None
         }
