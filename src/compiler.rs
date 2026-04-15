@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf, process, time::Instant};
 
-use crate::{gogen, parser};
+use crate::gogen;
 
 use serde::Deserialize;
 

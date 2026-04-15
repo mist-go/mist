@@ -5,7 +5,7 @@ pub mod ast;
 use ast::*;
 
 #[derive(Parser)]
-#[grammar = "./src/parser/grammar.pest"]
+#[grammar = "./src/grammar.pest"]
 pub struct MistParser;
 
 // convenience alias for pest errors

@@ -1,7 +1,6 @@
 pub mod compiler;
 pub mod errors;
 pub mod gogen;
-pub mod parser;
 
 use std::fs;
 use std::path::PathBuf;
