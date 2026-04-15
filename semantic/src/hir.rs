@@ -5,6 +5,7 @@ use crate::top_level::{FunctionSymbol, StructSymbol, TopLevelSymbolScope, TypeSy
 #[derive(Clone, Debug)]
 pub enum TypeRef {
     Struct(StructRef),
+    Int,
 }
 
 #[derive(Clone, Debug)]
@@ -61,7 +62,7 @@ impl TopLevelHirScope {
         if let Some(rf) = self.functions.get(&symbol.name) {
             rf.clone()
         } else {
-            if let Some(tlss_rf) = tlss.functions.get(&symbol.name) {
+            if let Some(_) = tlss.functions.get(&symbol.name) {
                 let rf = Arc::new(FunctionRef {
                     export: symbol.export,
                     name: symbol.name.clone(),
@@ -141,7 +142,19 @@ impl TopLevelHirScope {
 
                 rf
             } else {
-                unimplemented!()
+                match symbol.0.as_str() {
+                    "int" => {
+                        let rf = Arc::new(TypeRef::Int);
+
+                        self.types.insert(symbol.0.clone(), rf.clone());
+
+                        rf
+                    }
+
+                    _ => {
+                        unimplemented!("{:?}", symbol)
+                    }
+                }
             }
         }
     }
