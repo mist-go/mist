@@ -1,6 +1,4 @@
-pub mod compiler;
 pub mod errors;
-pub mod gogen;
 
 use std::fs;
 use std::path::PathBuf;
@@ -51,7 +49,7 @@ fn main() {
 }
 
 pub fn cmd_build() {
-    compiler::build();
+    unimplemented!("build command is not implemented yet");
 }
 
 fn cmd_check(path: &str) {
