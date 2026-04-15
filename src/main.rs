@@ -2,6 +2,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::process;
 
+use semantic::scope::walk_ast;
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
@@ -53,10 +55,12 @@ pub fn cmd_build() {
 fn cmd_check(path: &str) {
     let source = read_ms_file(path);
     match parser::parse(&source) {
-        Ok(ast) => {
+        Ok(mut ast) => {
             println!("parse: ok");
 
-            println!("{:#?}", semantic::scope::Scope::from_top(&ast))
+            walk_ast(semantic::scope::Scope::from_top(&ast), &mut ast);
+
+            println!("{:#?}", ast)
         }
         Err(e) => {
             eprintln!("parse error:\n{}", e);

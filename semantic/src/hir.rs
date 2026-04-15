@@ -33,7 +33,7 @@ pub struct StructRef {
     pub methods: HashMap<String, FunctionRef>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct TopLevelHirScope {
     pub types: HashMap<String, Arc<TypeRef>>,
     pub functions: HashMap<String, Arc<FunctionRef>>,
