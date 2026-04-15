@@ -76,14 +76,14 @@ impl StructSymbol {
 }
 
 #[derive(Clone, Debug)]
-pub struct TopLevelScope {
+pub struct TopLevelSymbolScope {
     pub structs: HashMap<String, StructSymbol>,
     pub functions: HashMap<String, FunctionSymbol>,
 }
 
-impl TopLevelScope {
+impl TopLevelSymbolScope {
     pub fn from(top_level: &Vec<TopLevel>) -> Self {
-        let mut scope = TopLevelScope {
+        let mut scope = TopLevelSymbolScope {
             structs: HashMap::new(),
             functions: HashMap::new(),
         };

@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
-use crate::top_level::TopLevelScope;
+use crate::{hir::TopLevelHirScope, top_level::TopLevelSymbolScope};
 
 #[derive(Clone, Debug)]
 pub enum Scope {
-    TopLevel(TopLevelScope),
+    TopLevel(TopLevelHirScope),
 }
 
 impl Scope {
     pub fn from_top(top_level: &Vec<parser::ast::TopLevel>) -> Arc<Self> {
-        Arc::new(Self::TopLevel(TopLevelScope::from(top_level)))
+        let tl = TopLevelSymbolScope::from(top_level);
+        Arc::new(Self::TopLevel(TopLevelHirScope::from_tlss(&tl)))
     }
 }
