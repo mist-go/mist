@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process;
 
-use semantic::scope::walk_ast;
+use semantic::walk_ast;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

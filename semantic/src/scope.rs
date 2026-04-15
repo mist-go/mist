@@ -61,6 +61,7 @@ impl LocalScope {
         for statement in &mut block.0 {
             match statement {
                 Statement::Block(b) => self.clone().with_block(b),
+                Statement::VarDecl { kind, name, init } => unimplemented!(),
                 _ => {}
             }
         }
@@ -82,36 +83,6 @@ impl LocalScope {
                     _ => unimplemented!(),
                 },
             }
-        }
-    }
-}
-
-pub fn walk_ast(top_scope: Arc<Scope>, tl: &mut Vec<parser::ast::TopLevel>) {
-    for tl in tl {
-        match tl {
-            parser::ast::TopLevel::Import(_) => unimplemented!(),
-
-            parser::ast::TopLevel::FunctionDecl {
-                export,
-                name,
-                params,
-                return_type,
-                body,
-            } => {
-                let scope = LocalScope::new(top_scope.clone());
-
-                scope.with_params(params);
-
-                scope.with_block(body);
-
-                println!("{:?}", scope);
-            }
-
-            parser::ast::TopLevel::StructDecl {
-                export,
-                name,
-                fields,
-            } => {}
         }
     }
 }

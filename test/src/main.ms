@@ -1,6 +1,3 @@
-struct AddParams {
-    x: int,
-    y: int,
+function add(a: int, b: int) {
+    let a = 10;
 }
-
-function add(p: AddParams) {}
