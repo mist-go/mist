@@ -1,18 +1,20 @@
 use std::collections::HashMap;
 
 pub struct TypeSymbol {
-    export: bool,
-    name: String,
+    pub export: bool,
+    pub name: String,
 }
 
 pub struct FunctionSymbol {
-    export: bool,
-    name: String,
-    params: HashMap<String, TypeSymbol>,
+    pub export: bool,
+    pub name: String,
+    pub params: HashMap<String, TypeSymbol>,
 }
 
 pub struct StructSymbol {
-    export: bool,
-    name: String,
-    fields: HashMap<String, TypeSymbol>,
+    pub export: bool,
+    pub name: String,
+    pub fields: HashMap<String, TypeSymbol>,
+    pub methods: HashMap<String, FunctionSymbol>,
 }
+
