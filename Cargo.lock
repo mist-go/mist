@@ -158,6 +158,9 @@ dependencies = [
 [[package]]
 name = "semantic"
 version = "0.1.0"
+dependencies = [
+ "parser",
+]
 
 [[package]]
 name = "serde"

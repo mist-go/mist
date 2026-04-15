@@ -1,21 +1,13 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::sync::Arc;
 
-use crate::top_level;
+use crate::top_level::TopLevelScope;
 
-pub enum Symbol {
-    Function(top_level::FunctionSymbol),
-    TypeSymbol(top_level::TypeSymbol),
-    StructSymbol(top_level::StructSymbol),
-}
-
-pub struct Scope {
-    pub parent: Option<Arc<Scope>>,
-    pub variables: Mutex<HashMap<String, Symbol>>,
+pub enum Scope {
+    TopLevel(TopLevelScope),
 }
 
 impl Scope {
-    pub fn from_top_level() {}
+    pub fn from_top(top_level: &Vec<parser::ast::TopLevel>) -> Arc<Self> {
+        Arc::new(Self::TopLevel(TopLevelScope::from(top_level)))
+    }
 }
