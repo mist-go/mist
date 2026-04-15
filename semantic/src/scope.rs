@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::top_level::TopLevelScope;
 
+#[derive(Clone, Debug)]
 pub enum Scope {
     TopLevel(TopLevelScope),
 }

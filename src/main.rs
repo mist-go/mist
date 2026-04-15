@@ -53,8 +53,10 @@ pub fn cmd_build() {
 fn cmd_check(path: &str) {
     let source = read_ms_file(path);
     match parser::parse(&source) {
-        Ok(_) => {
-            println!("ok");
+        Ok(ast) => {
+            println!("parse: ok");
+
+            println!("{:#?}", semantic::scope::Scope::from_top(&ast))
         }
         Err(e) => {
             eprintln!("parse error:\n{}", e);

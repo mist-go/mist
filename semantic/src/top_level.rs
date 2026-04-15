@@ -4,13 +4,16 @@ use parser::ast::TopLevel;
 
 use parser::ast::{ParamList, TypeExpr};
 
+#[derive(Clone, Debug)]
 pub struct TypeSymbol(pub String);
 
+#[derive(Clone, Debug)]
 pub struct VarSymbol {
     pub var_type: TypeSymbol,
     pub name: String,
 }
 
+#[derive(Clone, Debug)]
 pub struct FunctionSymbol {
     pub export: bool,
     pub name: String,
@@ -18,6 +21,7 @@ pub struct FunctionSymbol {
     pub return_type: Option<TypeSymbol>,
 }
 
+#[derive(Clone, Debug)]
 pub struct StructSymbol {
     pub export: bool,
     pub name: String,
@@ -71,6 +75,7 @@ impl StructSymbol {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct TopLevelScope {
     pub structs: HashMap<String, StructSymbol>,
     pub functions: HashMap<String, FunctionSymbol>,
