@@ -28,6 +28,13 @@ impl Scope {
             Scope::Local(l) => l.get_reference(name),
         }
     }
+
+    pub fn next_var_idx(&self) -> usize {
+        match self {
+            Scope::TopLevel(tl) => tl.next_var_idx(),
+            Scope::Local(l) => l.parent.next_var_idx(),
+        }
+    }
 }
 
 #[derive(Debug)]

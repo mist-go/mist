@@ -1,4 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+};
 
 use crate::top_level::{FunctionSymbol, StructSymbol, TopLevelSymbolScope, TypeSymbol, VarSymbol};
 
@@ -34,12 +40,14 @@ pub struct StructRef {
 #[derive(Debug)]
 pub struct TopLevelHirScope {
     pub variables: HashMap<String, Arc<VarRef>>,
+    pub var_idx: AtomicUsize,
 }
 
 impl TopLevelHirScope {
     pub fn from_tlss(tlss: &TopLevelSymbolScope) -> Self {
         let mut scope = Self {
             variables: HashMap::new(),
+            var_idx: AtomicUsize::new(0),
         };
 
         for (_, symbol) in &tlss.functions {
@@ -154,5 +162,9 @@ impl TopLevelHirScope {
 
     pub fn get_reference(&self, name: &String) -> Option<Arc<VarRef>> {
         self.variables.get(name).cloned()
+    }
+
+    pub fn next_var_idx(&self) -> usize {
+        self.var_idx.fetch_add(1, Ordering::Relaxed) + 1
     }
 }
