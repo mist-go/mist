@@ -34,7 +34,6 @@ pub struct StructRef {
     pub export: bool,
     pub name: String,
     pub fields: HashMap<String, Arc<VarRef>>,
-    pub methods: HashMap<String, FunctionRef>,
 }
 
 #[derive(Debug)]
@@ -63,10 +62,12 @@ impl TopLevelHirScope {
 
     pub fn function_ref(&mut self, tlss: &TopLevelSymbolScope, symbol: &FunctionSymbol) {
         if self.variables.get(&symbol.name).is_none() {
+            let name = self.get_name(symbol.export);
+
             if let Some(_) = tlss.functions.get(&symbol.name) {
                 let rf = FunctionRef {
                     export: symbol.export,
-                    name: symbol.name.clone(),
+                    name: name.clone(),
                     params: symbol
                         .params
                         .iter()
@@ -81,7 +82,7 @@ impl TopLevelHirScope {
                 self.variables.insert(
                     symbol.name.clone(),
                     Arc::new(VarRef {
-                        name: symbol.name.clone(),
+                        name: name.clone(),
                         var_type: Arc::new(TypeRef::Function(rf)),
                     }),
                 );
@@ -96,21 +97,22 @@ impl TopLevelHirScope {
         tlss: &TopLevelSymbolScope,
         symbol: &StructSymbol,
     ) -> Arc<TypeRef> {
+        let name = self.get_name(symbol.export);
+
         let rf = Arc::new(TypeRef::Struct(StructRef {
             export: symbol.export,
-            name: symbol.name.clone(),
+            name: name.clone(),
             fields: symbol
                 .fields
                 .iter()
                 .map(|(name, v)| (name.clone(), self.var_ref(tlss, v)))
                 .collect(),
-            methods: HashMap::new(),
         }));
 
         self.variables.insert(
             symbol.name.clone(),
             Arc::new(VarRef {
-                name: symbol.name.clone(),
+                name: name.clone(),
                 var_type: rf.clone(),
             }),
         );
@@ -166,5 +168,9 @@ impl TopLevelHirScope {
 
     pub fn next_var_idx(&self) -> usize {
         self.var_idx.fetch_add(1, Ordering::Relaxed) + 1
+    }
+
+    pub fn get_name(&self, export: bool) -> String {
+        format!("{}{}", if export { 'V' } else { 'v' }, self.next_var_idx())
     }
 }

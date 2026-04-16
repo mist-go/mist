@@ -89,8 +89,6 @@ impl LocalScope {
     ) -> Option<Arc<TypeRef>> {
         let mut current_type = self.get_type_from_expr(initial)?;
 
-        dbg!(current_type.clone(), initial, postfixes);
-
         for postfix in postfixes {
             match postfix {
                 Postfix::FieldAccess(id) => match &*current_type {
