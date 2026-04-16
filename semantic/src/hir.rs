@@ -124,31 +124,25 @@ impl TopLevelHirScope {
             if let Some(tlss_rf) = tlss.structs.get(&symbol.0) {
                 let struct_ref = self.struct_ref(tlss, tlss_rf);
 
-                self.variables
-                    .insert(
-                        symbol.0.clone(),
-                        Arc::new(VarRef {
-                            name: symbol.0.clone(),
-                            var_type: struct_ref,
-                        }),
-                    )
-                    .unwrap()
-                    .var_type
-                    .clone()
+                let var_ref = Arc::new(VarRef {
+                    name: symbol.0.clone(),
+                    var_type: struct_ref,
+                });
+                self.variables.insert(symbol.0.clone(), var_ref.clone());
+
+                var_ref.var_type.clone()
             } else {
                 match symbol.0.as_str() {
-                    "int" => self
-                        .variables
-                        .insert(
-                            symbol.0.clone(),
-                            Arc::new(VarRef {
-                                name: symbol.0.clone(),
-                                var_type: Arc::new(TypeRef::Int),
-                            }),
-                        )
-                        .unwrap()
-                        .var_type
-                        .clone(),
+                    "int" => {
+                        let var_ref = Arc::new(VarRef {
+                            name: symbol.0.clone(),
+                            var_type: Arc::new(TypeRef::Int),
+                        });
+
+                        self.variables.insert(symbol.0.clone(), var_ref.clone());
+
+                        var_ref.var_type.clone()
+                    }
 
                     _ => {
                         unimplemented!("{:?}", symbol)
@@ -158,7 +152,7 @@ impl TopLevelHirScope {
         }
     }
 
-    pub fn get_reference(&self, name: &String) -> Option<&Arc<VarRef>> {
-        self.variables.get(name)
+    pub fn get_reference(&self, name: &String) -> Option<Arc<VarRef>> {
+        self.variables.get(name).cloned()
     }
 }
