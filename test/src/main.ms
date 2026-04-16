@@ -3,7 +3,7 @@ struct Test {
 }
 
 function add() {
-    let output = test().x;
+    let output = test();
 }
 
-function test(): Test { }
+function test(): int { }
