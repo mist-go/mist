@@ -1,5 +1,9 @@
-function add(a: int, b: int) {
-    let myVar = 10;
-
-    let test = myVar;
+struct Test {
+    x: int
 }
+
+function add() {
+    let output = test().x;
+}
+
+function test(): Test { }

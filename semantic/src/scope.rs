@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use parser::ast::{self, ParamList, Statement};
+use parser::ast::{self, ParamList, Postfix, Statement};
 
 use crate::{
     hir::{FunctionRef, TopLevelHirScope, TypeRef, VarRef},
@@ -83,6 +83,30 @@ impl LocalScope {
         }
     }
 
+    pub fn walk_postfixes(
+        self: &Arc<Self>,
+        initial: &Box<ast::Expression>,
+        postfixes: &Vec<Postfix>,
+    ) -> Option<Arc<TypeRef>> {
+        let mut current_type = self.get_type_from_expr(initial)?;
+
+        dbg!(current_type.clone(), initial, postfixes);
+
+        for postfix in postfixes {
+            match postfix {
+                Postfix::FieldAccess(id) => match &*current_type {
+                    TypeRef::Struct(s) => {
+                        current_type = s.fields.get(id)?.var_type.clone();
+                    }
+                    _ => unimplemented!(),
+                },
+                _ => unimplemented!(),
+            }
+        }
+
+        Some(current_type)
+    }
+
     pub fn get_type_from_expr(self: &Arc<Self>, expr: &ast::Expression) -> Option<Arc<TypeRef>> {
         match expr {
             ast::Expression::IntLiteral(_) => {
@@ -130,6 +154,10 @@ impl LocalScope {
                 Some(Reference::Func(func_ref)) => func_ref.return_type.clone(),
                 _ => None,
             },
+
+            ast::Expression::Postfix { initial, postfixes } => {
+                self.walk_postfixes(initial, postfixes)
+            }
 
             _ => unimplemented!(),
         }
