@@ -3,19 +3,12 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use parser::ast::{self, ParamList, Statement};
+use parser::ast::{self, ParamList, Postfix, Statement};
 
 use crate::{
-    hir::{FunctionRef, TopLevelHirScope, TypeRef, VarRef},
+    hir::{TopLevelHirScope, TypeRef, VarRef},
     top_level::TopLevelSymbolScope,
 };
-
-#[derive(Clone, Debug)]
-pub enum Reference {
-    Type(Arc<TypeRef>),
-    Var(Arc<VarRef>),
-    Func(Arc<FunctionRef>),
-}
 
 #[derive(Debug)]
 pub enum Scope {
@@ -29,10 +22,17 @@ impl Scope {
         Arc::new(Self::TopLevel(TopLevelHirScope::from_tlss(&tl)))
     }
 
-    pub fn get_reference(&self, name: &String) -> Option<Reference> {
+    pub fn get_reference(&self, name: &String) -> Option<Arc<VarRef>> {
         match self {
             Scope::TopLevel(tl) => tl.get_reference(name),
             Scope::Local(l) => l.get_reference(name),
+        }
+    }
+
+    pub fn next_var_idx(&self) -> usize {
+        match self {
+            Scope::TopLevel(tl) => tl.next_var_idx(),
+            Scope::Local(l) => l.parent.next_var_idx(),
         }
     }
 }
@@ -51,13 +51,12 @@ impl LocalScope {
         })
     }
 
-    pub fn get_reference(&self, name: &String) -> Option<Reference> {
+    pub fn get_reference(&self, name: &String) -> Option<Arc<VarRef>> {
         self.variables
             .lock()
             .unwrap()
             .get(name)
             .cloned()
-            .map(Reference::Var)
             .or_else(|| self.parent.get_reference(name))
     }
 
@@ -83,73 +82,81 @@ impl LocalScope {
         }
     }
 
+    pub fn walk_postfixes(
+        self: &Arc<Self>,
+        initial: &Box<ast::Expression>,
+        postfixes: &Vec<Postfix>,
+    ) -> Option<Arc<TypeRef>> {
+        let mut current_type = self.get_type_from_expr(initial)?;
+
+        for postfix in postfixes {
+            match postfix {
+                Postfix::FieldAccess(id) => match &*current_type {
+                    TypeRef::Struct(s) => {
+                        current_type = s.fields.get(id)?.var_type.clone();
+                    }
+                    _ => unimplemented!(),
+                },
+                Postfix::Call(_args) => match &*current_type {
+                    TypeRef::Function(s) => {
+                        // TODO: arg checking
+                        current_type = s.return_type.clone()?;
+                    }
+                    _ => unimplemented!(),
+                },
+                _ => unimplemented!(),
+            }
+        }
+
+        Some(current_type)
+    }
+
     pub fn get_type_from_expr(self: &Arc<Self>, expr: &ast::Expression) -> Option<Arc<TypeRef>> {
         match expr {
-            ast::Expression::IntLiteral(_) => {
-                self.parent.get_reference(&"int".to_string()).map(|r| {
-                    if let Reference::Type(tr) = &r {
-                        tr.clone()
-                    } else {
-                        unimplemented!()
-                    }
-                })
+            ast::Expression::IntLiteral(_) => self
+                .parent
+                .get_reference(&"int".to_string())
+                .map(|r| r.var_type.clone()),
+
+            ast::Expression::FloatLiteral(_) => self
+                .parent
+                .get_reference(&"float".to_string())
+                .map(|r| r.var_type.clone()),
+
+            ast::Expression::BoolLiteral(_) => self
+                .parent
+                .get_reference(&"bool".to_string())
+                .map(|r| r.var_type.clone()),
+
+            ast::Expression::StringLiteral(_) => self
+                .parent
+                .get_reference(&"string".to_string())
+                .map(|r| r.var_type.clone()),
+
+            ast::Expression::Identifier(id) => self.get_reference(id).map(|r| r.var_type.clone()),
+
+            ast::Expression::Postfix { initial, postfixes } => {
+                self.walk_postfixes(initial, postfixes)
             }
-
-            ast::Expression::FloatLiteral(_) => {
-                self.parent.get_reference(&"float".to_string()).map(|r| {
-                    if let Reference::Type(tr) = &r {
-                        tr.clone()
-                    } else {
-                        unimplemented!()
-                    }
-                })
-            }
-
-            ast::Expression::BoolLiteral(_) => {
-                self.parent.get_reference(&"bool".to_string()).map(|r| {
-                    if let Reference::Type(tr) = &r {
-                        tr.clone()
-                    } else {
-                        unimplemented!()
-                    }
-                })
-            }
-
-            ast::Expression::StringLiteral(_) => {
-                self.parent.get_reference(&"string".to_string()).map(|r| {
-                    if let Reference::Type(tr) = &r {
-                        tr.clone()
-                    } else {
-                        unimplemented!()
-                    }
-                })
-            }
-
-            ast::Expression::Identifier(id) => match self.get_reference(id) {
-                Some(Reference::Var(var_ref)) => Some(var_ref.var_type.clone()),
-                Some(Reference::Func(func_ref)) => func_ref.return_type.clone(),
-                _ => None,
-            },
-
-            _ => unimplemented!(),
         }
     }
 
     pub fn with_params(self: &Arc<Self>, param_list: &ParamList) {
         for (param_name, type_expr) in &param_list.0 {
             match type_expr {
-                parser::ast::TypeExpr::Identifier(id) => match self.parent.get_reference(id) {
-                    Some(Reference::Type(type_ref)) => {
+                parser::ast::TypeExpr::Identifier(id) => {
+                    if let Some(var_type) =
+                        self.parent.get_reference(id).map(|r| r.var_type.clone())
+                    {
                         self.variables.lock().unwrap().insert(
                             param_name.clone(),
                             Arc::new(VarRef {
-                                var_type: type_ref,
+                                var_type,
                                 name: param_name.clone(),
                             }),
                         );
                     }
-                    _ => unimplemented!(),
-                },
+                }
             }
         }
     }

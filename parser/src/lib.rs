@@ -167,10 +167,9 @@ impl Statement {
                 let kind_pair = inner.next().unwrap(); // let/const/var
                 let name_pair = inner.next().unwrap(); // identifier
 
-                let init = inner.next().map(|expr_pair| {
-                    // expects "=" expr
-                    Expression::from_pair(expr_pair.into_inner().next().unwrap())
-                });
+                println!("{:#?}", inner);
+
+                let init = inner.next().map(Expression::from_pair);
 
                 let kind = match kind_pair.as_str() {
                     "let" => VarKind::Let,

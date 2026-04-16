@@ -1,13 +1,17 @@
-use std::{collections::HashMap, sync::Arc};
-
-use crate::{
-    scope::Reference,
-    top_level::{FunctionSymbol, StructSymbol, TopLevelSymbolScope, TypeSymbol, VarSymbol},
+use std::{
+    collections::HashMap,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
+
+use crate::top_level::{FunctionSymbol, StructSymbol, TopLevelSymbolScope, TypeSymbol, VarSymbol};
 
 #[derive(Clone, Debug)]
 pub enum TypeRef {
     Struct(StructRef),
+    Function(FunctionRef),
     Int,
 }
 
@@ -30,20 +34,19 @@ pub struct StructRef {
     pub export: bool,
     pub name: String,
     pub fields: HashMap<String, Arc<VarRef>>,
-    pub methods: HashMap<String, FunctionRef>,
 }
 
 #[derive(Debug)]
 pub struct TopLevelHirScope {
-    pub types: HashMap<String, Arc<TypeRef>>,
-    pub functions: HashMap<String, Arc<FunctionRef>>,
+    pub variables: HashMap<String, Arc<VarRef>>,
+    pub var_idx: AtomicUsize,
 }
 
 impl TopLevelHirScope {
     pub fn from_tlss(tlss: &TopLevelSymbolScope) -> Self {
         let mut scope = Self {
-            types: HashMap::new(),
-            functions: HashMap::new(),
+            variables: HashMap::new(),
+            var_idx: AtomicUsize::new(0),
         };
 
         for (_, symbol) in &tlss.functions {
@@ -57,18 +60,14 @@ impl TopLevelHirScope {
         scope
     }
 
-    pub fn function_ref(
-        &mut self,
-        tlss: &TopLevelSymbolScope,
-        symbol: &FunctionSymbol,
-    ) -> Arc<FunctionRef> {
-        if let Some(rf) = self.functions.get(&symbol.name) {
-            rf.clone()
-        } else {
+    pub fn function_ref(&mut self, tlss: &TopLevelSymbolScope, symbol: &FunctionSymbol) {
+        if self.variables.get(&symbol.name).is_none() {
+            let name = self.get_name(symbol.export);
+
             if let Some(_) = tlss.functions.get(&symbol.name) {
-                let rf = Arc::new(FunctionRef {
+                let rf = FunctionRef {
                     export: symbol.export,
-                    name: symbol.name.clone(),
+                    name: name.clone(),
                     params: symbol
                         .params
                         .iter()
@@ -78,11 +77,15 @@ impl TopLevelHirScope {
                         .return_type
                         .clone()
                         .map(|rt| self.type_ref(tlss, &rt)),
-                });
+                };
 
-                self.functions.insert(symbol.name.clone(), rf.clone());
-
-                rf
+                self.variables.insert(
+                    symbol.name.clone(),
+                    Arc::new(VarRef {
+                        name: name.clone(),
+                        var_type: Arc::new(TypeRef::Function(rf)),
+                    }),
+                );
             } else {
                 unimplemented!()
             }
@@ -94,18 +97,25 @@ impl TopLevelHirScope {
         tlss: &TopLevelSymbolScope,
         symbol: &StructSymbol,
     ) -> Arc<TypeRef> {
+        let name = self.get_name(symbol.export);
+
         let rf = Arc::new(TypeRef::Struct(StructRef {
             export: symbol.export,
-            name: symbol.name.clone(),
+            name: name.clone(),
             fields: symbol
                 .fields
                 .iter()
                 .map(|(name, v)| (name.clone(), self.var_ref(tlss, v)))
                 .collect(),
-            methods: HashMap::new(),
         }));
 
-        self.types.insert(symbol.name.clone(), rf.clone());
+        self.variables.insert(
+            symbol.name.clone(),
+            Arc::new(VarRef {
+                name: name.clone(),
+                var_type: rf.clone(),
+            }),
+        );
 
         rf
     }
@@ -118,40 +128,30 @@ impl TopLevelHirScope {
     }
 
     pub fn type_ref(&mut self, tlss: &TopLevelSymbolScope, symbol: &TypeSymbol) -> Arc<TypeRef> {
-        if let Some(rf) = self.types.get(&symbol.0) {
-            rf.clone()
+        if let Some(var_ref) = self.variables.get(&symbol.0) {
+            var_ref.var_type.clone()
         } else {
             if let Some(tlss_rf) = tlss.structs.get(&symbol.0) {
-                let rf = Arc::new(TypeRef::Struct(StructRef {
-                    export: tlss_rf.export,
-                    name: tlss_rf.name.clone(),
-                    fields: tlss_rf
-                        .fields
-                        .iter()
-                        .map(|(name, v)| {
-                            (
-                                name.clone(),
-                                Arc::new(VarRef {
-                                    name: name.clone(),
-                                    var_type: self.type_ref(tlss, &v.var_type),
-                                }),
-                            )
-                        })
-                        .collect(),
-                    methods: HashMap::new(),
-                }));
+                let struct_ref = self.struct_ref(tlss, tlss_rf);
 
-                self.types.insert(symbol.0.clone(), rf.clone());
+                let var_ref = Arc::new(VarRef {
+                    name: symbol.0.clone(),
+                    var_type: struct_ref,
+                });
+                self.variables.insert(symbol.0.clone(), var_ref.clone());
 
-                rf
+                var_ref.var_type.clone()
             } else {
                 match symbol.0.as_str() {
                     "int" => {
-                        let rf = Arc::new(TypeRef::Int);
+                        let var_ref = Arc::new(VarRef {
+                            name: symbol.0.clone(),
+                            var_type: Arc::new(TypeRef::Int),
+                        });
 
-                        self.types.insert(symbol.0.clone(), rf.clone());
+                        self.variables.insert(symbol.0.clone(), var_ref.clone());
 
-                        rf
+                        var_ref.var_type.clone()
                     }
 
                     _ => {
@@ -162,13 +162,15 @@ impl TopLevelHirScope {
         }
     }
 
-    pub fn get_reference(&self, name: &String) -> Option<Reference> {
-        if let Some(r) = self.functions.get(name) {
-            Some(Reference::Func(r.clone()))
-        } else if let Some(r) = self.types.get(name) {
-            Some(Reference::Type(r.clone()))
-        } else {
-            None
-        }
+    pub fn get_reference(&self, name: &String) -> Option<Arc<VarRef>> {
+        self.variables.get(name).cloned()
+    }
+
+    pub fn next_var_idx(&self) -> usize {
+        self.var_idx.fetch_add(1, Ordering::Relaxed) + 1
+    }
+
+    pub fn get_name(&self, export: bool) -> String {
+        format!("{}{}", if export { 'V' } else { 'v' }, self.next_var_idx())
     }
 }
