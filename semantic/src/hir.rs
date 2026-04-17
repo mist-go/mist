@@ -163,10 +163,20 @@ impl TopLevelHirScope {
     }
 
     pub fn next_var_idx(&self) -> usize {
-        self.var_idx.fetch_add(1, Ordering::Relaxed) + 1
+        self.var_idx.fetch_add(1, Ordering::Relaxed)
     }
 
     pub fn get_name(&self, export: bool) -> String {
         format!("{}{}", if export { 'V' } else { 'v' }, self.next_var_idx())
+    }
+}
+
+impl TypeRef {
+    pub fn get_name(&self) -> String {
+        match self {
+            TypeRef::Function(f) => f.name.clone(),
+            TypeRef::Struct(s) => s.name.clone(),
+            TypeRef::Int => "int".to_string(),
+        }
     }
 }
