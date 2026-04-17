@@ -167,8 +167,6 @@ impl Statement {
                 let kind_pair = inner.next().unwrap(); // let/const/var
                 let name_pair = inner.next().unwrap(); // identifier
 
-                println!("{:#?}", inner);
-
                 let init = inner.next().map(Expression::from_pair);
 
                 let kind = match kind_pair.as_str() {

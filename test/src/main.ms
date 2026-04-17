@@ -1,9 +1,5 @@
-struct Test {
-    x: int
-}
+function test(): int { }
 
 function add() {
     let output = test();
 }
-
-function test(): int { }
