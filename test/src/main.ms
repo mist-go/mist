@@ -1,5 +1,9 @@
-function test(): int { }
+struct MyType {
+    x: int,
+}
+
+function test(): MyType { }
 
 function add() {
-    let output = test();
+    let output = test().x;
 }

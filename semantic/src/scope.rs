@@ -84,8 +84,8 @@ impl LocalScope {
 
     pub fn walk_postfixes(
         self: &Arc<Self>,
-        initial: &Box<ast::Expression>,
-        postfixes: &Vec<Postfix>,
+        initial: &mut Box<ast::Expression>,
+        postfixes: &mut Vec<Postfix>,
     ) -> Option<Arc<TypeRef>> {
         let mut current_type = self.get_type_from_expr(initial)?;
 
@@ -93,7 +93,9 @@ impl LocalScope {
             match postfix {
                 Postfix::FieldAccess(id) => match &*current_type {
                     TypeRef::Struct(s) => {
-                        current_type = s.fields.get(id)?.var_type.clone();
+                        let field = s.fields.get(id)?;
+                        *id = field.name.clone();
+                        current_type = field.var_type.clone();
                     }
                     _ => unimplemented!(),
                 },
@@ -111,7 +113,10 @@ impl LocalScope {
         Some(current_type)
     }
 
-    pub fn get_type_from_expr(self: &Arc<Self>, expr: &ast::Expression) -> Option<Arc<TypeRef>> {
+    pub fn get_type_from_expr(
+        self: &Arc<Self>,
+        expr: &mut ast::Expression,
+    ) -> Option<Arc<TypeRef>> {
         match expr {
             ast::Expression::IntLiteral(_) => self
                 .parent
@@ -133,7 +138,11 @@ impl LocalScope {
                 .get_reference(&"string".to_string())
                 .map(|r| r.var_type.clone()),
 
-            ast::Expression::Identifier(id) => self.get_reference(id).map(|r| r.var_type.clone()),
+            ast::Expression::Identifier(id) => {
+                let rf = self.get_reference(id)?;
+                *id = rf.name.clone();
+                Some(rf.var_type.clone())
+            }
 
             ast::Expression::Postfix { initial, postfixes } => {
                 self.walk_postfixes(initial, postfixes)
