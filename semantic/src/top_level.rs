@@ -9,6 +9,7 @@ pub struct TypeSymbol(pub String);
 
 #[derive(Clone, Debug)]
 pub struct VarSymbol {
+    pub export: bool,
     pub var_type: TypeSymbol,
     pub name: String,
 }
@@ -50,10 +51,11 @@ impl FunctionSymbol {
             params: params
                 .0
                 .iter()
-                .map(|(name, (_, v))| {
+                .map(|(name, (export, v))| {
                     (
                         name.clone(),
                         VarSymbol {
+                            export: *export,
                             name: name.clone(),
                             var_type: TypeSymbol(match v {
                                 TypeExpr::Identifier(i) => i.to_string(),
@@ -75,10 +77,11 @@ impl StructSymbol {
             fields: fields
                 .0
                 .iter()
-                .map(|(name, (_, v))| {
+                .map(|(name, (export, v))| {
                     (
                         name.clone(),
                         VarSymbol {
+                            export: *export,
                             name: name.clone(),
                             var_type: TypeSymbol(match v {
                                 TypeExpr::Identifier(i) => i.to_string(),

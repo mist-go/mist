@@ -71,6 +71,7 @@ impl LocalScope {
                         self.variables.lock().unwrap().insert(
                             name.clone(),
                             Arc::new(VarRef {
+                                export: false,
                                 name: name.to_string(),
                                 var_type,
                             }),
@@ -151,7 +152,7 @@ impl LocalScope {
     }
 
     pub fn with_params(self: &Arc<Self>, param_list: &ParamList) {
-        for (param_name, (_, type_expr)) in &param_list.0 {
+        for (param_name, (export, type_expr)) in &param_list.0 {
             match type_expr {
                 parser::ast::TypeExpr::Identifier(id) => {
                     if let Some(var_type) =
@@ -160,6 +161,7 @@ impl LocalScope {
                         self.variables.lock().unwrap().insert(
                             param_name.clone(),
                             Arc::new(VarRef {
+                                export: *export,
                                 var_type,
                                 name: param_name.clone(),
                             }),

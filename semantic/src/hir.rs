@@ -17,6 +17,7 @@ pub enum TypeRef {
 
 #[derive(Clone, Debug)]
 pub struct VarRef {
+    pub export: bool,
     pub var_type: Arc<TypeRef>,
     pub name: String,
 }
@@ -82,6 +83,7 @@ impl TopLevelHirScope {
                 self.variables.insert(
                     symbol.name.clone(),
                     Arc::new(VarRef {
+                        export: false,
                         name: name.clone(),
                         var_type: Arc::new(TypeRef::Function(rf)),
                     }),
@@ -115,6 +117,7 @@ impl TopLevelHirScope {
             self.variables.insert(
                 symbol.name.clone(),
                 Arc::new(VarRef {
+                    export: symbol.export,
                     name: name.clone(),
                     var_type: rf.clone(),
                 }),
@@ -126,8 +129,9 @@ impl TopLevelHirScope {
 
     pub fn var_ref(&mut self, tlss: &TopLevelSymbolScope, symbol: &VarSymbol) -> Arc<VarRef> {
         Arc::new(VarRef {
+            export: symbol.export,
             var_type: self.type_ref(tlss, &symbol.var_type),
-            name: self.get_name(true),
+            name: self.get_name(symbol.export),
         })
     }
 
@@ -141,6 +145,7 @@ impl TopLevelHirScope {
                 match symbol.0.as_str() {
                     "int" => {
                         let var_ref = Arc::new(VarRef {
+                            export: false,
                             name: symbol.0.clone(),
                             var_type: Arc::new(TypeRef::Int),
                         });
