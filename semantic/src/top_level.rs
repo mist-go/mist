@@ -9,6 +9,7 @@ pub struct TypeSymbol(pub String);
 
 #[derive(Clone, Debug)]
 pub struct VarSymbol {
+    pub export: bool,
     pub var_type: TypeSymbol,
     pub name: String,
 }
@@ -47,12 +48,22 @@ impl FunctionSymbol {
         Self {
             export: export,
             name: name.clone(),
-            params: params.to_hashmap(|name, v| VarSymbol {
-                name: name.clone(),
-                var_type: TypeSymbol(match v {
-                    TypeExpr::Identifier(i) => i.to_string(),
-                }),
-            }),
+            params: params
+                .0
+                .iter()
+                .map(|(name, (export, v))| {
+                    (
+                        name.clone(),
+                        VarSymbol {
+                            export: *export,
+                            name: name.clone(),
+                            var_type: TypeSymbol(match v {
+                                TypeExpr::Identifier(i) => i.to_string(),
+                            }),
+                        },
+                    )
+                })
+                .collect(),
             return_type: return_type.map(TypeSymbol::from_ast),
         }
     }
@@ -63,12 +74,22 @@ impl StructSymbol {
         Self {
             export,
             name,
-            fields: fields.to_hashmap(|name, v| VarSymbol {
-                name: name.clone(),
-                var_type: TypeSymbol(match v {
-                    TypeExpr::Identifier(i) => i.to_string(),
-                }),
-            }),
+            fields: fields
+                .0
+                .iter()
+                .map(|(name, (export, v))| {
+                    (
+                        name.clone(),
+                        VarSymbol {
+                            export: *export,
+                            name: name.clone(),
+                            var_type: TypeSymbol(match v {
+                                TypeExpr::Identifier(i) => i.to_string(),
+                            }),
+                        },
+                    )
+                })
+                .collect(),
             // TODO - parse struct methods
             methods: HashMap::new(),
         }

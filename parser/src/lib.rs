@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use pest::Parser;
 use pest_derive::Parser;
 
@@ -39,14 +41,21 @@ impl TypeExpr {
 }
 
 impl ParamList {
-    pub fn from_pair(pair: pest::iterators::Pair<Rule>) -> Self {
+    pub fn from_pair(export_allowed: bool, pair: pest::iterators::Pair<Rule>) -> Self {
         let params = pair
             .into_inner()
             .map(|p| {
                 let mut param_inner = p.into_inner();
+                let export =
+                    if export_allowed && param_inner.peek().unwrap().as_rule() == Rule::export {
+                        param_inner.next().unwrap();
+                        true
+                    } else {
+                        false
+                    };
                 let param_name = param_inner.next().unwrap().as_str().to_string();
                 let param_type = TypeExpr::from_pair(param_inner.next().unwrap());
-                (param_name, param_type)
+                (param_name, (export, param_type))
             })
             .collect();
 
@@ -76,9 +85,9 @@ impl TopLevel {
                 };
                 let name = inner.next().unwrap().as_str().to_string();
                 let params = if inner.peek().unwrap().as_rule() == Rule::param_list {
-                    ParamList::from_pair(inner.next().unwrap())
+                    ParamList::from_pair(false, inner.next().unwrap())
                 } else {
-                    ParamList(vec![])
+                    ParamList(HashMap::new())
                 };
                 let return_type = if let Some(next) = inner.peek() {
                     if next.as_rule() == Rule::type_expr {
@@ -115,7 +124,7 @@ impl TopLevel {
                 };
                 let name = inner.next().unwrap().as_str().to_string();
                 let fields_pair = inner.next().unwrap();
-                let fields = ParamList::from_pair(fields_pair);
+                let fields = ParamList::from_pair(true, fields_pair);
 
                 Some(TopLevel::StructDecl {
                     export,
@@ -166,8 +175,6 @@ impl Statement {
 
                 let kind_pair = inner.next().unwrap(); // let/const/var
                 let name_pair = inner.next().unwrap(); // identifier
-
-                println!("{:#?}", inner);
 
                 let init = inner.next().map(Expression::from_pair);
 

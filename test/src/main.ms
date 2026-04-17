@@ -1,9 +1,5 @@
-struct Test {
-    x: int
+export struct MyType {
+    export x: int,
 }
 
-function add() {
-    let output = test();
-}
-
-function test(): int { }
+export function test(a: MyType) { }

@@ -3,13 +3,12 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct ParamList(pub Vec<(String, TypeExpr)>);
+pub struct ParamList(pub HashMap<String, (bool, TypeExpr)>);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Block(pub Vec<Statement>);
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "value")]
 pub enum TypeExpr {
     Identifier(String),
 }
@@ -30,7 +29,6 @@ pub enum BinaryOp {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "value")]
 pub enum TopLevel {
     Import(String),
     StructDecl {
@@ -48,7 +46,6 @@ pub enum TopLevel {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "value")]
 pub enum Postfix {
     FieldAccess(String),
     Call(Vec<Expression>),
@@ -57,7 +54,6 @@ pub enum Postfix {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "value")]
 pub enum Statement {
     // expr;
     Expression(Expression),
@@ -106,7 +102,6 @@ pub enum Statement {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "value")]
 pub enum Expression {
     Identifier(String),
     IntLiteral(i64),
@@ -124,10 +119,4 @@ pub enum VarKind {
     Let,
     Const,
     Var,
-}
-
-impl ParamList {
-    pub fn to_hashmap<T>(&self, f: impl Fn(&String, &TypeExpr) -> T) -> HashMap<String, T> {
-        self.0.iter().map(|(k, v)| (k.clone(), f(k, v))).collect()
-    }
 }

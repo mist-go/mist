@@ -72,15 +72,15 @@ fn cmd_check(path: &str) {
 fn cmd_parse(path: &str) {
     let source = read_ms_file(path);
     match parser::parse(&source) {
-        Ok(output) => {
-            fs::write(
-                "output.json",
-                serde_json::to_string_pretty(&output).unwrap(),
-            )
-            .unwrap_or_else(|e| {
-                eprintln!("error: could not write output.json: {}", e);
-                process::exit(1);
-            });
+        Ok(mut ast) => {
+            walk_ast(semantic::scope::Scope::from_top(&ast), &mut ast);
+
+            fs::write("output.json", serde_json::to_string_pretty(&ast).unwrap()).unwrap_or_else(
+                |e| {
+                    eprintln!("error: could not write output.json: {}", e);
+                    process::exit(1);
+                },
+            );
         }
         Err(e) => {
             eprintln!("parse error:\n{}", e);
