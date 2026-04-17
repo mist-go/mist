@@ -9,7 +9,6 @@ pub struct ParamList(pub Vec<(String, TypeExpr)>);
 pub struct Block(pub Vec<Statement>);
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "value")]
 pub enum TypeExpr {
     Identifier(String),
 }
@@ -30,7 +29,6 @@ pub enum BinaryOp {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "value")]
 pub enum TopLevel {
     Import(String),
     StructDecl {
@@ -48,7 +46,6 @@ pub enum TopLevel {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "value")]
 pub enum Postfix {
     FieldAccess(String),
     Call(Vec<Expression>),
@@ -57,7 +54,6 @@ pub enum Postfix {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "value")]
 pub enum Statement {
     // expr;
     Expression(Expression),
@@ -106,7 +102,6 @@ pub enum Statement {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", content = "value")]
 pub enum Expression {
     Identifier(String),
     IntLiteral(i64),
