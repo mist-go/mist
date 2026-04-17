@@ -11,7 +11,11 @@ pub fn walk_ast(top_scope: Arc<Scope>, tl: &mut Vec<parser::ast::TopLevel>) {
         match tl {
             parser::ast::TopLevel::Import(_) => unimplemented!(),
 
-            parser::ast::TopLevel::FunctionDecl { params, body, .. } => {
+            parser::ast::TopLevel::FunctionDecl {
+                params, body, name, ..
+            } => {
+                *name = top_scope.get_reference(name).unwrap().name.clone();
+
                 let scope = LocalScope::new(top_scope.clone());
 
                 scope.with_params(params);
@@ -19,7 +23,9 @@ pub fn walk_ast(top_scope: Arc<Scope>, tl: &mut Vec<parser::ast::TopLevel>) {
                 scope.with_block(body);
             }
 
-            parser::ast::TopLevel::StructDecl { .. } => {}
+            parser::ast::TopLevel::StructDecl { name, .. } => {
+                *name = top_scope.get_reference(name).unwrap().name.clone();
+            }
         }
     }
 }

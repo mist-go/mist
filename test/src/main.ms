@@ -1,8 +1,8 @@
-struct MyType {
+export struct MyType {
     x: int,
 }
 
-function test(): MyType { }
+export function test(): MyType { }
 
 function add() {
     let output = test().x;

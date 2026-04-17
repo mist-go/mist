@@ -97,33 +97,37 @@ impl TopLevelHirScope {
         tlss: &TopLevelSymbolScope,
         symbol: &StructSymbol,
     ) -> Arc<TypeRef> {
-        let name = self.get_name(symbol.export);
+        if let Some(rf) = self.variables.get(&symbol.name) {
+            rf.var_type.clone()
+        } else {
+            let name = self.get_name(symbol.export);
 
-        let rf = Arc::new(TypeRef::Struct(StructRef {
-            export: symbol.export,
-            name: name.clone(),
-            fields: symbol
-                .fields
-                .iter()
-                .map(|(name, v)| (name.clone(), self.var_ref(tlss, v)))
-                .collect(),
-        }));
-
-        self.variables.insert(
-            symbol.name.clone(),
-            Arc::new(VarRef {
+            let rf = Arc::new(TypeRef::Struct(StructRef {
+                export: symbol.export,
                 name: name.clone(),
-                var_type: rf.clone(),
-            }),
-        );
+                fields: symbol
+                    .fields
+                    .iter()
+                    .map(|(name, v)| (name.clone(), self.var_ref(tlss, v)))
+                    .collect(),
+            }));
 
-        rf
+            self.variables.insert(
+                symbol.name.clone(),
+                Arc::new(VarRef {
+                    name: name.clone(),
+                    var_type: rf.clone(),
+                }),
+            );
+
+            rf
+        }
     }
 
     pub fn var_ref(&mut self, tlss: &TopLevelSymbolScope, symbol: &VarSymbol) -> Arc<VarRef> {
         Arc::new(VarRef {
             var_type: self.type_ref(tlss, &symbol.var_type),
-            name: symbol.name.clone(),
+            name: self.get_name(true),
         })
     }
 
@@ -132,15 +136,7 @@ impl TopLevelHirScope {
             var_ref.var_type.clone()
         } else {
             if let Some(tlss_rf) = tlss.structs.get(&symbol.0) {
-                let struct_ref = self.struct_ref(tlss, tlss_rf);
-
-                let var_ref = Arc::new(VarRef {
-                    name: symbol.0.clone(),
-                    var_type: struct_ref,
-                });
-                self.variables.insert(symbol.0.clone(), var_ref.clone());
-
-                var_ref.var_type.clone()
+                self.struct_ref(tlss, tlss_rf)
             } else {
                 match symbol.0.as_str() {
                     "int" => {
