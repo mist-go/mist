@@ -20,7 +20,7 @@ export = { "export" }
 import = { "import" ~ string_lit ~ ";" }
 
 param_list = { param ~ ("," ~ param)* ~ ","? }
-param      = { identifier ~ ":" ~ type_expr }
+param      = { export? ~ identifier ~ ":" ~ type_expr }
 
 struct_decl = {
     export? ~ "struct" ~ identifier ~ "{" ~ param_list? ~ "}"

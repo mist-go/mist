@@ -48,12 +48,16 @@ pub fn walk_ast(top_scope: Arc<Scope>, tl: &mut Vec<parser::ast::TopLevel>) {
 }
 
 pub fn walk_param_list(fields: &HashMap<String, Arc<VarRef>>, param_list: &mut ParamList) {
+    let old_param_list = param_list.clone();
     param_list.0.clear();
 
-    for (_, param) in fields {
-        param_list.0.push((
+    for (name, param) in fields {
+        param_list.0.insert(
             param.name.clone(),
-            TypeExpr::Identifier(param.var_type.get_name()),
-        ));
+            (
+                old_param_list.0.get(name).map(|a| a.0).unwrap_or_default(),
+                TypeExpr::Identifier(param.var_type.get_name()),
+            ),
+        );
     }
 }

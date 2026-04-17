@@ -151,7 +151,7 @@ impl LocalScope {
     }
 
     pub fn with_params(self: &Arc<Self>, param_list: &ParamList) {
-        for (param_name, type_expr) in &param_list.0 {
+        for (param_name, (_, type_expr)) in &param_list.0 {
             match type_expr {
                 parser::ast::TypeExpr::Identifier(id) => {
                     if let Some(var_type) =

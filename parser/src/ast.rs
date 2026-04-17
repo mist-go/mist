@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct ParamList(pub Vec<(String, TypeExpr)>);
+pub struct ParamList(pub HashMap<String, (bool, TypeExpr)>);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Block(pub Vec<Statement>);
@@ -119,10 +119,4 @@ pub enum VarKind {
     Let,
     Const,
     Var,
-}
-
-impl ParamList {
-    pub fn to_hashmap<T>(&self, f: impl Fn(&String, &TypeExpr) -> T) -> HashMap<String, T> {
-        self.0.iter().map(|(k, v)| (k.clone(), f(k, v))).collect()
-    }
 }
