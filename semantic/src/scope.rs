@@ -52,12 +52,34 @@ impl LocalScope {
     }
 
     pub fn get_reference(&self, name: &String) -> Option<Arc<VarRef>> {
-        self.variables
+        let rf = self
+            .variables
             .lock()
             .unwrap()
             .get(name)
             .cloned()
-            .or_else(|| self.parent.get_reference(name))
+            .or_else(|| self.parent.get_reference(name));
+
+        match rf {
+            Some(v) => Some(v),
+            None => match name.as_str() {
+                "int" => {
+                    let var_ref = Arc::new(VarRef {
+                        export: false,
+                        name: name.clone(),
+                        var_type: Arc::new(TypeRef::Int),
+                    });
+
+                    self.variables
+                        .lock()
+                        .unwrap()
+                        .insert(name.clone(), var_ref.clone());
+
+                    Some(var_ref)
+                }
+                _ => None,
+            },
+        }
     }
 
     pub fn with_block(self: &Arc<Self>, block: &mut parser::ast::Block) {
@@ -120,22 +142,18 @@ impl LocalScope {
     ) -> Option<Arc<TypeRef>> {
         match expr {
             ast::Expression::IntLiteral(_) => self
-                .parent
                 .get_reference(&"int".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::FloatLiteral(_) => self
-                .parent
                 .get_reference(&"float".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::BoolLiteral(_) => self
-                .parent
                 .get_reference(&"bool".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::StringLiteral(_) => self
-                .parent
                 .get_reference(&"string".to_string())
                 .map(|r| r.var_type.clone()),
 
