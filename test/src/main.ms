@@ -1,7 +1,5 @@
 package main;
 
-export struct MyType {
-    export x: int,
+function main() {
+    let a = 10;
 }
-
-export function test(a: MyType) { }
