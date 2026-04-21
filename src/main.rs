@@ -1,3 +1,5 @@
+pub mod compiler;
+
 use std::fs;
 use std::path::PathBuf;
 use std::process;
@@ -18,7 +20,7 @@ fn main() {
                 eprintln!("error: expected a file path\n  usage: mist build");
                 process::exit(1);
             }
-            cmd_build();
+            compiler::build();
         }
         "check" => {
             if args.len() < 3 {
@@ -46,10 +48,6 @@ fn main() {
             process::exit(1);
         }
     }
-}
-
-pub fn cmd_build() {
-    unimplemented!("build command is not implemented yet");
 }
 
 fn cmd_check(path: &str) {
