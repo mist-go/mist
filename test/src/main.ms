@@ -1,3 +1,5 @@
+package main;
+
 export struct MyType {
     export x: int,
 }

@@ -112,6 +112,7 @@ impl TopLevelSymbolScope {
         for top in top_level {
             match top {
                 TopLevel::Import(_) => unimplemented!(),
+                TopLevel::Package(_) => {}
 
                 TopLevel::FunctionDecl {
                     export,

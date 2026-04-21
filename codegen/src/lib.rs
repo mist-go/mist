@@ -1,6 +1,4 @@
-use parser::ast::{
-    BinaryOp, Block, Expression, Postfix, Statement, TopLevel, TypeExpr, VarKind,
-};
+use parser::ast::{BinaryOp, Block, Expression, Postfix, Statement, TopLevel, TypeExpr, VarKind};
 
 pub struct GoCodegen {
     output: String,
@@ -55,7 +53,11 @@ impl GoCodegen {
                 }
                 self.addln("");
             }
-            TopLevel::StructDecl { export, name, fields } => {
+            TopLevel::StructDecl {
+                export,
+                name,
+                fields,
+            } => {
                 let name = if *export { name } else { name };
                 self.addln(&format!("type {} struct {{", name));
                 self.indent += 1;
@@ -73,7 +75,11 @@ impl GoCodegen {
                 return_type,
                 body,
             } => {
-                let name = if *export { format!("{}", name) } else { name.clone() };
+                let name = if *export {
+                    format!("{}", name)
+                } else {
+                    name.clone()
+                };
                 let params_str = params
                     .0
                     .iter()
@@ -95,6 +101,10 @@ impl GoCodegen {
                 self.generate_block(body);
                 self.indent -= 1;
                 self.addln("}\n");
+            }
+            TopLevel::Package(pkg) => {
+                self.addln(&format!("package {}", pkg));
+                self.addln("");
             }
         }
     }
@@ -155,24 +165,15 @@ impl GoCodegen {
                 then_branch,
                 else_branch,
             } => {
-                self.add_indented(&format!(
-                    "if {} ",
-                    self.generate_expression(condition)
-                ));
+                self.add_indented(&format!("if {} ", self.generate_expression(condition)));
                 self.generate_statement(then_branch);
                 if let Some(else_br) = else_branch {
                     self.add_indented("else ");
                     self.generate_statement(else_br);
                 }
             }
-            Statement::While {
-                condition,
-                body,
-            } => {
-                self.add_indented(&format!(
-                    "for {} ",
-                    self.generate_expression(condition)
-                ));
+            Statement::While { condition, body } => {
+                self.add_indented(&format!("for {} ", self.generate_expression(condition)));
                 self.generate_statement(body);
             }
             Statement::For {
@@ -258,11 +259,7 @@ impl GoCodegen {
                         .join(", ");
                     format!("{}({})", result, args_str)
                 }
-                Postfix::Index(idx) => format!(
-                    "{}[{}]",
-                    result,
-                    self.generate_expression(idx)
-                ),
+                Postfix::Index(idx) => format!("{}[{}]", result, self.generate_expression(idx)),
                 Postfix::Binary(op, rhs) => {
                     let op_str = match op {
                         BinaryOp::Plus => "+",
@@ -277,12 +274,7 @@ impl GoCodegen {
                         BinaryOp::LessThanOrEqual => "<=",
                         BinaryOp::GreaterThanOrEqual => ">=",
                     };
-                    format!(
-                        "{} {} {}",
-                        result,
-                        op_str,
-                        self.generate_expression(rhs)
-                    )
+                    format!("{} {} {}", result, op_str, self.generate_expression(rhs))
                 }
             };
         }
@@ -299,8 +291,8 @@ impl Default for GoCodegen {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use parser::ast::{Block, Expression, ParamList, Statement, TopLevel, TypeExpr};
     use std::collections::HashMap;
-    use parser::ast::{ParamList, TypeExpr, Block, Statement, Expression, TopLevel};
 
     #[test]
     fn test_int_literal() {
@@ -337,7 +329,10 @@ mod tests {
     fn test_struct_decl() {
         let mut cg = GoCodegen::new();
         let mut fields = HashMap::new();
-        fields.insert("x".to_string(), (true, TypeExpr::Identifier("int".to_string())));
+        fields.insert(
+            "x".to_string(),
+            (true, TypeExpr::Identifier("int".to_string())),
+        );
         let toplevel = TopLevel::StructDecl {
             export: true,
             name: "Point".to_string(),

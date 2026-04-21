@@ -70,6 +70,10 @@ impl TopLevel {
                 let path = pair.into_inner().next().unwrap().as_str().to_string();
                 Some(TopLevel::Import(path))
             }
+            Rule::package => {
+                let name = pair.into_inner().next().unwrap().as_str().to_string();
+                Some(TopLevel::Package(name))
+            }
             Rule::function_decl => {
                 let mut inner = pair.into_inner();
 
