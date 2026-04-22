@@ -39,9 +39,9 @@ pub fn build() {
     println!("  → parsing...");
 
     let parser_result = if config.script {
-        parser::script_parser::parse(&source)
+        parser::script_parser::parse(&source).map_err(|e| e.to_string())
     } else {
-        parser::script_parser::parse(&source)
+        parser::parse(&source).map_err(|e| e.to_string())
     };
 
     let mut ast = match parser_result {

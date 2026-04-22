@@ -1,0 +1,120 @@
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+COMMENT    = _{ "//" ~ (!"\n" ~ ANY)* }
+
+program = { SOI ~ top_level* ~ EOI }
+
+// primitives
+identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+integer    = @{ ASCII_DIGIT+ }
+float      = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+boolean    =  { "true" | "false" }
+string_lit =  { "\"" ~ inner_str ~ "\"" }
+inner_str  = @{ (!"\"" ~ ANY)* }
+
+// ================= TOP LEVEL =================
+
+top_level = _{ import | function_decl | struct_decl | package }
+
+package = { "package" ~ identifier ~ ";" }
+
+export = { "export" }
+
+import = { "import" ~ string_lit ~ ";" }
+
+param_list = { param ~ ("," ~ param)* ~ ","? }
+param      = { export? ~ identifier ~ ":" ~ type_expr }
+
+struct_decl = {
+    export? ~ "struct" ~ identifier ~ "{" ~ param_list? ~ "}"
+}
+
+function_decl = {
+    export? ~ "function" ~ identifier ~ "(" ~ param_list? ~ ")" ~ (":" ~ type_expr)? ~ block
+}
+
+// ================= STATEMENTS =================
+
+block = { "{" ~ statement_list ~ "}" }
+
+statement_list = { statement* }
+
+statement = _{
+    expr_stmt
+  | var_decl
+  | var_assign
+  | if_stmt
+  | while_stmt
+  | for_stmt
+  | return_stmt
+  | break_stmt
+  | continue_stmt
+  | block
+}
+
+// --- basic statements ---
+
+expr_stmt = { expr ~ ";" }
+
+return_stmt = { "return" ~ expr? ~ ";" }
+
+break_stmt = { "break" ~ ";" }
+
+continue_stmt = { "continue" ~ ";" }
+
+// --- variable declarations ---
+
+var_decl_kind = { "let" | "const" | "var" }
+
+var_decl = {
+    var_decl_kind ~ identifier ~ ("=" ~ expr)? ~ ";"
+}
+
+var_assign = {
+    expr ~ "=" ~ expr ~ ";"
+}
+
+// --- control flow ---
+
+if_stmt = {
+    "if" ~ "(" ~ expr ~ ")" ~ statement ~ ("else" ~ statement)?
+}
+
+while_stmt = {
+    "while" ~ "(" ~ expr ~ ")" ~ statement
+}
+
+for_stmt = {
+    "for" ~ "(" ~ var_decl ~ expr ~ ";" ~ var_assign_no_semicolon ~ ")" ~ statement
+}
+
+var_assign_no_semicolon = {
+    expr ~ "=" ~ expr
+}
+
+// ================= EXPRESSIONS =================
+type_expr = { identifier }
+
+primary = {
+    integer
+  | float
+  | boolean
+  | string_lit
+  | identifier
+}
+
+postfix = {
+    field_px
+  | call_px
+  | index_px
+  | binary_px
+}
+
+field_px  = { "." ~ identifier }
+call_px   = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
+index_px  = { "[" ~ expr ~ "]" }
+binary_px = { bin_op ~ expr }
+bin_op    = { "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" }
+
+expr = {
+    primary ~ postfix*
+}
