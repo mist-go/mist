@@ -2,6 +2,6 @@ package main;
 
 import "fmt";
 
-function main() {
+void main() {
 
 }
