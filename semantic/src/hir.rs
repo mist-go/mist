@@ -15,7 +15,7 @@ pub enum TypeRef {
     Struct(StructRef),
     Function(FunctionRef),
     Package(PackageRef),
-    Int,
+    Name(String),
 }
 
 #[derive(Clone, Debug)]
@@ -162,23 +162,15 @@ impl TopLevelHirScope {
             if let Some(tlss_rf) = tlss.structs.get(&symbol.0) {
                 self.struct_ref(tlss, tlss_rf)
             } else {
-                match symbol.0.as_str() {
-                    "int" => {
-                        let var_ref = Arc::new(VarRef {
-                            export: false,
-                            name: symbol.0.clone(),
-                            var_type: Arc::new(TypeRef::Int),
-                        });
+                let var_ref = Arc::new(VarRef {
+                    export: false,
+                    name: symbol.0.clone(),
+                    var_type: Arc::new(TypeRef::Name(symbol.0.clone())),
+                });
 
-                        self.variables.insert(symbol.0.clone(), var_ref.clone());
+                self.variables.insert(symbol.0.clone(), var_ref.clone());
 
-                        var_ref.var_type.clone()
-                    }
-
-                    _ => {
-                        unimplemented!("{:?}", symbol)
-                    }
-                }
+                var_ref.var_type.clone()
             }
         }
     }
@@ -202,7 +194,7 @@ impl TypeRef {
             TypeRef::Function(f) => f.name.clone(),
             TypeRef::Struct(s) => s.name.clone(),
             TypeRef::Package(p) => p.name.clone(),
-            TypeRef::Int => "int".to_string(),
+            TypeRef::Name(n) => n.clone(),
         }
     }
 }
@@ -302,24 +294,15 @@ impl PackageRef {
             if let Some(json_scope_rf) = json_scope.structs.get(&symbol.0) {
                 self.struct_ref(json_scope, json_scope_rf)
             } else {
-                match symbol.0.as_str() {
-                    // TODO: This is a hack, we should have a better way to handle built-in types
-                    "int" | "[]any" => {
-                        let var_ref = Arc::new(VarRef {
-                            export: false,
-                            name: symbol.0.clone(),
-                            var_type: Arc::new(TypeRef::Int),
-                        });
+                let var_ref = Arc::new(VarRef {
+                    export: false,
+                    name: symbol.0.clone(),
+                    var_type: Arc::new(TypeRef::Name(symbol.0.clone())),
+                });
 
-                        self.variables.insert(symbol.0.clone(), var_ref.clone());
+                self.variables.insert(symbol.0.clone(), var_ref.clone());
 
-                        var_ref.var_type.clone()
-                    }
-
-                    _ => {
-                        unimplemented!("{:?}", symbol)
-                    }
-                }
+                var_ref.var_type.clone()
             }
         }
     }

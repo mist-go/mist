@@ -65,23 +65,20 @@ impl LocalScope {
 
         match rf {
             Some(v) => Some(v),
-            None => match name.as_str() {
-                "int" => {
-                    let var_ref = Arc::new(VarRef {
-                        export: false,
-                        name: name.clone(),
-                        var_type: Arc::new(TypeRef::Int),
-                    });
+            None => {
+                let var_ref = Arc::new(VarRef {
+                    export: false,
+                    name: name.clone(),
+                    var_type: Arc::new(TypeRef::Name(name.clone())),
+                });
 
-                    self.variables
-                        .lock()
-                        .unwrap()
-                        .insert(name.clone(), var_ref.clone());
+                self.variables
+                    .lock()
+                    .unwrap()
+                    .insert(name.clone(), var_ref.clone());
 
-                    Some(var_ref)
-                }
-                _ => None,
-            },
+                Some(var_ref)
+            }
         }
     }
 
