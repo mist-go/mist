@@ -2,21 +2,10 @@ package main;
 
 import "fmt";
 
-function main() {
-    doSomething();
-    let a = doSomethingElse();
-
-    if (a + 1 == 67 + 1) {
-        fmt.println(a);
-    }
+void main() {
+    test(67);
 }
 
-function doSomething() {
-    fmt.println("hello");
-}
-
-function doSomethingElse(): int {
-    fmt.println("world");
-
-    return 67;
+void test(int x) {
+    fmt.println("Hello" + x);
 }

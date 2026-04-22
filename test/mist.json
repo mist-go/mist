@@ -1,5 +1,5 @@
 {
     "entry": "src/main.ms",
     "out_dir": "build",
-    "script": true
+    "script": false
 }
