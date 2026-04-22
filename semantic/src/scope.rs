@@ -38,6 +38,10 @@ impl Scope {
             Scope::Local(l) => l.parent.next_var_idx(),
         }
     }
+
+    pub fn get_name(&self, export: bool) -> String {
+        format!("{}{}", if export { 'V' } else { 'v' }, self.next_var_idx())
+    }
 }
 
 #[derive(Debug)]
@@ -89,11 +93,15 @@ impl LocalScope {
                 if let Some(init) = init {
                     let var_type = self.get_type_from_expr(init).unwrap();
 
+                    let var_name = name.clone();
+
+                    *name = self.parent.get_name(false);
+
                     self.variables.lock().unwrap().insert(
-                        name.clone(),
+                        var_name,
                         Arc::new(VarRef {
                             export: false,
-                            name: name.to_string(),
+                            name: name.clone(),
                             var_type,
                         }),
                     );
