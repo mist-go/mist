@@ -6,6 +6,7 @@ use serde::Deserialize;
 struct Config {
     entry: String,
     out_dir: String,
+    script: bool,
 }
 
 pub fn build() {
@@ -37,7 +38,13 @@ pub fn build() {
 
     println!("  → parsing...");
 
-    let mut ast = match parser::parse(&source) {
+    let parser_result = if config.script {
+        parser::script_parser::parse(&source)
+    } else {
+        parser::script_parser::parse(&source)
+    };
+
+    let mut ast = match parser_result {
         Ok(ast) => ast,
         Err(e) => {
             eprintln!("error: parse failed\n{}", e);
