@@ -1,3 +1,5 @@
+pub mod compiler;
+
 use std::fs;
 use std::path::PathBuf;
 use std::process;
@@ -18,7 +20,7 @@ fn main() {
                 eprintln!("error: expected a file path\n  usage: mist build");
                 process::exit(1);
             }
-            cmd_build();
+            compiler::build();
         }
         "check" => {
             if args.len() < 3 {
@@ -48,17 +50,13 @@ fn main() {
     }
 }
 
-pub fn cmd_build() {
-    unimplemented!("build command is not implemented yet");
-}
-
 fn cmd_check(path: &str) {
     let source = read_ms_file(path);
     match parser::parse(&source) {
         Ok(mut ast) => {
             println!("parse: ok");
 
-            walk_ast(semantic::scope::Scope::from_top(&ast), &mut ast);
+            // walk_ast(semantic::scope::Scope::from_top(&ast), &mut ast);
 
             println!("{:#?}", ast)
         }
@@ -73,7 +71,7 @@ fn cmd_parse(path: &str) {
     let source = read_ms_file(path);
     match parser::parse(&source) {
         Ok(mut ast) => {
-            walk_ast(semantic::scope::Scope::from_top(&ast), &mut ast);
+            // walk_ast(semantic::scope::Scope::from_top(&ast), &mut ast);
 
             fs::write("output.json", serde_json::to_string_pretty(&ast).unwrap()).unwrap_or_else(
                 |e| {

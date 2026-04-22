@@ -1,5 +1,7 @@
-export struct MyType {
-    export x: int,
-}
+package main;
 
-export function test(a: MyType) { }
+import "fmt";
+
+function main() {
+    fmt.println("hello");
+}

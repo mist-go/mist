@@ -17,8 +17,11 @@ pub enum Scope {
 }
 
 impl Scope {
-    pub fn from_top(top_level: &Vec<parser::ast::TopLevel>) -> Arc<Self> {
-        let tl = TopLevelSymbolScope::from(top_level);
+    pub fn from_top(
+        path: &std::path::PathBuf,
+        top_level: &Vec<parser::ast::TopLevel>,
+    ) -> Arc<Self> {
+        let tl = TopLevelSymbolScope::from(path, top_level);
         Arc::new(Self::TopLevel(TopLevelHirScope::from_tlss(&tl)))
     }
 
@@ -52,12 +55,31 @@ impl LocalScope {
     }
 
     pub fn get_reference(&self, name: &String) -> Option<Arc<VarRef>> {
-        self.variables
+        let rf = self
+            .variables
             .lock()
             .unwrap()
             .get(name)
             .cloned()
-            .or_else(|| self.parent.get_reference(name))
+            .or_else(|| self.parent.get_reference(name));
+
+        match rf {
+            Some(v) => Some(v),
+            None => {
+                let var_ref = Arc::new(VarRef {
+                    export: false,
+                    name: name.clone(),
+                    var_type: Arc::new(TypeRef::Name(name.clone())),
+                });
+
+                self.variables
+                    .lock()
+                    .unwrap()
+                    .insert(name.clone(), var_ref.clone());
+
+                Some(var_ref)
+            }
+        }
     }
 
     pub fn with_block(self: &Arc<Self>, block: &mut parser::ast::Block) {
@@ -78,6 +100,9 @@ impl LocalScope {
                         );
                     }
                 }
+                Statement::Expression(e) => {
+                    self.get_type_from_expr(e);
+                }
                 _ => {}
             }
         }
@@ -97,6 +122,11 @@ impl LocalScope {
                         let field = s.fields.get(id)?;
                         *id = field.name.clone();
                         current_type = field.var_type.clone();
+                    }
+                    TypeRef::Package(p) => {
+                        let var_ref = p.variables.get(id)?;
+                        *id = var_ref.name.clone();
+                        current_type = var_ref.var_type.clone();
                     }
                     _ => unimplemented!(),
                 },
@@ -120,22 +150,18 @@ impl LocalScope {
     ) -> Option<Arc<TypeRef>> {
         match expr {
             ast::Expression::IntLiteral(_) => self
-                .parent
                 .get_reference(&"int".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::FloatLiteral(_) => self
-                .parent
                 .get_reference(&"float".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::BoolLiteral(_) => self
-                .parent
                 .get_reference(&"bool".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::StringLiteral(_) => self
-                .parent
                 .get_reference(&"string".to_string())
                 .map(|r| r.var_type.clone()),
 

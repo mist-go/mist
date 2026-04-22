@@ -6,13 +6,22 @@ use std::{
     },
 };
 
-use crate::top_level::{FunctionSymbol, StructSymbol, TopLevelSymbolScope, TypeSymbol, VarSymbol};
+use crate::top_level::{
+    FunctionSymbol, JSONScope, StructSymbol, TopLevelSymbolScope, TypeSymbol, VarSymbol,
+};
 
 #[derive(Clone, Debug)]
 pub enum TypeRef {
     Struct(StructRef),
     Function(FunctionRef),
-    Int,
+    Package(PackageRef),
+    Name(String),
+}
+
+#[derive(Clone, Debug)]
+pub struct PackageRef {
+    pub name: String,
+    pub variables: HashMap<String, Arc<VarRef>>,
 }
 
 #[derive(Clone, Debug)]
@@ -56,6 +65,17 @@ impl TopLevelHirScope {
 
         for (_, symbol) in &tlss.structs {
             scope.struct_ref(tlss, symbol);
+        }
+
+        for (_, symbol) in &tlss.imports {
+            scope.variables.insert(
+                symbol.package_name.clone(),
+                Arc::new(VarRef {
+                    export: false,
+                    name: symbol.package_name.clone(),
+                    var_type: Arc::new(TypeRef::Package(PackageRef::from_tlss(symbol))),
+                }),
+            );
         }
 
         scope
@@ -142,23 +162,15 @@ impl TopLevelHirScope {
             if let Some(tlss_rf) = tlss.structs.get(&symbol.0) {
                 self.struct_ref(tlss, tlss_rf)
             } else {
-                match symbol.0.as_str() {
-                    "int" => {
-                        let var_ref = Arc::new(VarRef {
-                            export: false,
-                            name: symbol.0.clone(),
-                            var_type: Arc::new(TypeRef::Int),
-                        });
+                let var_ref = Arc::new(VarRef {
+                    export: false,
+                    name: symbol.0.clone(),
+                    var_type: Arc::new(TypeRef::Name(symbol.0.clone())),
+                });
 
-                        self.variables.insert(symbol.0.clone(), var_ref.clone());
+                self.variables.insert(symbol.0.clone(), var_ref.clone());
 
-                        var_ref.var_type.clone()
-                    }
-
-                    _ => {
-                        unimplemented!("{:?}", symbol)
-                    }
-                }
+                var_ref.var_type.clone()
             }
         }
     }
@@ -181,7 +193,126 @@ impl TypeRef {
         match self {
             TypeRef::Function(f) => f.name.clone(),
             TypeRef::Struct(s) => s.name.clone(),
-            TypeRef::Int => "int".to_string(),
+            TypeRef::Package(p) => p.name.clone(),
+            TypeRef::Name(n) => n.clone(),
         }
+    }
+}
+
+impl PackageRef {
+    pub fn from_tlss(json_scope: &JSONScope) -> Self {
+        let mut scope = Self {
+            name: json_scope.package_name.clone(),
+            variables: HashMap::new(),
+        };
+
+        for (token_name, symbol) in &json_scope.functions {
+            scope.function_ref(json_scope, token_name, symbol);
+        }
+
+        for (_, symbol) in &json_scope.structs {
+            scope.struct_ref(json_scope, symbol);
+        }
+
+        scope
+    }
+
+    pub fn function_ref(
+        &mut self,
+        json_scope: &JSONScope,
+        token_name: &String,
+        symbol: &FunctionSymbol,
+    ) {
+        if self.variables.get(&symbol.name).is_none() {
+            let name = symbol.name.clone();
+
+            if let Some(_) = json_scope.functions.get(token_name) {
+                let rf = FunctionRef {
+                    export: symbol.export,
+                    name: name.clone(),
+                    params: symbol
+                        .params
+                        .iter()
+                        .map(|(name, v)| (name.clone(), self.var_ref(json_scope, v)))
+                        .collect(),
+                    return_type: symbol
+                        .return_type
+                        .clone()
+                        .map(|rt| self.type_ref(json_scope, &rt)),
+                };
+
+                self.variables.insert(
+                    token_name.clone(),
+                    Arc::new(VarRef {
+                        export: false,
+                        name: name.clone(),
+                        var_type: Arc::new(TypeRef::Function(rf)),
+                    }),
+                );
+            } else {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn struct_ref(&mut self, json_scope: &JSONScope, symbol: &StructSymbol) -> Arc<TypeRef> {
+        if let Some(rf) = self.variables.get(&symbol.name) {
+            rf.var_type.clone()
+        } else {
+            let name = symbol.name.clone();
+
+            let rf = Arc::new(TypeRef::Struct(StructRef {
+                export: symbol.export,
+                name: name.clone(),
+                fields: symbol
+                    .fields
+                    .iter()
+                    .map(|(name, v)| (name.clone(), self.var_ref(json_scope, v)))
+                    .collect(),
+            }));
+
+            self.variables.insert(
+                symbol.name.clone(),
+                Arc::new(VarRef {
+                    export: symbol.export,
+                    name: name.clone(),
+                    var_type: rf.clone(),
+                }),
+            );
+
+            rf
+        }
+    }
+
+    pub fn var_ref(&mut self, json_scope: &JSONScope, symbol: &VarSymbol) -> Arc<VarRef> {
+        Arc::new(VarRef {
+            export: symbol.export,
+            var_type: self.type_ref(json_scope, &symbol.var_type),
+            name: symbol.name.clone(),
+        })
+    }
+
+    pub fn type_ref(&mut self, json_scope: &JSONScope, symbol: &TypeSymbol) -> Arc<TypeRef> {
+        if let Some(var_ref) = self.variables.get(&symbol.0) {
+            var_ref.var_type.clone()
+        } else {
+            if let Some(json_scope_rf) = json_scope.structs.get(&symbol.0) {
+                self.struct_ref(json_scope, json_scope_rf)
+            } else {
+                let var_ref = Arc::new(VarRef {
+                    export: false,
+                    name: symbol.0.clone(),
+                    var_type: Arc::new(TypeRef::Name(symbol.0.clone())),
+                });
+
+                self.variables.insert(symbol.0.clone(), var_ref.clone());
+
+                var_ref.var_type.clone()
+            }
+        }
+    }
+
+    pub fn get_reference(&self, name: &String) -> Option<Arc<VarRef>> {
+        self.variables.get(name).cloned()
     }
 }

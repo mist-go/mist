@@ -14,13 +14,17 @@ pub mod top_level;
 pub fn walk_ast(top_scope: Arc<Scope>, tl: &mut Vec<parser::ast::TopLevel>) {
     for tl in tl {
         match tl {
-            parser::ast::TopLevel::Import(_) => unimplemented!(),
+            parser::ast::TopLevel::Import(_) => {}
+            parser::ast::TopLevel::Package(_) => {}
 
             parser::ast::TopLevel::FunctionDecl {
                 params, body, name, ..
             } => {
                 let rf = top_scope.get_reference(name).unwrap();
-                *name = rf.name.clone();
+
+                if name != "main" {
+                    *name = rf.name.clone();
+                }
 
                 match &*rf.var_type {
                     hir::TypeRef::Function(f) => walk_param_list(&f.params, params),
