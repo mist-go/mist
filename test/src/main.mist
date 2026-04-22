@@ -1,8 +1,5 @@
 package main;
 
-import "fmt";
-
-void main() {
-    string test = "Hello, World";
-    fmt.println(test);
+int test(int a, int b) {
+    return a + b;
 }

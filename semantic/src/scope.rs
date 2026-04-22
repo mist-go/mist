@@ -59,15 +59,16 @@ impl LocalScope {
     }
 
     pub fn get_reference(&self, name: &String) -> Option<Arc<VarRef>> {
-        let rf = self
-            .variables
+        self.variables
             .lock()
             .unwrap()
             .get(name)
             .cloned()
-            .or_else(|| self.parent.get_reference(name));
+            .or_else(|| self.parent.get_reference(name))
+    }
 
-        match rf {
+    pub fn get_type_reference(&self, name: &String) -> Option<Arc<VarRef>> {
+        match self.get_reference(name) {
             Some(v) => Some(v),
             None => {
                 let var_ref = Arc::new(VarRef {
@@ -119,6 +120,11 @@ impl LocalScope {
                 self.clone().with_statement(then_branch);
                 if let Some(else_branch) = else_branch {
                     self.clone().with_statement(else_branch);
+                }
+            }
+            Statement::Return(expr) => {
+                if let Some(expr) = expr {
+                    self.get_type_from_expr(expr);
                 }
             }
             _ => {}
@@ -193,19 +199,19 @@ impl LocalScope {
     ) -> Option<Arc<TypeRef>> {
         match expr {
             ast::Expression::IntLiteral(_) => self
-                .get_reference(&"int".to_string())
+                .get_type_reference(&"int".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::FloatLiteral(_) => self
-                .get_reference(&"float".to_string())
+                .get_type_reference(&"float".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::BoolLiteral(_) => self
-                .get_reference(&"bool".to_string())
+                .get_type_reference(&"bool".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::StringLiteral(_) => self
-                .get_reference(&"string".to_string())
+                .get_type_reference(&"string".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::Identifier(id) => {
@@ -220,24 +226,32 @@ impl LocalScope {
         }
     }
 
-    pub fn with_params(self: &Arc<Self>, param_list: &ParamList) {
-        for (param_name, (export, type_expr)) in &param_list.0 {
-            match type_expr {
+    pub fn with_params(self: &Arc<Self>, param_list: &mut ParamList) {
+        let mut new_param_list = HashMap::new();
+
+        for (param_name, (export, type_expr)) in param_list.0.drain() {
+            match &type_expr {
                 parser::ast::TypeExpr::Identifier(id) => {
-                    if let Some(var_type) =
-                        self.parent.get_reference(id).map(|r| r.var_type.clone())
-                    {
-                        self.variables.lock().unwrap().insert(
-                            param_name.clone(),
-                            Arc::new(VarRef {
-                                export: *export,
-                                var_type,
-                                name: param_name.clone(),
-                            }),
-                        );
-                    }
+                    let new_name = self.parent.get_name(export);
+
+                    self.variables.lock().unwrap().insert(
+                        param_name.clone(),
+                        Arc::new(VarRef {
+                            export: export,
+                            var_type: self
+                                .parent
+                                .get_reference(id)
+                                .map(|r| r.var_type.clone())
+                                .unwrap(),
+                            name: new_name.clone(),
+                        }),
+                    );
+
+                    new_param_list.insert(new_name, (export, type_expr));
                 }
             }
         }
+
+        param_list.0 = new_param_list;
     }
 }
