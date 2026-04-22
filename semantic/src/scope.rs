@@ -153,9 +153,11 @@ impl LocalScope {
                     }
                     _ => unimplemented!(),
                 },
-                Postfix::Call(_args) => match &*current_type {
+                Postfix::Call(args) => match &*current_type {
                     TypeRef::Function(s) => {
-                        // TODO: arg checking
+                        for arg in args {
+                            self.get_type_from_expr(arg);
+                        }
                         current_type = s.return_type.clone()?;
                     }
                     _ => unimplemented!(),
