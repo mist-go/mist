@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+	"unicode"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -78,7 +79,7 @@ func main() {
 			switch obj := obj.(type) {
 
 			case *types.Func:
-				scopeData.Functions[name] = buildFunction(obj)
+				scopeData.Functions[LowerFirst(name)] = buildFunction(obj)
 
 			case *types.TypeName:
 				if strct, ok := buildStruct(obj); ok {
@@ -97,6 +98,15 @@ func main() {
 	}
 
 	fmt.Println(string(out))
+}
+
+func LowerFirst(s string) string {
+	if s == "" {
+		return ""
+	}
+	r := []rune(s)
+	r[0] = unicode.ToLower(r[0])
+	return string(r)
 }
 
 func buildFunction(fn *types.Func) FunctionSymbol {
@@ -166,7 +176,7 @@ func buildStruct(tn *types.TypeName) (StructSymbol, bool) {
 			continue
 		}
 
-		methods[m.Name()] = buildFunction(m)
+		methods[LowerFirst(m.Name())] = buildFunction(m)
 	}
 
 	return StructSymbol{

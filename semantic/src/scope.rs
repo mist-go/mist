@@ -120,6 +120,11 @@ impl LocalScope {
                         *id = field.name.clone();
                         current_type = field.var_type.clone();
                     }
+                    TypeRef::Package(p) => {
+                        let var_ref = p.variables.get(id)?;
+                        *id = var_ref.name.clone();
+                        current_type = var_ref.var_type.clone();
+                    }
                     _ => unimplemented!(),
                 },
                 Postfix::Call(_args) => match &*current_type {

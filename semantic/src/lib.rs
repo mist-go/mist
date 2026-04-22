@@ -14,7 +14,7 @@ pub mod top_level;
 pub fn walk_ast(top_scope: Arc<Scope>, tl: &mut Vec<parser::ast::TopLevel>) {
     for tl in tl {
         match tl {
-            parser::ast::TopLevel::Import(package) => {}
+            parser::ast::TopLevel::Import(_) => {}
             parser::ast::TopLevel::Package(_) => {}
 
             parser::ast::TopLevel::FunctionDecl {
