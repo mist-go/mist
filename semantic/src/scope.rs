@@ -100,6 +100,9 @@ impl LocalScope {
                         );
                     }
                 }
+                Statement::Expression(e) => {
+                    self.get_type_from_expr(e);
+                }
                 _ => {}
             }
         }
