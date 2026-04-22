@@ -82,29 +82,44 @@ impl LocalScope {
         }
     }
 
+    pub fn with_statement(self: &Arc<Self>, statement: &mut Statement) {
+        match statement {
+            Statement::Block(b) => self.clone().with_block(b),
+            Statement::VarDecl { name, init, .. } => {
+                if let Some(init) = init {
+                    let var_type = self.get_type_from_expr(init).unwrap();
+
+                    self.variables.lock().unwrap().insert(
+                        name.clone(),
+                        Arc::new(VarRef {
+                            export: false,
+                            name: name.to_string(),
+                            var_type,
+                        }),
+                    );
+                }
+            }
+            Statement::Expression(e) => {
+                self.get_type_from_expr(e);
+            }
+            Statement::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                self.get_type_from_expr(condition);
+                self.clone().with_statement(then_branch);
+                if let Some(else_branch) = else_branch {
+                    self.clone().with_statement(else_branch);
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub fn with_block(self: &Arc<Self>, block: &mut parser::ast::Block) {
         for statement in &mut block.0 {
-            match statement {
-                Statement::Block(b) => self.clone().with_block(b),
-                Statement::VarDecl { name, init, .. } => {
-                    if let Some(init) = init {
-                        let var_type = self.get_type_from_expr(init).unwrap();
-
-                        self.variables.lock().unwrap().insert(
-                            name.clone(),
-                            Arc::new(VarRef {
-                                export: false,
-                                name: name.to_string(),
-                                var_type,
-                            }),
-                        );
-                    }
-                }
-                Statement::Expression(e) => {
-                    self.get_type_from_expr(e);
-                }
-                _ => {}
-            }
+            self.with_statement(statement);
         }
     }
 
@@ -136,6 +151,24 @@ impl LocalScope {
                         current_type = s.return_type.clone()?;
                     }
                     _ => unimplemented!(),
+                },
+                Postfix::Binary(op, right) => match op {
+                    parser::ast::BinaryOp::Equal
+                    | parser::ast::BinaryOp::NotEqual
+                    | parser::ast::BinaryOp::GreaterThan
+                    | parser::ast::BinaryOp::LessThan
+                    | parser::ast::BinaryOp::GreaterThanOrEqual
+                    | parser::ast::BinaryOp::LessThanOrEqual => {
+                        self.get_type_from_expr(right)?;
+                        current_type = Arc::new(TypeRef::Name("bool".to_string()));
+                    }
+                    parser::ast::BinaryOp::Plus
+                    | parser::ast::BinaryOp::Minus
+                    | parser::ast::BinaryOp::Multiply
+                    | parser::ast::BinaryOp::Divide
+                    | parser::ast::BinaryOp::Modulo => {
+                        self.get_type_from_expr(right)?;
+                    }
                 },
                 _ => unimplemented!(),
             }
