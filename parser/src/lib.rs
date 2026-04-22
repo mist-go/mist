@@ -43,7 +43,7 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TypeExpr {
                 TypeExpr::try_from(inner)?
             }
             Rule::identifier => TypeExpr::Identifier(pair.as_str().to_string()),
-            _ => unimplemented!("TypeExpr parsing not implemented yet"),
+            _ => unimplemented!("{pair:#?}"),
         })
     }
 }
@@ -188,22 +188,15 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
             Rule::var_decl => {
                 let mut inner = pair.into_inner();
 
-                let kind_pair = inner.next().unwrap(); // let/const/var
-                let name_pair = inner.next().unwrap(); // identifier
-
+                let type_ = inner.next().map(TypeExpr::try_from).unwrap().ok();
+                let name = inner.next().unwrap().as_str().to_string();
                 let init = inner.next().map(Expression::from);
 
-                let kind = match kind_pair.as_str() {
-                    "let" => VarKind::Let,
-                    "const" => VarKind::Const,
-                    "var" => VarKind::Var,
-                    _ => unreachable!(),
-                };
-
                 Statement::VarDecl {
-                    kind,
-                    name: name_pair.as_str().to_string(),
+                    kind: VarKind::Var,
+                    name: name.as_str().to_string(),
                     init,
+                    type_,
                 }
             }
 

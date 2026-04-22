@@ -63,10 +63,10 @@ continue_stmt = { "continue" ~ ";" }
 
 // --- variable declarations ---
 
-var_decl_kind = { "let" | "const" | "var" }
+// var_decl_kind = { "let" | "const" | "var" }
 
 var_decl = {
-    var_decl_kind ~ identifier ~ ("=" ~ expr)? ~ ";"
+    type_expr ~ identifier ~ ("=" ~ expr)? ~ ";"
 }
 
 var_assign = {

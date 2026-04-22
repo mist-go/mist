@@ -193,6 +193,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                     kind,
                     name: name_pair.as_str().to_string(),
                     init,
+                    type_: None,
                 }
             }
 

@@ -3,5 +3,6 @@ package main;
 import "fmt";
 
 void main() {
-
+    string test = "Hello, World";
+    fmt.println(test);
 }
