@@ -206,8 +206,8 @@ impl PackageRef {
             variables: HashMap::new(),
         };
 
-        for (_, symbol) in &json_scope.functions {
-            scope.function_ref(json_scope, symbol);
+        for (token_name, symbol) in &json_scope.functions {
+            scope.function_ref(json_scope, token_name, symbol);
         }
 
         for (_, symbol) in &json_scope.structs {
@@ -217,11 +217,16 @@ impl PackageRef {
         scope
     }
 
-    pub fn function_ref(&mut self, json_scope: &JSONScope, symbol: &FunctionSymbol) {
+    pub fn function_ref(
+        &mut self,
+        json_scope: &JSONScope,
+        token_name: &String,
+        symbol: &FunctionSymbol,
+    ) {
         if self.variables.get(&symbol.name).is_none() {
             let name = symbol.name.clone();
 
-            if let Some(_) = json_scope.functions.get(&symbol.name) {
+            if let Some(_) = json_scope.functions.get(token_name) {
                 let rf = FunctionRef {
                     export: symbol.export,
                     name: name.clone(),
@@ -237,7 +242,7 @@ impl PackageRef {
                 };
 
                 self.variables.insert(
-                    symbol.name.clone(),
+                    token_name.clone(),
                     Arc::new(VarRef {
                         export: false,
                         name: name.clone(),
