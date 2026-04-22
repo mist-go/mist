@@ -128,7 +128,10 @@ impl TopLevelSymbolScope {
                 TopLevel::Import(package) => {
                     let json = fs::read(path.join("mist.map.json")).unwrap();
                     let json_scope_map: JsonScopeMap = serde_json::from_slice(&json).unwrap();
-                    let json_scope = json_scope_map.get(package).unwrap().clone();
+                    let json_scope = json_scope_map
+                        .get(&package.replace("\"", ""))
+                        .unwrap()
+                        .clone();
 
                     scope
                         .imports
