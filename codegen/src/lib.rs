@@ -142,7 +142,12 @@ impl GoCodegen {
                 self.indent -= 1;
                 self.add_indentedln("}\n");
             }
-            Statement::VarDecl { kind, name, init } => {
+            Statement::VarDecl {
+                kind,
+                name,
+                init,
+                type_,
+            } => {
                 let go_kind = match kind {
                     VarKind::Let | VarKind::Const => "var",
                     VarKind::Var => "var",
@@ -151,7 +156,14 @@ impl GoCodegen {
                     .as_ref()
                     .map(|e| format!(" = {}", self.generate_expression(e)))
                     .unwrap_or_else(|| "".to_string());
-                self.add_indentedln(&format!("{} {}{};\n", go_kind, name, init_expr));
+                let type_expr = type_
+                    .clone()
+                    .map(|t| self.translate_type(&t))
+                    .unwrap_or_default();
+                self.add_indentedln(&format!(
+                    "{} {} {}{};\n",
+                    go_kind, name, type_expr, init_expr
+                ));
             }
             Statement::VarAssign { target, value } => {
                 self.add_indentedln(&format!(

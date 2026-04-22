@@ -67,6 +67,7 @@ pub enum Statement {
         kind: VarKind,
         name: String,
         init: Option<Expression>,
+        type_: Option<TypeExpr>,
     },
 
     VarAssign {

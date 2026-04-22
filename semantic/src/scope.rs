@@ -38,6 +38,10 @@ impl Scope {
             Scope::Local(l) => l.parent.next_var_idx(),
         }
     }
+
+    pub fn get_name(&self, export: bool) -> String {
+        format!("{}{}", if export { 'V' } else { 'v' }, self.next_var_idx())
+    }
 }
 
 #[derive(Debug)]
@@ -55,15 +59,16 @@ impl LocalScope {
     }
 
     pub fn get_reference(&self, name: &String) -> Option<Arc<VarRef>> {
-        let rf = self
-            .variables
+        self.variables
             .lock()
             .unwrap()
             .get(name)
             .cloned()
-            .or_else(|| self.parent.get_reference(name));
+            .or_else(|| self.parent.get_reference(name))
+    }
 
-        match rf {
+    pub fn get_type_reference(&self, name: &String) -> Option<Arc<VarRef>> {
+        match self.get_reference(name) {
             Some(v) => Some(v),
             None => {
                 let var_ref = Arc::new(VarRef {
@@ -82,29 +87,53 @@ impl LocalScope {
         }
     }
 
+    pub fn with_statement(self: &Arc<Self>, statement: &mut Statement) {
+        match statement {
+            Statement::Block(b) => self.clone().with_block(b),
+            Statement::VarDecl { name, init, .. } => {
+                if let Some(init) = init {
+                    let var_type = self.get_type_from_expr(init).unwrap();
+
+                    let var_name = name.clone();
+
+                    *name = self.parent.get_name(false);
+
+                    self.variables.lock().unwrap().insert(
+                        var_name,
+                        Arc::new(VarRef {
+                            export: false,
+                            name: name.clone(),
+                            var_type,
+                        }),
+                    );
+                }
+            }
+            Statement::Expression(e) => {
+                self.get_type_from_expr(e);
+            }
+            Statement::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                self.get_type_from_expr(condition);
+                self.clone().with_statement(then_branch);
+                if let Some(else_branch) = else_branch {
+                    self.clone().with_statement(else_branch);
+                }
+            }
+            Statement::Return(expr) => {
+                if let Some(expr) = expr {
+                    self.get_type_from_expr(expr);
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub fn with_block(self: &Arc<Self>, block: &mut parser::ast::Block) {
         for statement in &mut block.0 {
-            match statement {
-                Statement::Block(b) => self.clone().with_block(b),
-                Statement::VarDecl { name, init, .. } => {
-                    if let Some(init) = init {
-                        let var_type = self.get_type_from_expr(init).unwrap();
-
-                        self.variables.lock().unwrap().insert(
-                            name.clone(),
-                            Arc::new(VarRef {
-                                export: false,
-                                name: name.to_string(),
-                                var_type,
-                            }),
-                        );
-                    }
-                }
-                Statement::Expression(e) => {
-                    self.get_type_from_expr(e);
-                }
-                _ => {}
-            }
+            self.with_statement(statement);
         }
     }
 
@@ -130,12 +159,32 @@ impl LocalScope {
                     }
                     _ => unimplemented!(),
                 },
-                Postfix::Call(_args) => match &*current_type {
+                Postfix::Call(args) => match &*current_type {
                     TypeRef::Function(s) => {
-                        // TODO: arg checking
+                        for arg in args {
+                            self.get_type_from_expr(arg);
+                        }
                         current_type = s.return_type.clone()?;
                     }
                     _ => unimplemented!(),
+                },
+                Postfix::Binary(op, right) => match op {
+                    parser::ast::BinaryOp::Equal
+                    | parser::ast::BinaryOp::NotEqual
+                    | parser::ast::BinaryOp::GreaterThan
+                    | parser::ast::BinaryOp::LessThan
+                    | parser::ast::BinaryOp::GreaterThanOrEqual
+                    | parser::ast::BinaryOp::LessThanOrEqual => {
+                        self.get_type_from_expr(right)?;
+                        current_type = Arc::new(TypeRef::Name("bool".to_string()));
+                    }
+                    parser::ast::BinaryOp::Plus
+                    | parser::ast::BinaryOp::Minus
+                    | parser::ast::BinaryOp::Multiply
+                    | parser::ast::BinaryOp::Divide
+                    | parser::ast::BinaryOp::Modulo => {
+                        self.get_type_from_expr(right)?;
+                    }
                 },
                 _ => unimplemented!(),
             }
@@ -150,19 +199,19 @@ impl LocalScope {
     ) -> Option<Arc<TypeRef>> {
         match expr {
             ast::Expression::IntLiteral(_) => self
-                .get_reference(&"int".to_string())
+                .get_type_reference(&"int".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::FloatLiteral(_) => self
-                .get_reference(&"float".to_string())
+                .get_type_reference(&"float".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::BoolLiteral(_) => self
-                .get_reference(&"bool".to_string())
+                .get_type_reference(&"bool".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::StringLiteral(_) => self
-                .get_reference(&"string".to_string())
+                .get_type_reference(&"string".to_string())
                 .map(|r| r.var_type.clone()),
 
             ast::Expression::Identifier(id) => {
@@ -177,24 +226,32 @@ impl LocalScope {
         }
     }
 
-    pub fn with_params(self: &Arc<Self>, param_list: &ParamList) {
-        for (param_name, (export, type_expr)) in &param_list.0 {
-            match type_expr {
+    pub fn with_params(self: &Arc<Self>, param_list: &mut ParamList) {
+        let mut new_param_list = HashMap::new();
+
+        for (param_name, (export, type_expr)) in param_list.0.drain() {
+            match &type_expr {
                 parser::ast::TypeExpr::Identifier(id) => {
-                    if let Some(var_type) =
-                        self.parent.get_reference(id).map(|r| r.var_type.clone())
-                    {
-                        self.variables.lock().unwrap().insert(
-                            param_name.clone(),
-                            Arc::new(VarRef {
-                                export: *export,
-                                var_type,
-                                name: param_name.clone(),
-                            }),
-                        );
-                    }
+                    let new_name = self.parent.get_name(export);
+
+                    self.variables.lock().unwrap().insert(
+                        param_name.clone(),
+                        Arc::new(VarRef {
+                            export: export,
+                            var_type: self
+                                .parent
+                                .get_reference(id)
+                                .map(|r| r.var_type.clone())
+                                .unwrap(),
+                            name: new_name.clone(),
+                        }),
+                    );
+
+                    new_param_list.insert(new_name, (export, type_expr));
                 }
             }
         }
+
+        param_list.0 = new_param_list;
     }
 }

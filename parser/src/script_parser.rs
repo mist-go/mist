@@ -3,20 +3,17 @@ use std::collections::HashMap;
 use pest::Parser;
 use pest_derive::Parser;
 
-pub mod ast;
-pub mod script_parser;
-
-use ast::*;
+use crate::ast::*;
 
 #[derive(Parser)]
-#[grammar = "./src/grammar.pest"]
-pub struct MistParser;
+#[grammar = "./src/script_grammar.pest"]
+pub struct MistScriptParser;
 
 // convenience alias for pest errors
 pub type ParseError = pest::error::Error<Rule>;
 
 pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
-    let mut pairs = MistParser::parse(Rule::program, source)?;
+    let mut pairs = MistScriptParser::parse(Rule::program, source)?;
 
     let mut statements = vec![];
 
@@ -29,22 +26,16 @@ pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
     Ok(statements)
 }
 
-impl TryFrom<pest::iterators::Pair<'_, Rule>> for TypeExpr {
-    type Error = ();
-
-    fn try_from(pair: pest::iterators::Pair<'_, Rule>) -> Result<Self, Self::Error> {
-        if pair.as_str() == "void" {
-            return Err(());
-        }
-
-        Ok(match pair.as_rule() {
+impl From<pest::iterators::Pair<'_, Rule>> for TypeExpr {
+    fn from(pair: pest::iterators::Pair<Rule>) -> Self {
+        match pair.as_rule() {
             Rule::type_expr => {
                 let inner = pair.into_inner().next().unwrap();
-                TypeExpr::try_from(inner)?
+                TypeExpr::from(inner)
             }
             Rule::identifier => TypeExpr::Identifier(pair.as_str().to_string()),
-            _ => unimplemented!("{pair:#?}"),
-        })
+            _ => unimplemented!("TypeExpr parsing not implemented yet"),
+        }
     }
 }
 
@@ -61,8 +52,8 @@ impl From<(bool, pest::iterators::Pair<'_, Rule>)> for ParamList {
                     } else {
                         false
                     };
-                let param_type = TypeExpr::try_from(param_inner.next().unwrap()).unwrap();
                 let param_name = param_inner.next().unwrap().as_str().to_string();
+                let param_type = TypeExpr::from(param_inner.next().unwrap());
                 (param_name, (export, param_type))
             })
             .collect();
@@ -96,22 +87,20 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
                 } else {
                     false
                 };
-
-                let return_type = if let Some(next) = inner.peek() {
-                    if next.as_rule() == Rule::type_expr {
-                        TypeExpr::try_from(inner.next().unwrap()).ok()
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-
                 let name = inner.next().unwrap().as_str().to_string();
                 let params = if inner.peek().unwrap().as_rule() == Rule::param_list {
                     ParamList::from((false, inner.next().unwrap()))
                 } else {
                     ParamList(HashMap::new())
+                };
+                let return_type = if let Some(next) = inner.peek() {
+                    if next.as_rule() == Rule::type_expr {
+                        Some(TypeExpr::from(inner.next().unwrap()))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
                 };
 
                 let body = Block::from(inner.next().unwrap());
@@ -188,15 +177,23 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
             Rule::var_decl => {
                 let mut inner = pair.into_inner();
 
-                let type_ = inner.next().map(TypeExpr::try_from).unwrap().ok();
-                let name = inner.next().unwrap().as_str().to_string();
+                let kind_pair = inner.next().unwrap(); // let/const/var
+                let name_pair = inner.next().unwrap(); // identifier
+
                 let init = inner.next().map(Expression::from);
 
+                let kind = match kind_pair.as_str() {
+                    "let" => VarKind::Let,
+                    "const" => VarKind::Const,
+                    "var" => VarKind::Var,
+                    _ => unreachable!(),
+                };
+
                 Statement::VarDecl {
-                    kind: VarKind::Var,
-                    name: name.as_str().to_string(),
+                    kind,
+                    name: name_pair.as_str().to_string(),
                     init,
-                    type_,
+                    type_: None,
                 }
             }
 

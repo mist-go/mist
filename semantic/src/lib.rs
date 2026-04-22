@@ -26,11 +26,6 @@ pub fn walk_ast(top_scope: Arc<Scope>, tl: &mut Vec<parser::ast::TopLevel>) {
                     *name = rf.name.clone();
                 }
 
-                match &*rf.var_type {
-                    hir::TypeRef::Function(f) => walk_param_list(&f.params, params),
-                    _ => unimplemented!(),
-                }
-
                 let scope = LocalScope::new(top_scope.clone());
 
                 scope.with_params(params);

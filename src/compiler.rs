@@ -4,8 +4,8 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 struct Config {
-    entry: String,
-    out_dir: String,
+    src: String,
+    output: String,
 }
 
 pub fn build() {
@@ -21,55 +21,68 @@ pub fn build() {
     // 2. load config
     let config = load_config(&root);
 
-    let entry_path = root.join(&config.entry);
-    let out_dir = root.join(&config.out_dir);
+    let src = root.join(&config.src);
 
-    println!("  → entry: {}", entry_path.display());
+    for entry in fs::read_dir(src).unwrap() {
+        if let Ok(entry) = entry {
+            let entry_path = root.join(&entry.path());
+            let out_dir = root.join(&config.output);
+            let file_name = entry.file_name();
+            let file_name = file_name.to_string_lossy();
 
-    // 3. read entry file
-    let source = match fs::read_to_string(&entry_path) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("error: failed to read entry file\n  {}", e);
-            process::exit(1);
+            let script = if file_name.ends_with(".ms") {
+                true
+            } else if file_name.ends_with(".mist") {
+                false
+            } else {
+                continue;
+            };
+
+            // 3. read entry file
+            let source = match fs::read_to_string(&entry_path) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("error: failed to read entry file\n  {}", e);
+                    process::exit(1);
+                }
+            };
+
+            let parser_result = if script {
+                parser::script_parser::parse(&source).map_err(|e| e.to_string())
+            } else {
+                parser::parse(&source).map_err(|e| e.to_string())
+            };
+
+            let mut ast = match parser_result {
+                Ok(ast) => ast,
+                Err(e) => {
+                    eprintln!("error: parse failed\n{}", e);
+                    process::exit(1);
+                }
+            };
+
+            semantic::walk_ast(semantic::scope::Scope::from_top(&root, &ast), &mut ast);
+
+            let mut gc = codegen::GoCodegen::new();
+            let output = gc.generate(&ast);
+
+            if let Err(e) = fs::create_dir_all(&out_dir) {
+                eprintln!("error: failed to create build dir\n  {}", e);
+                process::exit(1);
+            }
+
+            let out_file =
+                out_dir.join(file_name.replace(if script { ".ms" } else { ".mist" }, ".go"));
+
+            if let Err(e) = fs::write(&out_file, output) {
+                eprintln!("error: failed to write output\n  {}", e);
+                process::exit(1);
+            }
         }
-    };
-
-    println!("  → parsing...");
-
-    let mut ast = match parser::parse(&source) {
-        Ok(ast) => ast,
-        Err(e) => {
-            eprintln!("error: parse failed\n{}", e);
-            process::exit(1);
-        }
-    };
-
-    println!("  → type checking...");
-
-    semantic::walk_ast(semantic::scope::Scope::from_top(&root, &ast), &mut ast);
-
-    println!("  → generating Go code...");
-
-    let mut gc = codegen::GoCodegen::new();
-    let output = gc.generate(&ast);
-
-    // 4. ensure build dir
-    if let Err(e) = fs::create_dir_all(&out_dir) {
-        eprintln!("error: failed to create build dir\n  {}", e);
-        process::exit(1);
-    }
-
-    let out_file = out_dir.join("main.go");
-
-    if let Err(e) = fs::write(&out_file, output) {
-        eprintln!("error: failed to write output\n  {}", e);
-        process::exit(1);
     }
 
     let elapsed = start.elapsed();
 
-    println!("  ✓ built {}", out_file.display());
     println!("build finished in {:.2?}", elapsed);
 }
 
