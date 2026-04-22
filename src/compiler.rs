@@ -47,7 +47,7 @@ pub fn build() {
 
     println!("  → type checking...");
 
-    semantic::walk_ast(semantic::scope::Scope::from_top(&ast), &mut ast);
+    semantic::walk_ast(semantic::scope::Scope::from_top(&root, &ast), &mut ast);
 
     println!("  → generating Go code...");
 

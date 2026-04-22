@@ -1,20 +1,23 @@
 use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
 
 use parser::ast::TopLevel;
 
 use parser::ast::{ParamList, TypeExpr};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TypeSymbol(pub String);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VarSymbol {
     pub export: bool,
     pub var_type: TypeSymbol,
     pub name: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FunctionSymbol {
     pub export: bool,
     pub name: String,
@@ -22,7 +25,7 @@ pub struct FunctionSymbol {
     pub return_type: Option<TypeSymbol>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StructSymbol {
     pub export: bool,
     pub name: String,
@@ -96,22 +99,41 @@ impl StructSymbol {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct JSONScope {
+    pub structs: HashMap<String, StructSymbol>,
+    pub functions: HashMap<String, FunctionSymbol>,
+    pub package_name: String,
+}
+
+type JsonScopeMap = HashMap<String, JSONScope>;
+
 #[derive(Clone, Debug)]
 pub struct TopLevelSymbolScope {
+    pub imports: HashMap<String, JSONScope>,
     pub structs: HashMap<String, StructSymbol>,
     pub functions: HashMap<String, FunctionSymbol>,
 }
 
 impl TopLevelSymbolScope {
-    pub fn from(top_level: &Vec<TopLevel>) -> Self {
+    pub fn from(path: &PathBuf, top_level: &Vec<TopLevel>) -> Self {
         let mut scope = TopLevelSymbolScope {
+            imports: HashMap::new(),
             structs: HashMap::new(),
             functions: HashMap::new(),
         };
 
         for top in top_level {
             match top {
-                TopLevel::Import(_) => unimplemented!(),
+                TopLevel::Import(package) => {
+                    let json = fs::read(path.join("mist.map.json")).unwrap();
+                    let json_scope_map: JsonScopeMap = serde_json::from_slice(&json).unwrap();
+                    let json_scope = json_scope_map.get(package).unwrap().clone();
+
+                    scope
+                        .imports
+                        .insert(json_scope.package_name.clone(), json_scope);
+                }
                 TopLevel::Package(_) => {}
 
                 TopLevel::FunctionDecl {

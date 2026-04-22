@@ -56,7 +56,7 @@ fn cmd_check(path: &str) {
         Ok(mut ast) => {
             println!("parse: ok");
 
-            walk_ast(semantic::scope::Scope::from_top(&ast), &mut ast);
+            // walk_ast(semantic::scope::Scope::from_top(&ast), &mut ast);
 
             println!("{:#?}", ast)
         }
@@ -71,7 +71,7 @@ fn cmd_parse(path: &str) {
     let source = read_ms_file(path);
     match parser::parse(&source) {
         Ok(mut ast) => {
-            walk_ast(semantic::scope::Scope::from_top(&ast), &mut ast);
+            // walk_ast(semantic::scope::Scope::from_top(&ast), &mut ast);
 
             fs::write("output.json", serde_json::to_string_pretty(&ast).unwrap()).unwrap_or_else(
                 |e| {

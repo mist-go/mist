@@ -17,8 +17,11 @@ pub enum Scope {
 }
 
 impl Scope {
-    pub fn from_top(top_level: &Vec<parser::ast::TopLevel>) -> Arc<Self> {
-        let tl = TopLevelSymbolScope::from(top_level);
+    pub fn from_top(
+        path: &std::path::PathBuf,
+        top_level: &Vec<parser::ast::TopLevel>,
+    ) -> Arc<Self> {
+        let tl = TopLevelSymbolScope::from(path, top_level);
         Arc::new(Self::TopLevel(TopLevelHirScope::from_tlss(&tl)))
     }
 
