@@ -1,0 +1,450 @@
+{
+  "fmt": {
+    "package_name": "fmt",
+    "structs": {},
+    "functions": {
+      "Append": {
+        "export": true,
+        "name": "Append",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "b": {
+            "export": true,
+            "var_type": "[]byte",
+            "name": "b"
+          }
+        },
+        "return_types": [
+          "[]byte"
+        ]
+      },
+      "Appendf": {
+        "export": true,
+        "name": "Appendf",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "b": {
+            "export": true,
+            "var_type": "[]byte",
+            "name": "b"
+          },
+          "format": {
+            "export": true,
+            "var_type": "string",
+            "name": "format"
+          }
+        },
+        "return_types": [
+          "[]byte"
+        ]
+      },
+      "Appendln": {
+        "export": true,
+        "name": "Appendln",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "b": {
+            "export": true,
+            "var_type": "[]byte",
+            "name": "b"
+          }
+        },
+        "return_types": [
+          "[]byte"
+        ]
+      },
+      "Errorf": {
+        "export": true,
+        "name": "Errorf",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "format": {
+            "export": true,
+            "var_type": "string",
+            "name": "format"
+          }
+        },
+        "return_types": [
+          "error"
+        ]
+      },
+      "FormatString": {
+        "export": true,
+        "name": "FormatString",
+        "params": {
+          "state": {
+            "export": true,
+            "var_type": "fmt.State",
+            "name": "state"
+          },
+          "verb": {
+            "export": true,
+            "var_type": "rune",
+            "name": "verb"
+          }
+        },
+        "return_types": [
+          "string"
+        ]
+      },
+      "Fprint": {
+        "export": true,
+        "name": "Fprint",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "w": {
+            "export": true,
+            "var_type": "io.Writer",
+            "name": "w"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Fprintf": {
+        "export": true,
+        "name": "Fprintf",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "format": {
+            "export": true,
+            "var_type": "string",
+            "name": "format"
+          },
+          "w": {
+            "export": true,
+            "var_type": "io.Writer",
+            "name": "w"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Fprintln": {
+        "export": true,
+        "name": "Fprintln",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "w": {
+            "export": true,
+            "var_type": "io.Writer",
+            "name": "w"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Fscan": {
+        "export": true,
+        "name": "Fscan",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "r": {
+            "export": true,
+            "var_type": "io.Reader",
+            "name": "r"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Fscanf": {
+        "export": true,
+        "name": "Fscanf",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "format": {
+            "export": true,
+            "var_type": "string",
+            "name": "format"
+          },
+          "r": {
+            "export": true,
+            "var_type": "io.Reader",
+            "name": "r"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Fscanln": {
+        "export": true,
+        "name": "Fscanln",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "r": {
+            "export": true,
+            "var_type": "io.Reader",
+            "name": "r"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Print": {
+        "export": true,
+        "name": "Print",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Printf": {
+        "export": true,
+        "name": "Printf",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "format": {
+            "export": true,
+            "var_type": "string",
+            "name": "format"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Println": {
+        "export": true,
+        "name": "Println",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Scan": {
+        "export": true,
+        "name": "Scan",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Scanf": {
+        "export": true,
+        "name": "Scanf",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "format": {
+            "export": true,
+            "var_type": "string",
+            "name": "format"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Scanln": {
+        "export": true,
+        "name": "Scanln",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Sprint": {
+        "export": true,
+        "name": "Sprint",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          }
+        },
+        "return_types": [
+          "string"
+        ]
+      },
+      "Sprintf": {
+        "export": true,
+        "name": "Sprintf",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "format": {
+            "export": true,
+            "var_type": "string",
+            "name": "format"
+          }
+        },
+        "return_types": [
+          "string"
+        ]
+      },
+      "Sprintln": {
+        "export": true,
+        "name": "Sprintln",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          }
+        },
+        "return_types": [
+          "string"
+        ]
+      },
+      "Sscan": {
+        "export": true,
+        "name": "Sscan",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "str": {
+            "export": true,
+            "var_type": "string",
+            "name": "str"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Sscanf": {
+        "export": true,
+        "name": "Sscanf",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "format": {
+            "export": true,
+            "var_type": "string",
+            "name": "format"
+          },
+          "str": {
+            "export": true,
+            "var_type": "string",
+            "name": "str"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      },
+      "Sscanln": {
+        "export": true,
+        "name": "Sscanln",
+        "params": {
+          "a": {
+            "export": true,
+            "var_type": "[]any",
+            "name": "a"
+          },
+          "str": {
+            "export": true,
+            "var_type": "string",
+            "name": "str"
+          }
+        },
+        "return_types": [
+          "int",
+          "error"
+        ]
+      }
+    }
+  }
+}

@@ -33,15 +33,20 @@ type StructSymbol struct {
 }
 
 type TopLevelSymbolScope struct {
-	Structs   map[string]StructSymbol   `json:"structs"`
-	Functions map[string]FunctionSymbol `json:"functions"`
+	PackageName string                    `json:"package_name"`
+	Structs     map[string]StructSymbol   `json:"structs"`
+	Functions   map[string]FunctionSymbol `json:"functions"`
 }
 
 func main() {
 	cfg := &packages.Config{
-		Mode: packages.NeedTypes | packages.NeedTypesInfo,
+		Mode: packages.NeedName |
+			packages.NeedTypes |
+			packages.NeedTypesInfo |
+			packages.NeedModule,
 	}
 
+	// you can expand this to multiple packages later
 	pkgs, err := packages.Load(cfg, "fmt")
 	if err != nil {
 		panic(err)
@@ -51,12 +56,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	result := TopLevelSymbolScope{
-		Structs:   make(map[string]StructSymbol),
-		Functions: make(map[string]FunctionSymbol),
-	}
+	// 🔑 FINAL RESULT: map[import_path]scope
+	result := make(map[string]TopLevelSymbolScope)
 
 	for _, pkg := range pkgs {
+		scopeData := TopLevelSymbolScope{
+			PackageName: pkg.Name, // e.g. "http"
+			Structs:     make(map[string]StructSymbol),
+			Functions:   make(map[string]FunctionSymbol),
+		}
+
 		scope := pkg.Types.Scope()
 
 		for _, name := range scope.Names() {
@@ -69,15 +78,17 @@ func main() {
 			switch obj := obj.(type) {
 
 			case *types.Func:
-				fn := buildFunction(obj)
-				result.Functions[name] = fn
+				scopeData.Functions[name] = buildFunction(obj)
 
 			case *types.TypeName:
 				if strct, ok := buildStruct(obj); ok {
-					result.Structs[name] = strct
+					scopeData.Structs[name] = strct
 				}
 			}
 		}
+
+		// 🔑 key = import path (e.g. "net/http")
+		result[pkg.PkgPath] = scopeData
 	}
 
 	out, err := json.MarshalIndent(result, "", "  ")
@@ -114,7 +125,7 @@ func buildFunction(fn *types.Func) FunctionSymbol {
 	}
 
 	return FunctionSymbol{
-		Export:      token.IsExported(fn.Name()),
+		Export:      true, // already filtered before calling
 		Name:        fn.Name(),
 		Params:      params,
 		ReturnTypes: returnTypes,
@@ -134,8 +145,12 @@ func buildStruct(tn *types.TypeName) (StructSymbol, bool) {
 	for i := 0; i < strct.NumFields(); i++ {
 		f := strct.Field(i)
 
+		if !token.IsExported(f.Name()) {
+			continue
+		}
+
 		fields[f.Name()] = VarSymbol{
-			Export:  token.IsExported(f.Name()),
+			Export:  true,
 			Name:    f.Name(),
 			VarType: TypeSymbol(f.Type().String()),
 		}
@@ -147,11 +162,15 @@ func buildStruct(tn *types.TypeName) (StructSymbol, bool) {
 	for i := 0; i < methodSet.Len(); i++ {
 		m := methodSet.At(i).Obj().(*types.Func)
 
+		if !token.IsExported(m.Name()) {
+			continue
+		}
+
 		methods[m.Name()] = buildFunction(m)
 	}
 
 	return StructSymbol{
-		Export:  token.IsExported(tn.Name()),
+		Export:  true,
 		Name:    tn.Name(),
 		Fields:  fields,
 		Methods: methods,
