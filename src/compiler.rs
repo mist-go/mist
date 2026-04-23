@@ -63,7 +63,7 @@ pub fn build() {
 
             semantic::walk_ast(semantic::scope::Scope::from_top(&root, &ast), &mut ast);
 
-            let mut gc = codegen::GoCodegen::new();
+            let mut gc = crate::codegen::GoCodegen::new();
             let output = gc.generate(&ast);
 
             if let Err(e) = fs::create_dir_all(&out_dir) {

@@ -271,6 +271,14 @@ impl GoCodegen {
                         .join(", ");
                     format!("{}({})", result, args_str)
                 }
+                Postfix::StructCall(fields) => {
+                    let args_str = fields
+                        .iter()
+                        .map(|(a, b)| format!("{a}: {}", self.generate_expression(b)))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!("{}{{{}}}", result, args_str)
+                }
                 Postfix::Index(idx) => format!("{}[{}]", result, self.generate_expression(idx)),
                 Postfix::Binary(op, rhs) => {
                     let op_str = match op {

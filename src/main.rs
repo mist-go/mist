@@ -1,5 +1,6 @@
 use std::process;
 
+pub mod codegen;
 pub mod compiler;
 
 fn main() {
