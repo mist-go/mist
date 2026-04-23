@@ -352,6 +352,18 @@ impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
 
             Rule::call_px => Postfix::Call(pair.into_inner().map(Expression::from).collect()),
 
+            Rule::struct_px => Postfix::StructCall(
+                pair.into_inner()
+                    .map(|p| {
+                        let mut pi = p.into_inner();
+                        (
+                            pi.next().unwrap().as_str().to_string(),
+                            Expression::from(pi.next().unwrap()),
+                        )
+                    })
+                    .collect(),
+            ),
+
             Rule::index_px => Postfix::Index(Expression::from(pair.into_inner().next().unwrap())),
 
             Rule::binary_px => {
