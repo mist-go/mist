@@ -176,6 +176,19 @@ impl LocalScope {
                     }
                     _ => unimplemented!(),
                 },
+                Postfix::StructCall(fields) => match &*current_type {
+                    TypeRef::Struct(s) => {
+                        let mut old_fields = fields.clone();
+
+                        fields.clear();
+
+                        for (name, mut expr) in old_fields.drain() {
+                            self.get_type_from_expr(&mut expr);
+                            fields.insert(s.fields.get(&name).unwrap().name.clone(), expr);
+                        }
+                    }
+                    _ => unimplemented!(),
+                },
                 Postfix::Binary(op, right) => match op {
                     parser::ast::BinaryOp::Equal
                     | parser::ast::BinaryOp::NotEqual
