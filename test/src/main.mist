@@ -6,6 +6,6 @@ public struct Idk {
 }
 
 int test(int a, int b) {
-    Idk bro = 10;
+    Idk bro = Idk { a: 10, b: 10 };
     return a + b + bro.a;
 }
