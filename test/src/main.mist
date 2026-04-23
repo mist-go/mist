@@ -1,5 +1,11 @@
 package main;
 
+public struct Idk {
+    int a,
+    int b,
+}
+
 int test(int a, int b) {
-    return a + b;
+    Idk bro = 10;
+    return a + b + bro.a;
 }

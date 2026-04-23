@@ -90,9 +90,17 @@ impl LocalScope {
     pub fn with_statement(self: &Arc<Self>, statement: &mut Statement) {
         match statement {
             Statement::Block(b) => self.clone().with_block(b),
-            Statement::VarDecl { name, init, .. } => {
+            Statement::VarDecl {
+                name, init, type_, ..
+            } => {
                 if let Some(init) = init {
-                    let var_type = self.get_type_from_expr(init).unwrap();
+                    let init_type = self.get_type_from_expr(init);
+                    let var_type = type_
+                        .as_mut()
+                        .map(|t| self.get_type_from_type_expr(t))
+                        .or_else(|| Some(init_type))
+                        .unwrap()
+                        .unwrap();
 
                     let var_name = name.clone();
 
@@ -191,6 +199,22 @@ impl LocalScope {
         }
 
         Some(current_type)
+    }
+
+    pub fn get_type_from_type_expr(
+        self: &Arc<Self>,
+        expr: &mut ast::TypeExpr,
+    ) -> Option<Arc<TypeRef>> {
+        match expr {
+            ast::TypeExpr::Identifier(id) => {
+                if let Some(v) = self.get_type_reference(id).map(|r| r.var_type.clone()) {
+                    *id = v.get_name();
+                    Some(v)
+                } else {
+                    None
+                }
+            }
+        }
     }
 
     pub fn get_type_from_expr(
