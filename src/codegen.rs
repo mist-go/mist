@@ -102,10 +102,6 @@ impl GoCodegen {
                 self.indent -= 1;
                 self.addln("}\n");
             }
-            TopLevel::Package(pkg) => {
-                self.addln(&format!("package {}", pkg));
-                self.addln("");
-            }
         }
     }
 

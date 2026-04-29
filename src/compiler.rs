@@ -47,11 +47,7 @@ pub fn build() {
                 }
             };
 
-            let parser_result = if script {
-                parser::script_parser::parse(&source).map_err(|e| e.to_string())
-            } else {
-                parser::parse(&source).map_err(|e| e.to_string())
-            };
+            let parser_result = parser::parse(&source).map_err(|e| e.to_string());
 
             let mut ast = match parser_result {
                 Ok(ast) => ast,

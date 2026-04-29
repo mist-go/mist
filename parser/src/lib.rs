@@ -4,7 +4,6 @@ use pest::Parser;
 use pest_derive::Parser;
 
 pub mod ast;
-pub mod script_parser;
 
 use ast::*;
 
@@ -78,10 +77,6 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
             Rule::import => {
                 let path = pair.into_inner().next().unwrap().as_str().to_string();
                 Ok(TopLevel::Import(path))
-            }
-            Rule::package => {
-                let name = pair.into_inner().next().unwrap().as_str().to_string();
-                Ok(TopLevel::Package(name))
             }
             Rule::function_decl => {
                 let mut inner = pair.into_inner();

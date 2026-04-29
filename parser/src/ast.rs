@@ -31,7 +31,6 @@ pub enum BinaryOp {
 #[derive(Debug, Clone, Serialize)]
 pub enum TopLevel {
     Import(String),
-    Package(String),
     StructDecl {
         export: bool,
         name: String,

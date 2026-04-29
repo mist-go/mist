@@ -13,9 +13,7 @@ inner_str  = @{ (!"\"" ~ ANY)* }
 
 // ================= TOP LEVEL =================
 
-top_level = _{ import | function_decl | struct_decl | package }
-
-package = { "package" ~ identifier ~ ";" }
+top_level = _{ import | function_decl | struct_decl }
 
 export = { "public" }
 

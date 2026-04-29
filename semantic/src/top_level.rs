@@ -137,7 +137,6 @@ impl TopLevelSymbolScope {
                         .imports
                         .insert(json_scope.package_name.clone(), json_scope);
                 }
-                TopLevel::Package(_) => {}
 
                 TopLevel::FunctionDecl {
                     export,
