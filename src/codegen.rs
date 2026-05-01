@@ -1,4 +1,4 @@
-use parser::ast::{BinaryOp, Block, Expression, Postfix, Statement, TopLevel, TypeExpr, VarKind};
+use parser::ast::{BinaryOp, Block, Expression, Postfix, Statement, TopLevel, TypeExpr};
 
 pub struct RustCodegen {
     output: String,
@@ -129,15 +129,12 @@ impl RustCodegen {
             }
 
             Statement::VarDecl {
-                kind,
+                mutable,
                 name,
                 init,
                 type_,
             } => {
-                let mutability = match kind {
-                    VarKind::Var => "mut ",
-                    _ => "",
-                };
+                let mutability = if *mutable { "mut " } else { "" };
 
                 let ty = type_
                     .as_ref()

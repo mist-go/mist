@@ -64,7 +64,7 @@ pub enum Statement {
 
     // let/const/var x = ...
     VarDecl {
-        kind: VarKind,
+        mutable: bool,
         name: String,
         init: Option<Expression>,
         type_: Option<TypeExpr>,
@@ -90,7 +90,7 @@ pub enum Statement {
 
     // for (...) stmt
     For {
-        init: (VarKind, String, Option<Expression>),
+        init: (bool, String, Option<Expression>),
         condition: Option<Expression>,
         update: Option<Box<Statement>>,
         body: Box<Statement>,
@@ -114,11 +114,4 @@ pub enum Expression {
         initial: Box<Expression>,
         postfixes: Vec<Postfix>,
     },
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub enum VarKind {
-    Let,
-    Const,
-    Var,
 }
