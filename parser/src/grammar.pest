@@ -11,7 +11,6 @@ boolean    =  { "true" | "false" }
 string_lit =  { "\"" ~ inner_str ~ "\"" }
 inner_str  = @{ (!"\"" ~ ANY)* }
 
-// ================= PREREQUISITES =================
 export     = { "public" }
 mutable    = { "mut" }
 var_decl_1 = { type_expr ~ mutable? ~ identifier }
@@ -43,11 +42,9 @@ statement_list = { statement* }
 
 statement = _{
     expr_stmt
-  | var_decl
-  | var_assign
+  | var_decl_statement
   | if_stmt
   | while_stmt
-  | for_stmt
   | return_stmt
   | break_stmt
   | continue_stmt
@@ -64,19 +61,7 @@ break_stmt = { "break" ~ ";" }
 
 continue_stmt = { "continue" ~ ";" }
 
-// --- variable declarations ---
-
-// var_decl_kind = { "let" | "const" | "var" }
-
-var_decl = {
-    type_expr ~ identifier ~ ("=" ~ expr)? ~ ";"
-}
-
-var_assign = {
-    expr ~ "=" ~ expr ~ ";"
-}
-
-// --- control flow ---
+var_decl_statement = { var_decl_1 ~ ";" }
 
 if_stmt = {
     "if" ~ "(" ~ expr ~ ")" ~ statement ~ ("else" ~ statement)?
@@ -84,14 +69,6 @@ if_stmt = {
 
 while_stmt = {
     "while" ~ "(" ~ expr ~ ")" ~ statement
-}
-
-for_stmt = {
-    "for" ~ "(" ~ var_decl ~ expr ~ ";" ~ var_assign_no_semicolon ~ ")" ~ statement
-}
-
-var_assign_no_semicolon = {
-    expr ~ "=" ~ expr
 }
 
 // ================= EXPRESSIONS =================
