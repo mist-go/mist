@@ -188,7 +188,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                 let init = inner.next().map(Expression::from);
 
                 Statement::VarDecl {
-                    kind: VarKind::Var,
+                    mutable: false,
                     name: name.as_str().to_string(),
                     init,
                     type_,
@@ -243,19 +243,12 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                         Rule::var_decl => {
                             let mut it = p.into_inner();
 
-                            let kind = match it.next().unwrap().as_str() {
-                                "let" => VarKind::Let,
-                                "const" => VarKind::Const,
-                                "var" => VarKind::Var,
-                                _ => unreachable!(),
-                            };
-
                             let name = it.next().unwrap().as_str().to_string();
                             let init_expr = it
                                 .next()
                                 .map(|e| Expression::from(e.into_inner().next().unwrap()));
 
-                            (kind, name, init_expr)
+                            (false, name, init_expr)
                         }
                         _ => unimplemented!(
                             "For loop init parsing not implemented yet: {:?}",
