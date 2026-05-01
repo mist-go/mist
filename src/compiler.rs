@@ -49,7 +49,7 @@ pub fn build() {
 
             let parser_result = parser::parse(&source).map_err(|e| e.to_string());
 
-            let mut ast = match parser_result {
+            let ast = match parser_result {
                 Ok(ast) => ast,
                 Err(e) => {
                     eprintln!("error: parse failed\n{}", e);
@@ -57,7 +57,7 @@ pub fn build() {
                 }
             };
 
-            semantic::walk_ast(semantic::scope::Scope::from_top(&root, &ast), &mut ast);
+            // semantic::walk_ast(semantic::scope::Scope::from_top(&root, &ast), &mut ast);
 
             let mut gc = crate::codegen::GoCodegen::new();
             let output = gc.generate(&ast);
