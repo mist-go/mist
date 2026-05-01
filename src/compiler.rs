@@ -30,14 +30,6 @@ pub fn build() {
             let file_name = entry.file_name();
             let file_name = file_name.to_string_lossy();
 
-            let script = if file_name.ends_with(".ms") {
-                true
-            } else if file_name.ends_with(".mist") {
-                false
-            } else {
-                continue;
-            };
-
             // 3. read entry file
             let source = match fs::read_to_string(&entry_path) {
                 Ok(s) => s,
@@ -59,7 +51,7 @@ pub fn build() {
 
             // semantic::walk_ast(semantic::scope::Scope::from_top(&root, &ast), &mut ast);
 
-            let mut gc = crate::codegen::GoCodegen::new();
+            let mut gc = crate::codegen::RustCodegen::new();
             let output = gc.generate(&ast);
 
             if let Err(e) = fs::create_dir_all(&out_dir) {
@@ -67,8 +59,7 @@ pub fn build() {
                 process::exit(1);
             }
 
-            let out_file =
-                out_dir.join(file_name.replace(if script { ".ms" } else { ".mist" }, ".go"));
+            let out_file = out_dir.join(file_name.replace(".mist", ".rs"));
 
             if let Err(e) = fs::write(&out_file, output) {
                 eprintln!("error: failed to write output\n  {}", e);
