@@ -188,9 +188,14 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                 let mut var_decl = inner.next().unwrap().into_inner();
 
                 let type_ = var_decl.next().map(TypeExpr::try_from).unwrap().ok();
+                let mutable = if var_decl.peek().unwrap().as_rule() == Rule::mutable {
+                    var_decl.next();
+                    true
+                } else {
+                    false
+                };
                 let name = var_decl.next().unwrap().as_str().to_string();
                 let init = inner.next().map(Expression::from);
-                let mutable = inner.next().is_some();
 
                 Statement::VarDecl {
                     mutable,
@@ -342,12 +347,4 @@ impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
             _ => unimplemented!("Postfix parsing not implemented yet {:?}", pair.as_rule()),
         }
     }
-}
-
-fn parse_var_assign_no_semicolon(pair: pest::iterators::Pair<Rule>) -> Statement {
-    let mut inner = pair.into_inner();
-    let target = Expression::from(inner.next().unwrap());
-    let value = Expression::from(inner.next().unwrap());
-
-    Statement::VarAssign { target, value }
 }
