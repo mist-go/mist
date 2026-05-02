@@ -17,6 +17,8 @@ pub type ParseError = pest::error::Error<Rule>;
 pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
     let mut pairs = MistParser::parse(Rule::program, source)?;
 
+    println!("{pairs:#?}");
+
     let mut statements = vec![];
 
     for pair in pairs.next().unwrap().into_inner() {
@@ -180,15 +182,18 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
 
             Rule::block => Statement::Block(Block::from(pair.into_inner().next().unwrap())),
 
-            Rule::var_decl => {
+            Rule::var_decl_statement => {
                 let mut inner = pair.into_inner();
 
-                let type_ = inner.next().map(TypeExpr::try_from).unwrap().ok();
-                let name = inner.next().unwrap().as_str().to_string();
+                let mut var_decl = inner.next().unwrap().into_inner();
+
+                let type_ = var_decl.next().map(TypeExpr::try_from).unwrap().ok();
+                let name = var_decl.next().unwrap().as_str().to_string();
                 let init = inner.next().map(Expression::from);
+                let mutable = inner.next().is_some();
 
                 Statement::VarDecl {
-                    mutable: false,
+                    mutable,
                     name: name.as_str().to_string(),
                     init,
                     type_,
@@ -232,49 +237,6 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                     condition,
                     body: Box::new(body),
                 }
-            }
-
-            Rule::for_stmt => {
-                let mut inner = pair.into_inner();
-
-                let init = inner
-                    .next()
-                    .map(|p| match p.as_rule() {
-                        Rule::var_decl => {
-                            let mut it = p.into_inner();
-
-                            let name = it.next().unwrap().as_str().to_string();
-                            let init_expr = it
-                                .next()
-                                .map(|e| Expression::from(e.into_inner().next().unwrap()));
-
-                            (false, name, init_expr)
-                        }
-                        _ => unimplemented!(
-                            "For loop init parsing not implemented yet: {:?}",
-                            p.as_rule()
-                        ),
-                    })
-                    .unwrap();
-
-                let condition = inner.next().map(Expression::from);
-                let update = inner.next().map(parse_var_assign_no_semicolon);
-                let body = Statement::from(inner.next().unwrap());
-
-                Statement::For {
-                    init,
-                    condition,
-                    update: update.map(Box::new),
-                    body: Box::new(body),
-                }
-            }
-
-            Rule::var_assign => {
-                let mut inner = pair.into_inner();
-                let target = Expression::from(inner.next().unwrap());
-                let value = Expression::from(inner.next().unwrap());
-
-                Statement::VarAssign { target, value }
             }
 
             _ => unimplemented!(

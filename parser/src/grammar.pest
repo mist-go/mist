@@ -11,9 +11,9 @@ boolean    =  { "true" | "false" }
 string_lit =  { "\"" ~ inner_str ~ "\"" }
 inner_str  = @{ (!"\"" ~ ANY)* }
 
-export     = { "public" }
-mutable    = { "mut" }
-var_decl_1 = { type_expr ~ mutable? ~ identifier }
+export   = { "public" }
+mutable  = { "mut" }
+var_decl = { type_expr ~ mutable? ~ identifier }
 
 // ================= TOP LEVEL =================
 
@@ -24,7 +24,7 @@ import = { "import" ~ string_lit ~ ";" }
 field_list = { field ~ ("," ~ field)* ~ ","? }
 field      = { export? ~ type_expr ~ identifier }
 
-param_list = { var_decl_1 ~ ("," ~ var_decl_1)* ~ ","? }
+param_list = { var_decl ~ ("," ~ var_decl)* ~ ","? }
 
 struct_decl = {
     export? ~ "struct" ~ identifier ~ "{" ~ field_list? ~ "}"
@@ -61,7 +61,7 @@ break_stmt = { "break" ~ ";" }
 
 continue_stmt = { "continue" ~ ";" }
 
-var_decl_statement = { var_decl_1 ~ ";" }
+var_decl_statement = { var_decl ~ ("=" ~ expr)? ~ ";" }
 
 if_stmt = {
     "if" ~ "(" ~ expr ~ ")" ~ statement ~ ("else" ~ statement)?
