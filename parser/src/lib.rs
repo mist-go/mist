@@ -197,12 +197,12 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                 let name = var_decl.next().unwrap().as_str().to_string();
                 let init = inner.next().map(Expression::from);
 
-                Statement::VarDecl {
+                Statement::VarDecl(VarDeclStmt {
                     mutable,
                     name: name.as_str().to_string(),
                     init,
                     type_,
-                }
+                })
             }
 
             Rule::return_stmt => {
@@ -225,11 +225,11 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
 
                 let else_branch = inner.next().map(Statement::from);
 
-                Statement::If {
+                Statement::If(IfStmt {
                     condition,
                     then_branch: Box::new(then_branch),
                     else_branch: else_branch.map(Box::new),
-                }
+                })
             }
 
             Rule::while_stmt => {
@@ -238,10 +238,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                 let condition = Expression::from(inner.next().unwrap());
                 let body = Statement::from(inner.next().unwrap());
 
-                Statement::While {
+                Statement::While(WhileStmt {
                     condition,
                     body: Box::new(body),
-                }
+                })
             }
 
             _ => unimplemented!(
