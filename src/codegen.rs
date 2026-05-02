@@ -1,4 +1,7 @@
-use parser::ast::{BinaryOp, Block, Expression, Postfix, Statement, TopLevel, TypeExpr};
+use parser::ast::{
+    BinaryOp, Block, Expression, IfStmt, Postfix, Statement, TopLevel, TypeExpr, VarAssignStmt,
+    VarDeclStmt, WhileStmt,
+};
 
 pub struct RustCodegen {
     output: String,
@@ -128,12 +131,12 @@ impl RustCodegen {
                 self.add_indentedln("}");
             }
 
-            Statement::VarDecl {
+            Statement::VarDecl(VarDeclStmt {
                 mutable,
                 name,
                 init,
                 type_,
-            } => {
+            }) => {
                 let mutability = if *mutable { "mut " } else { "" };
 
                 let ty = type_
@@ -149,7 +152,7 @@ impl RustCodegen {
                 self.add_indentedln(&format!("let {}{}{}{};", mutability, name, ty, init));
             }
 
-            Statement::VarAssign { target, value } => {
+            Statement::VarAssign(VarAssignStmt { target, value }) => {
                 self.add_indentedln(&format!(
                     "{} = {};",
                     self.generate_expression(target),
@@ -157,11 +160,11 @@ impl RustCodegen {
                 ));
             }
 
-            Statement::If {
+            Statement::If(IfStmt {
                 condition,
                 then_branch,
                 else_branch,
-            } => {
+            }) => {
                 self.add_indentedln(&format!("if {} {{", self.generate_expression(condition)));
 
                 self.indent += 1;
@@ -179,7 +182,7 @@ impl RustCodegen {
                 }
             }
 
-            Statement::While { condition, body } => {
+            Statement::While(WhileStmt { condition, body }) => {
                 self.add_indentedln(&format!("while {} {{", self.generate_expression(condition)));
 
                 self.indent += 1;

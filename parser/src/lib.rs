@@ -17,6 +17,8 @@ pub type ParseError = pest::error::Error<Rule>;
 pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
     let mut pairs = MistParser::parse(Rule::program, source)?;
 
+    println!("{pairs:#?}");
+
     let mut statements = vec![];
 
     for pair in pairs.next().unwrap().into_inner() {
@@ -180,19 +182,27 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
 
             Rule::block => Statement::Block(Block::from(pair.into_inner().next().unwrap())),
 
-            Rule::var_decl => {
+            Rule::var_decl_statement => {
                 let mut inner = pair.into_inner();
 
-                let type_ = inner.next().map(TypeExpr::try_from).unwrap().ok();
-                let name = inner.next().unwrap().as_str().to_string();
+                let mut var_decl = inner.next().unwrap().into_inner();
+
+                let type_ = var_decl.next().map(TypeExpr::try_from).unwrap().ok();
+                let mutable = if var_decl.peek().unwrap().as_rule() == Rule::mutable {
+                    var_decl.next();
+                    true
+                } else {
+                    false
+                };
+                let name = var_decl.next().unwrap().as_str().to_string();
                 let init = inner.next().map(Expression::from);
 
-                Statement::VarDecl {
-                    mutable: false,
+                Statement::VarDecl(VarDeclStmt {
+                    mutable,
                     name: name.as_str().to_string(),
                     init,
                     type_,
-                }
+                })
             }
 
             Rule::return_stmt => {
@@ -215,11 +225,11 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
 
                 let else_branch = inner.next().map(Statement::from);
 
-                Statement::If {
+                Statement::If(IfStmt {
                     condition,
                     then_branch: Box::new(then_branch),
                     else_branch: else_branch.map(Box::new),
-                }
+                })
             }
 
             Rule::while_stmt => {
@@ -228,53 +238,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                 let condition = Expression::from(inner.next().unwrap());
                 let body = Statement::from(inner.next().unwrap());
 
-                Statement::While {
+                Statement::While(WhileStmt {
                     condition,
                     body: Box::new(body),
-                }
-            }
-
-            Rule::for_stmt => {
-                let mut inner = pair.into_inner();
-
-                let init = inner
-                    .next()
-                    .map(|p| match p.as_rule() {
-                        Rule::var_decl => {
-                            let mut it = p.into_inner();
-
-                            let name = it.next().unwrap().as_str().to_string();
-                            let init_expr = it
-                                .next()
-                                .map(|e| Expression::from(e.into_inner().next().unwrap()));
-
-                            (false, name, init_expr)
-                        }
-                        _ => unimplemented!(
-                            "For loop init parsing not implemented yet: {:?}",
-                            p.as_rule()
-                        ),
-                    })
-                    .unwrap();
-
-                let condition = inner.next().map(Expression::from);
-                let update = inner.next().map(parse_var_assign_no_semicolon);
-                let body = Statement::from(inner.next().unwrap());
-
-                Statement::For {
-                    init,
-                    condition,
-                    update: update.map(Box::new),
-                    body: Box::new(body),
-                }
-            }
-
-            Rule::var_assign => {
-                let mut inner = pair.into_inner();
-                let target = Expression::from(inner.next().unwrap());
-                let value = Expression::from(inner.next().unwrap());
-
-                Statement::VarAssign { target, value }
+                })
             }
 
             _ => unimplemented!(
@@ -380,12 +347,4 @@ impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
             _ => unimplemented!("Postfix parsing not implemented yet {:?}", pair.as_rule()),
         }
     }
-}
-
-fn parse_var_assign_no_semicolon(pair: pest::iterators::Pair<Rule>) -> Statement {
-    let mut inner = pair.into_inner();
-    let target = Expression::from(inner.next().unwrap());
-    let value = Expression::from(inner.next().unwrap());
-
-    Statement::VarAssign { target, value }
 }

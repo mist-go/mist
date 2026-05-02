@@ -56,51 +56,53 @@ pub enum Postfix {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Statement {
-    // expr;
     Expression(Expression),
-
-    // { ... }
     Block(Block),
 
-    // let/const/var x = ...
-    VarDecl {
-        mutable: bool,
-        name: String,
-        init: Option<Expression>,
-        type_: Option<TypeExpr>,
-    },
+    VarDecl(VarDeclStmt),
+    VarAssign(VarAssignStmt),
+    If(IfStmt),
+    While(WhileStmt),
+    For(ForStmt),
 
-    VarAssign {
-        target: Expression,
-        value: Expression,
-    },
-
-    // if (...) stmt else stmt
-    If {
-        condition: Expression,
-        then_branch: Box<Statement>,
-        else_branch: Option<Box<Statement>>,
-    },
-
-    // while (...) stmt
-    While {
-        condition: Expression,
-        body: Box<Statement>,
-    },
-
-    // for (...) stmt
-    For {
-        init: (bool, String, Option<Expression>),
-        condition: Option<Expression>,
-        update: Option<Box<Statement>>,
-        body: Box<Statement>,
-    },
-
-    // return expr?;
     Return(Option<Expression>),
-
     Break,
     Continue,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct VarDeclStmt {
+    pub mutable: bool,
+    pub name: String,
+    pub init: Option<Expression>,
+    pub type_: Option<TypeExpr>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct VarAssignStmt {
+    pub target: Expression,
+    pub value: Expression,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct IfStmt {
+    pub condition: Expression,
+    pub then_branch: Box<Statement>,
+    pub else_branch: Option<Box<Statement>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct WhileStmt {
+    pub condition: Expression,
+    pub body: Box<Statement>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ForStmt {
+    pub init: (bool, String, Option<Expression>),
+    pub condition: Option<Expression>,
+    pub update: Option<Box<Statement>>,
+    pub body: Box<Statement>,
 }
 
 #[derive(Debug, Clone, Serialize)]
