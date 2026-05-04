@@ -1,1 +1,3 @@
-int test() {}
+i32 test() {
+    
+}

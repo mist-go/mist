@@ -1,6 +1,6 @@
 use parser::ast::{
-    BinaryOp, Block, Expression, IfStmt, Postfix, Statement, TopLevel, TypeExpr, VarAssignStmt,
-    VarDecl, VarDeclStmt, WhileStmt,
+    BinaryOp, Block, Expression, IfStmt, Postfix, Statement, StaticPath, TopLevel, TypeExpr,
+    VarAssignStmt, VarDecl, VarDeclStmt, WhileStmt,
 };
 
 // ---------------------------------------------------------------------------
@@ -75,14 +75,7 @@ impl Default for RustCodegen {
 impl GetRust for TypeExpr {
     fn get_rust(&self) -> String {
         match self {
-            TypeExpr::Identifier(name) => match name.as_str() {
-                "int" => "i32".into(),
-                "float" | "float64" => "f64".into(),
-                "float32" => "f32".into(),
-                "bool" => "bool".into(),
-                "string" => "String".into(),
-                _ => name.clone(),
-            },
+            TypeExpr::Path(path) => path.get_rust(),
         }
     }
 }
@@ -313,5 +306,11 @@ impl GetRust for VarDecl {
             .unwrap_or_default();
 
         format!("{}{}{}", mutability, self.name, ty)
+    }
+}
+
+impl GetRust for StaticPath {
+    fn get_rust(&self) -> String {
+        self.0.join("::")
     }
 }
