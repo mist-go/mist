@@ -9,7 +9,7 @@ integer     = @{ ASCII_DIGIT+ }
 float       = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
 boolean     =  { "true" | "false" }
 string_lit  =  { "\"" ~ inner_str ~ "\"" }
-inner_str   = @{ (!"\"" ~ ANY)* }
+inner_str   = @{ (!"\"" ~ ("\\\"" | ANY))* }
 static_path =  { identifier ~ ("::" ~ identifier)* }
 
 export   =  { "public" }
