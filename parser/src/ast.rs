@@ -12,10 +12,15 @@ pub struct ParamList(pub Vec<VarDecl>);
 pub struct Block(pub Vec<Statement>);
 
 #[derive(Debug, Clone, Serialize)]
+pub enum TypePostfix {
+    Ref,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum TypeExpr {
-    Path(StaticPath),
-    PathParams(StaticPath, Vec<TypeExpr>),
-    Tuple(Vec<TypeExpr>),
+    Path(StaticPath, Vec<TypePostfix>),
+    PathParams(StaticPath, Vec<TypeExpr>, Vec<TypePostfix>),
+    Tuple(Vec<TypeExpr>, Vec<TypePostfix>),
 }
 
 #[derive(Debug, Clone, Serialize)]
