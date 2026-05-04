@@ -1,6 +1,6 @@
 use parser::ast::{
     BinaryOp, Block, Expression, IfStmt, Postfix, Statement, StaticPath, TopLevel, TypeExpr,
-    TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, WhileStmt,
+    TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, WhileStmt,
 };
 
 // ---------------------------------------------------------------------------
@@ -74,14 +74,17 @@ impl Default for RustCodegen {
 
 impl GetRust for TypeExpr {
     fn get_rust(&self) -> String {
+        get_type_postfixes(&self.1) + &self.0.get_rust()
+    }
+}
+
+impl GetRust for TypeExprKind {
+    fn get_rust(&self) -> String {
         match self {
-            TypeExpr::Path(path, postix) => {
-                get_type_postfixes(postix) + &get_static_type_path(path)
-            }
-            TypeExpr::PathParams(path, params, postfix) => {
+            TypeExprKind::Path(path) => get_static_type_path(path),
+            TypeExprKind::PathParams(path, params) => {
                 format!(
-                    "{}{}<{}>",
-                    get_type_postfixes(postix),
+                    "{}<{}>",
                     get_static_type_path(path),
                     params
                         .iter()
@@ -90,9 +93,8 @@ impl GetRust for TypeExpr {
                         .join(", ")
                 )
             }
-            TypeExpr::Tuple(types, postfix) => format!(
-                "{}({})",
-                get_type_postfixes(postix),
+            TypeExprKind::Tuple(types) => format!(
+                "({})",
                 types
                     .iter()
                     .map(|t| t.get_rust())
