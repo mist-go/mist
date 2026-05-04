@@ -73,7 +73,7 @@ pub enum Postfix {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub enum PreFix {
+pub enum Prefix {
     Ref,
     RefMut,
     Deref,
@@ -144,7 +144,7 @@ pub enum Expression {
     StringLiteral(String),
     Fix {
         initial: Box<Expression>,
-        prefixes: Vec<PreFix>,
+        prefixes: Vec<Prefix>,
         postfixes: Vec<Postfix>,
     },
 }

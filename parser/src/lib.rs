@@ -282,7 +282,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
                     .map(|v| v.as_rule() == Rule::prefix)
                     .unwrap_or_default()
                 {
-                    prefixes.push(PreFix::from(inner.next().unwrap()));
+                    prefixes.push(Prefix::from(inner.next().unwrap()));
                 }
 
                 println!("{:#?}", prefixes);
@@ -326,7 +326,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for PreFix {
+impl From<pest::iterators::Pair<'_, Rule>> for Prefix {
     fn from(pair: pest::iterators::Pair<Rule>) -> Self {
         match pair.as_rule() {
             Rule::prefix => Self::from(pair.into_inner().next().unwrap()),

@@ -1,6 +1,6 @@
 use parser::ast::{
-    BinaryOp, Block, Expression, IfStmt, Postfix, Statement, StaticPath, TopLevel, TypeExpr,
-    TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, WhileStmt,
+    BinaryOp, Block, Expression, IfStmt, Postfix, Prefix, Statement, StaticPath, TopLevel,
+    TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, WhileStmt,
 };
 
 // ---------------------------------------------------------------------------
@@ -118,8 +118,25 @@ impl GetRust for Expression {
                 initial,
                 prefixes,
                 postfixes,
-            } => initial.get_rust() + &postfixes.get_rust(),
+            } => prefixes.get_rust() + &initial.get_rust() + &postfixes.get_rust(),
         }
+    }
+}
+
+impl GetRust for Prefix {
+    fn get_rust(&self) -> String {
+        match self {
+            Self::Deref => "*",
+            Self::Ref => "&",
+            Self::RefMut => "&mut ",
+        }
+        .to_string()
+    }
+}
+
+impl GetRust for [Prefix] {
+    fn get_rust(&self) -> String {
+        self.iter().map(Prefix::get_rust).collect()
     }
 }
 
