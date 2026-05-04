@@ -3,15 +3,32 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct ParamList(pub HashMap<String, (bool, TypeExpr)>);
+pub struct FieldList(pub HashMap<String, (bool, TypeExpr)>);
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ParamList(pub Vec<VarDecl>);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Block(pub Vec<Statement>);
 
 #[derive(Debug, Clone, Serialize)]
-pub enum TypeExpr {
-    Identifier(String),
+pub enum TypePostfix {
+    Ref,
+    RefMut,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub enum TypeExprKind {
+    Path(StaticPath),
+    PathParams(StaticPath, Vec<TypeExpr>),
+    Tuple(Vec<TypeExpr>),
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TypeExpr(pub TypeExprKind, pub Vec<TypePostfix>);
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StaticPath(pub Vec<String>);
 
 #[derive(Debug, Clone, Serialize)]
 pub enum BinaryOp {
@@ -34,13 +51,13 @@ pub enum TopLevel {
     StructDecl {
         export: bool,
         name: String,
-        fields: ParamList,
+        fields: FieldList,
     },
     FunctionDecl {
         export: bool,
         name: String,
         params: ParamList,
-        return_type: Option<TypeExpr>,
+        return_type: TypeExpr,
         body: Block,
     },
 }
@@ -71,11 +88,16 @@ pub enum Statement {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct VarDeclStmt {
+pub struct VarDecl {
     pub mutable: bool,
     pub name: String,
-    pub init: Option<Expression>,
     pub type_: Option<TypeExpr>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct VarDeclStmt {
+    pub decl: VarDecl,
+    pub init: Option<Expression>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -107,7 +129,7 @@ pub struct ForStmt {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Expression {
-    Identifier(String),
+    Path(StaticPath),
     IntLiteral(i64),
     FloatLiteral(f64),
     BoolLiteral(bool),

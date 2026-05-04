@@ -1,7 +1,27 @@
 use parser::ast::{
-    BinaryOp, Block, Expression, IfStmt, Postfix, Statement, TopLevel, TypeExpr, VarAssignStmt,
-    VarDeclStmt, WhileStmt,
+    BinaryOp, Block, Expression, IfStmt, Postfix, Statement, StaticPath, TopLevel, TypeExpr,
+    TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, WhileStmt,
 };
+
+// ---------------------------------------------------------------------------
+// Traits
+// ---------------------------------------------------------------------------
+
+/// Implemented by nodes that *write* into the codegen output buffer.
+/// Requires `&mut RustCodegen` because it calls `add` / `addln` / indentation helpers.
+pub trait ToRust {
+    fn to_rust(&self, cg: &mut RustCodegen);
+}
+
+/// Implemented by nodes that *produce* a `String` without mutating the codegen.
+/// Only needs `&RustCodegen` (e.g. for indent level or helper access).
+pub trait GetRust {
+    fn get_rust(&self) -> String;
+}
+
+// ---------------------------------------------------------------------------
+// Codegen struct
+// ---------------------------------------------------------------------------
 
 pub struct RustCodegen {
     output: String,
@@ -30,21 +50,154 @@ impl RustCodegen {
     }
 
     fn add_indentedln(&mut self, s: &str) {
-        self.add(&format!("{}{}\n", self.indent_str(), s));
+        let line = format!("{}{}\n", self.indent_str(), s);
+        self.add(&line);
     }
 
     pub fn generate(&mut self, toplevels: &[TopLevel]) -> String {
         for tl in toplevels {
-            self.generate_toplevel(tl);
+            tl.to_rust(self);
         }
         self.output.clone()
     }
+}
 
-    fn generate_toplevel(&mut self, tl: &TopLevel) {
-        match tl {
+impl Default for RustCodegen {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GetRust — pure string production (expressions, types)
+// ---------------------------------------------------------------------------
+
+impl GetRust for TypeExpr {
+    fn get_rust(&self) -> String {
+        get_type_postfixes(&self.1) + &self.0.get_rust()
+    }
+}
+
+impl GetRust for TypeExprKind {
+    fn get_rust(&self) -> String {
+        match self {
+            TypeExprKind::Path(path) => get_static_type_path(path),
+            TypeExprKind::PathParams(path, params) => {
+                format!(
+                    "{}<{}>",
+                    get_static_type_path(path),
+                    params
+                        .iter()
+                        .map(|t| t.get_rust())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
+            TypeExprKind::Tuple(types) => format!(
+                "({})",
+                types
+                    .iter()
+                    .map(|t| t.get_rust())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        }
+    }
+}
+
+impl GetRust for Expression {
+    fn get_rust(&self) -> String {
+        match self {
+            Expression::Path(path) => path.get_rust(),
+            Expression::IntLiteral(n) => n.to_string(),
+            Expression::FloatLiteral(n) => n.to_string(),
+            Expression::BoolLiteral(b) => b.to_string(),
+            Expression::StringLiteral(s) => format!("\"{}\".to_string()", s),
+
+            Expression::Postfix { initial, postfixes } => {
+                let base = initial.get_rust();
+                postfixes.get_rust_with_base(&base)
+            }
+        }
+    }
+}
+
+/// Helper — applies a slice of postfixes onto an already-rendered base string.
+trait PostfixChain {
+    fn get_rust_with_base(&self, base: &str) -> String;
+}
+
+impl PostfixChain for [Postfix] {
+    fn get_rust_with_base(&self, base: &str) -> String {
+        let mut result = base.to_string();
+
+        for postfix in self {
+            result = match postfix {
+                Postfix::FieldAccess(field) => format!("{}.{}", result, field),
+
+                Postfix::Call(args) => {
+                    let args = args
+                        .iter()
+                        .map(|a| a.get_rust())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!("{}({})", result, args)
+                }
+
+                Postfix::StructCall(fields) => {
+                    let fields = fields
+                        .iter()
+                        .map(|(k, v)| format!("{}: {}", k, v.get_rust()))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!("{} {{ {} }}", result, fields)
+                }
+
+                Postfix::Index(idx) => {
+                    format!("{}[{}]", result, idx.get_rust())
+                }
+
+                Postfix::Binary(op, rhs) => {
+                    let op_str = match op {
+                        BinaryOp::Plus => "+",
+                        BinaryOp::Minus => "-",
+                        BinaryOp::Multiply => "*",
+                        BinaryOp::Divide => "/",
+                        BinaryOp::Modulo => "%",
+                        BinaryOp::Equal => "==",
+                        BinaryOp::NotEqual => "!=",
+                        BinaryOp::LessThan => "<",
+                        BinaryOp::GreaterThan => ">",
+                        BinaryOp::LessThanOrEqual => "<=",
+                        BinaryOp::GreaterThanOrEqual => ">=",
+                    };
+                    format!("{} {} {}", result, op_str, rhs.get_rust())
+                }
+            };
+        }
+
+        result
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ToRust — output-writing (top-level, statements, blocks)
+// ---------------------------------------------------------------------------
+
+impl ToRust for Block {
+    fn to_rust(&self, cg: &mut RustCodegen) {
+        for stmt in &self.0 {
+            stmt.to_rust(cg);
+        }
+    }
+}
+
+impl ToRust for TopLevel {
+    fn to_rust(&self, cg: &mut RustCodegen) {
+        match self {
             TopLevel::Import(path) => {
-                let path = path.replace("\"", "");
-                self.addln(&format!("use {};", path));
+                let path = path.replace('"', "");
+                cg.addln(&format!("use {};", path));
             }
 
             TopLevel::StructDecl {
@@ -53,17 +206,16 @@ impl RustCodegen {
                 fields,
             } => {
                 let vis = if *export { "pub " } else { "" };
-
-                self.addln(&format!("{}struct {} {{", vis, name));
-                self.indent += 1;
+                cg.addln(&format!("{}struct {} {{", vis, name));
+                cg.indent += 1;
 
                 for (field_name, (_, ty)) in &fields.0 {
-                    let ty = self.translate_type(ty);
-                    self.add_indentedln(&format!("pub {}: {},", field_name, ty));
+                    let ty = ty.get_rust();
+                    cg.add_indentedln(&format!("pub {}: {},", field_name, ty));
                 }
 
-                self.indent -= 1;
-                self.addln("}\n");
+                cg.indent -= 1;
+                cg.addln("}\n");
             }
 
             TopLevel::FunctionDecl {
@@ -78,86 +230,52 @@ impl RustCodegen {
                 let params_str = params
                     .0
                     .iter()
-                    .map(|(n, (_, t))| format!("{}: {}", n, self.translate_type(t)))
+                    .map(VarDecl::get_rust)
                     .collect::<Vec<_>>()
                     .join(", ");
 
-                let ret = return_type
-                    .as_ref()
-                    .map(|t| format!(" -> {}", self.translate_type(t)))
-                    .unwrap_or_default();
-
-                self.addln(&format!("{}fn {}({}){} {{", vis, name, params_str, ret));
-
-                self.indent += 1;
-                self.generate_block(body);
-                self.indent -= 1;
-
-                self.addln("}\n");
+                cg.addln(&format!(
+                    "{}fn {}({}) -> {} {{",
+                    vis,
+                    name,
+                    params_str,
+                    return_type.get_rust()
+                ));
+                cg.indent += 1;
+                body.to_rust(cg);
+                cg.indent -= 1;
+                cg.addln("}\n");
             }
         }
     }
+}
 
-    fn translate_type(&self, ty: &TypeExpr) -> String {
-        match ty {
-            TypeExpr::Identifier(name) => match name.as_str() {
-                "int" => "i32".into(),
-                "float" | "float64" => "f64".into(),
-                "float32" => "f32".into(),
-                "bool" => "bool".into(),
-                "string" => "String".into(),
-                _ => name.clone(),
-            },
-        }
-    }
-
-    fn generate_block(&mut self, block: &Block) {
-        for stmt in &block.0 {
-            self.generate_statement(stmt);
-        }
-    }
-
-    fn generate_statement(&mut self, stmt: &Statement) {
-        match stmt {
+impl ToRust for Statement {
+    fn to_rust(&self, cg: &mut RustCodegen) {
+        match self {
             Statement::Expression(expr) => {
-                self.add_indentedln(&format!("{};", self.generate_expression(expr)));
+                cg.add_indentedln(&format!("{};", expr.get_rust()));
             }
 
             Statement::Block(block) => {
-                self.add_indentedln("{");
-                self.indent += 1;
-                self.generate_block(block);
-                self.indent -= 1;
-                self.add_indentedln("}");
+                cg.add_indentedln("{");
+                cg.indent += 1;
+                block.to_rust(cg);
+                cg.indent -= 1;
+                cg.add_indentedln("}");
             }
 
-            Statement::VarDecl(VarDeclStmt {
-                mutable,
-                name,
-                init,
-                type_,
-            }) => {
-                let mutability = if *mutable { "mut " } else { "" };
-
-                let ty = type_
-                    .as_ref()
-                    .map(|t| format!(": {}", self.translate_type(t)))
-                    .unwrap_or_default();
-
+            Statement::VarDecl(VarDeclStmt { decl, init }) => {
                 let init = init
                     .as_ref()
-                    .map(|e| format!(" = {}", self.generate_expression(e)))
+                    .map(|e| format!(" = {}", e.get_rust()))
                     .unwrap_or_default();
 
-                self.add_indentedln(&format!("let {}{}{}{};", mutability, name, ty, init));
+                cg.add_indentedln(&format!("let {}{};", decl.get_rust(), init));
             }
 
             Statement::VarAssign(VarAssignStmt { target, value }) => {
-                self.add_indentedln(&format!(
-                    "{} = {};",
-                    self.generate_expression(target),
-                    self.generate_expression(value)
-                ));
+                cg.add_indentedln(&format!("{} = {};", target.get_rust(), value.get_rust(),));
             }
 
             Statement::If(IfStmt {
@@ -165,122 +283,83 @@ impl RustCodegen {
                 then_branch,
                 else_branch,
             }) => {
-                self.add_indentedln(&format!("if {} {{", self.generate_expression(condition)));
-
-                self.indent += 1;
-                self.generate_statement(then_branch);
-                self.indent -= 1;
-
-                self.add_indentedln("}");
+                cg.add_indentedln(&format!("if {} {{", condition.get_rust()));
+                cg.indent += 1;
+                then_branch.to_rust(cg);
+                cg.indent -= 1;
+                cg.add_indentedln("}");
 
                 if let Some(else_br) = else_branch {
-                    self.add_indentedln("else {");
-                    self.indent += 1;
-                    self.generate_statement(else_br);
-                    self.indent -= 1;
-                    self.add_indentedln("}");
+                    cg.add_indentedln("else {");
+                    cg.indent += 1;
+                    else_br.to_rust(cg);
+                    cg.indent -= 1;
+                    cg.add_indentedln("}");
                 }
             }
 
             Statement::While(WhileStmt { condition, body }) => {
-                self.add_indentedln(&format!("while {} {{", self.generate_expression(condition)));
-
-                self.indent += 1;
-                self.generate_statement(body);
-                self.indent -= 1;
-
-                self.add_indentedln("}");
+                cg.add_indentedln(&format!("while {} {{", condition.get_rust()));
+                cg.indent += 1;
+                body.to_rust(cg);
+                cg.indent -= 1;
+                cg.add_indentedln("}");
             }
 
             Statement::For { .. } => {
-                // Rust doesn't support C-style for loops
-                self.add_indentedln("// TODO: transform into iterator-based loop");
+                cg.add_indentedln("// TODO: transform into iterator-based loop");
             }
 
             Statement::Return(expr) => {
-                let val = expr
-                    .as_ref()
-                    .map(|e| self.generate_expression(e))
-                    .unwrap_or_default();
-
-                self.add_indentedln(&format!("return {};", val));
+                let val = expr.as_ref().map(|e| e.get_rust()).unwrap_or_default();
+                cg.add_indentedln(&format!("return {};", val));
             }
 
-            Statement::Break => self.add_indentedln("break;"),
-            Statement::Continue => self.add_indentedln("continue;"),
+            Statement::Break => cg.add_indentedln("break;"),
+            Statement::Continue => cg.add_indentedln("continue;"),
         }
-    }
-
-    fn generate_expression(&self, expr: &Expression) -> String {
-        match expr {
-            Expression::Identifier(name) => name.clone(),
-            Expression::IntLiteral(n) => n.to_string(),
-            Expression::FloatLiteral(n) => n.to_string(),
-            Expression::BoolLiteral(b) => b.to_string(),
-            Expression::StringLiteral(s) => format!("\"{}\".to_string()", s),
-
-            Expression::Postfix { initial, postfixes } => {
-                let base = self.generate_expression(initial);
-                self.apply_postfixes(&base, postfixes)
-            }
-        }
-    }
-
-    fn apply_postfixes(&self, base: &str, postfixes: &[Postfix]) -> String {
-        let mut result = base.to_string();
-
-        for postfix in postfixes {
-            result = match postfix {
-                Postfix::FieldAccess(field) => format!("{}.{}", result, field),
-
-                Postfix::Call(args) => {
-                    let args = args
-                        .iter()
-                        .map(|a| self.generate_expression(a))
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    format!("{}({})", result, args)
-                }
-
-                Postfix::StructCall(fields) => {
-                    let fields = fields
-                        .iter()
-                        .map(|(k, v)| format!("{}: {}", k, self.generate_expression(v)))
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    format!("{} {{ {} }}", result, fields)
-                }
-
-                Postfix::Index(idx) => {
-                    format!("{}[{}]", result, self.generate_expression(idx))
-                }
-
-                Postfix::Binary(op, rhs) => {
-                    let op = match op {
-                        BinaryOp::Plus => "+",
-                        BinaryOp::Minus => "-",
-                        BinaryOp::Multiply => "*",
-                        BinaryOp::Divide => "/",
-                        BinaryOp::Modulo => "%",
-                        BinaryOp::Equal => "==",
-                        BinaryOp::NotEqual => "!=",
-                        BinaryOp::LessThan => "<",
-                        BinaryOp::GreaterThan => ">",
-                        BinaryOp::LessThanOrEqual => "<=",
-                        BinaryOp::GreaterThanOrEqual => ">=",
-                    };
-
-                    format!("{} {} {}", result, op, self.generate_expression(rhs))
-                }
-            };
-        }
-
-        result
     }
 }
 
-impl Default for RustCodegen {
-    fn default() -> Self {
-        Self::new()
+impl GetRust for VarDecl {
+    fn get_rust(&self) -> String {
+        let mutability = if self.mutable { "mut " } else { "" };
+
+        let ty = self
+            .type_
+            .as_ref()
+            .map(|t| format!(": {}", t.get_rust()))
+            .unwrap_or_default();
+
+        format!("{}{}{}", mutability, self.name, ty)
     }
+}
+
+impl GetRust for StaticPath {
+    fn get_rust(&self) -> String {
+        self.0.join("::")
+    }
+}
+
+impl GetRust for TypePostfix {
+    fn get_rust(&self) -> String {
+        match self {
+            TypePostfix::Ref => format!("&"),
+            TypePostfix::RefMut => format!("&mut "),
+        }
+    }
+}
+
+pub fn get_static_type_path(path: &StaticPath) -> String {
+    let rust_path = path.get_rust();
+
+    if rust_path == "void" {
+        format!("()")
+    } else {
+        rust_path
+    }
+}
+
+pub fn get_type_postfixes(postfixes: &[TypePostfix]) -> String {
+    postfixes.iter().map(TypePostfix::get_rust).collect()
 }

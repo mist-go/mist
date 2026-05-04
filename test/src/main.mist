@@ -1,3 +1,1 @@
-int test() {
-    int mut a = 10;
-}
+i32 add(i32* a, i32* b) {}

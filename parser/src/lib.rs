@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use pest::Parser;
 use pest_derive::Parser;
 
@@ -17,8 +15,6 @@ pub type ParseError = pest::error::Error<Rule>;
 pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
     let mut pairs = MistParser::parse(Rule::program, source)?;
 
-    println!("{pairs:#?}");
-
     let mut statements = vec![];
 
     for pair in pairs.next().unwrap().into_inner() {
@@ -30,43 +26,94 @@ pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
     Ok(statements)
 }
 
-impl TryFrom<pest::iterators::Pair<'_, Rule>> for TypeExpr {
-    type Error = ();
-
-    fn try_from(pair: pest::iterators::Pair<'_, Rule>) -> Result<Self, Self::Error> {
-        if pair.as_str() == "void" {
-            return Err(());
-        }
-
-        Ok(match pair.as_rule() {
+impl From<pest::iterators::Pair<'_, Rule>> for TypeExpr {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        match pair.as_rule() {
             Rule::type_expr => {
-                let inner = pair.into_inner().next().unwrap();
-                TypeExpr::try_from(inner)?
+                let mut inner = pair.into_inner();
+                TypeExpr(
+                    TypeExprKind::from(inner.next().unwrap()),
+                    inner.map(TypePostfix::from).collect(),
+                )
             }
-            Rule::identifier => TypeExpr::Identifier(pair.as_str().to_string()),
             _ => unimplemented!("{pair:#?}"),
-        })
+        }
     }
 }
 
-impl From<(bool, pest::iterators::Pair<'_, Rule>)> for ParamList {
-    fn from((export_allowed, pair): (bool, pest::iterators::Pair<Rule>)) -> Self {
+impl From<pest::iterators::Pair<'_, Rule>> for TypePostfix {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::ref_type => {
+                if pair.into_inner().peek().is_some() {
+                    TypePostfix::RefMut
+                } else {
+                    TypePostfix::Ref
+                }
+            }
+            _ => unimplemented!("{pair:#?}"),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for TypeExprKind {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::tuple_type => {
+                TypeExprKind::Tuple(pair.into_inner().map(TypeExpr::from).collect())
+            }
+            Rule::path_type => {
+                let mut inner = pair.into_inner();
+                let path = StaticPath::from(inner.next().unwrap());
+                let params = inner.map(TypeExpr::from).collect::<Vec<_>>();
+
+                if params.len() == 0 {
+                    TypeExprKind::Path(path)
+                } else {
+                    TypeExprKind::PathParams(path, params)
+                }
+            }
+            _ => unimplemented!("{pair:#?}"),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for StaticPath {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::static_path => {
+                StaticPath(pair.into_inner().map(|i| i.as_str().to_string()).collect())
+            }
+            _ => unimplemented!("{pair:#?}"),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for FieldList {
+    fn from(pair: pest::iterators::Pair<Rule>) -> Self {
         let params = pair
             .into_inner()
             .map(|p| {
                 let mut param_inner = p.into_inner();
-                let export =
-                    if export_allowed && param_inner.peek().unwrap().as_rule() == Rule::export {
-                        param_inner.next().unwrap();
-                        true
-                    } else {
-                        false
-                    };
-                let param_type = TypeExpr::try_from(param_inner.next().unwrap()).unwrap();
+                let export = if param_inner.peek().unwrap().as_rule() == Rule::export {
+                    param_inner.next().unwrap();
+                    true
+                } else {
+                    false
+                };
+                let param_type = TypeExpr::from(param_inner.next().unwrap());
                 let param_name = param_inner.next().unwrap().as_str().to_string();
                 (param_name, (export, param_type))
             })
             .collect();
+
+        FieldList(params)
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for ParamList {
+    fn from(pair: pest::iterators::Pair<Rule>) -> Self {
+        let params = pair.into_inner().map(VarDecl::from).collect();
 
         ParamList(params)
     }
@@ -94,21 +141,13 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
                     false
                 };
 
-                let return_type = if let Some(next) = inner.peek() {
-                    if next.as_rule() == Rule::type_expr {
-                        TypeExpr::try_from(inner.next().unwrap()).ok()
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
+                let return_type = TypeExpr::from(inner.next().unwrap());
 
                 let name = inner.next().unwrap().as_str().to_string();
                 let params = if inner.peek().unwrap().as_rule() == Rule::param_list {
-                    ParamList::from((false, inner.next().unwrap()))
+                    ParamList::from(inner.next().unwrap())
                 } else {
-                    ParamList(HashMap::new())
+                    ParamList(Vec::new())
                 };
 
                 let body = Block::from(inner.next().unwrap());
@@ -136,7 +175,7 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
                 };
                 let name = inner.next().unwrap().as_str().to_string();
                 let fields_pair = inner.next().unwrap();
-                let fields = ParamList::from((true, fields_pair));
+                let fields = FieldList::from(fields_pair);
 
                 Ok(TopLevel::StructDecl {
                     export,
@@ -182,28 +221,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
 
             Rule::block => Statement::Block(Block::from(pair.into_inner().next().unwrap())),
 
-            Rule::var_decl_statement => {
-                let mut inner = pair.into_inner();
-
-                let mut var_decl = inner.next().unwrap().into_inner();
-
-                let type_ = var_decl.next().map(TypeExpr::try_from).unwrap().ok();
-                let mutable = if var_decl.peek().unwrap().as_rule() == Rule::mutable {
-                    var_decl.next();
-                    true
-                } else {
-                    false
-                };
-                let name = var_decl.next().unwrap().as_str().to_string();
-                let init = inner.next().map(Expression::from);
-
-                Statement::VarDecl(VarDeclStmt {
-                    mutable,
-                    name: name.as_str().to_string(),
-                    init,
-                    type_,
-                })
-            }
+            Rule::var_decl_statement => Statement::VarDecl(VarDeclStmt::from(pair)),
 
             Rule::return_stmt => {
                 let mut inner = pair.into_inner();
@@ -269,7 +287,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
                 }
             }
             Rule::primary => Expression::from(pair.into_inner().next().unwrap()),
-            Rule::identifier => Expression::Identifier(pair.as_str().to_string()),
+            Rule::static_path => Expression::Path(StaticPath::from(pair)),
             Rule::integer => {
                 let value = pair.as_str().parse::<i64>().unwrap();
                 Expression::IntLiteral(value)
@@ -345,6 +363,51 @@ impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
             }
 
             _ => unimplemented!("Postfix parsing not implemented yet {:?}", pair.as_rule()),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for VarDeclStmt {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::var_decl_statement => {
+                let mut inner = pair.into_inner();
+
+                let decl = VarDecl::from(inner.next().unwrap());
+
+                let init = inner.next().map(Expression::from);
+
+                VarDeclStmt { decl, init }
+            }
+
+            _ => unimplemented!(),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::var_decl => {
+                let mut inner = pair.into_inner();
+
+                let type_ = Some(inner.next().map(TypeExpr::from).unwrap());
+                let mutable = if inner.peek().unwrap().as_rule() == Rule::mutable {
+                    inner.next();
+                    true
+                } else {
+                    false
+                };
+                let name = inner.next().unwrap().as_str().to_string();
+
+                VarDecl {
+                    mutable,
+                    name,
+                    type_,
+                }
+            }
+
+            _ => unimplemented!("{:?}", pair.as_rule()),
         }
     }
 }
