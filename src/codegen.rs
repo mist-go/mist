@@ -1,6 +1,6 @@
 use parser::ast::{
     BinaryOp, Block, Expression, IfStmt, Postfix, Statement, TopLevel, TypeExpr, VarAssignStmt,
-    VarDeclStmt, WhileStmt,
+    VarDecl, VarDeclStmt, WhileStmt,
 };
 
 // ---------------------------------------------------------------------------
@@ -16,7 +16,7 @@ pub trait ToRust {
 /// Implemented by nodes that *produce* a `String` without mutating the codegen.
 /// Only needs `&RustCodegen` (e.g. for indent level or helper access).
 pub trait GetRust {
-    fn get_rust(&self, cg: &RustCodegen) -> String;
+    fn get_rust(&self) -> String;
 }
 
 // ---------------------------------------------------------------------------
@@ -73,7 +73,7 @@ impl Default for RustCodegen {
 // ---------------------------------------------------------------------------
 
 impl GetRust for TypeExpr {
-    fn get_rust(&self, _cg: &RustCodegen) -> String {
+    fn get_rust(&self) -> String {
         match self {
             TypeExpr::Identifier(name) => match name.as_str() {
                 "int" => "i32".into(),
@@ -88,7 +88,7 @@ impl GetRust for TypeExpr {
 }
 
 impl GetRust for Expression {
-    fn get_rust(&self, cg: &RustCodegen) -> String {
+    fn get_rust(&self) -> String {
         match self {
             Expression::Identifier(name) => name.clone(),
             Expression::IntLiteral(n) => n.to_string(),
@@ -97,8 +97,8 @@ impl GetRust for Expression {
             Expression::StringLiteral(s) => format!("\"{}\".to_string()", s),
 
             Expression::Postfix { initial, postfixes } => {
-                let base = initial.get_rust(cg);
-                postfixes.get_rust_with_base(cg, &base)
+                let base = initial.get_rust();
+                postfixes.get_rust_with_base(&base)
             }
         }
     }
@@ -106,11 +106,11 @@ impl GetRust for Expression {
 
 /// Helper — applies a slice of postfixes onto an already-rendered base string.
 trait PostfixChain {
-    fn get_rust_with_base(&self, cg: &RustCodegen, base: &str) -> String;
+    fn get_rust_with_base(&self, base: &str) -> String;
 }
 
 impl PostfixChain for [Postfix] {
-    fn get_rust_with_base(&self, cg: &RustCodegen, base: &str) -> String {
+    fn get_rust_with_base(&self, base: &str) -> String {
         let mut result = base.to_string();
 
         for postfix in self {
@@ -120,7 +120,7 @@ impl PostfixChain for [Postfix] {
                 Postfix::Call(args) => {
                     let args = args
                         .iter()
-                        .map(|a| a.get_rust(cg))
+                        .map(|a| a.get_rust())
                         .collect::<Vec<_>>()
                         .join(", ");
                     format!("{}({})", result, args)
@@ -129,14 +129,14 @@ impl PostfixChain for [Postfix] {
                 Postfix::StructCall(fields) => {
                     let fields = fields
                         .iter()
-                        .map(|(k, v)| format!("{}: {}", k, v.get_rust(cg)))
+                        .map(|(k, v)| format!("{}: {}", k, v.get_rust()))
                         .collect::<Vec<_>>()
                         .join(", ");
                     format!("{} {{ {} }}", result, fields)
                 }
 
                 Postfix::Index(idx) => {
-                    format!("{}[{}]", result, idx.get_rust(cg))
+                    format!("{}[{}]", result, idx.get_rust())
                 }
 
                 Postfix::Binary(op, rhs) => {
@@ -153,7 +153,7 @@ impl PostfixChain for [Postfix] {
                         BinaryOp::LessThanOrEqual => "<=",
                         BinaryOp::GreaterThanOrEqual => ">=",
                     };
-                    format!("{} {} {}", result, op_str, rhs.get_rust(cg))
+                    format!("{} {} {}", result, op_str, rhs.get_rust())
                 }
             };
         }
@@ -192,7 +192,7 @@ impl ToRust for TopLevel {
                 cg.indent += 1;
 
                 for (field_name, (_, ty)) in &fields.0 {
-                    let ty = ty.get_rust(cg);
+                    let ty = ty.get_rust();
                     cg.add_indentedln(&format!("pub {}: {},", field_name, ty));
                 }
 
@@ -212,21 +212,13 @@ impl ToRust for TopLevel {
                 let params_str = params
                     .0
                     .iter()
-                    .map(|v| {
-                        format!(
-                            "{name}{}",
-                            v.type_
-                                .as_ref()
-                                .map(|t| format!(": {}", t.get_rust(cg)))
-                                .unwrap_or_default()
-                        )
-                    })
+                    .map(VarDecl::get_rust)
                     .collect::<Vec<_>>()
                     .join(", ");
 
                 let ret = return_type
                     .as_ref()
-                    .map(|t| format!(" -> {}", t.get_rust(cg)))
+                    .map(|t| format!(" -> {}", t.get_rust()))
                     .unwrap_or_default();
 
                 cg.addln(&format!("{}fn {}({}){} {{", vis, name, params_str, ret));
@@ -243,7 +235,7 @@ impl ToRust for Statement {
     fn to_rust(&self, cg: &mut RustCodegen) {
         match self {
             Statement::Expression(expr) => {
-                cg.add_indentedln(&format!("{};", expr.get_rust(cg)));
+                cg.add_indentedln(&format!("{};", expr.get_rust()));
             }
 
             Statement::Block(block) => {
@@ -255,28 +247,16 @@ impl ToRust for Statement {
             }
 
             Statement::VarDecl(VarDeclStmt { decl, init }) => {
-                let mutability = if decl.mutable { "mut " } else { "" };
-
-                let ty = decl
-                    .type_
-                    .as_ref()
-                    .map(|t| format!(": {}", t.get_rust(cg)))
-                    .unwrap_or_default();
-
                 let init = init
                     .as_ref()
-                    .map(|e| format!(" = {}", e.get_rust(cg)))
+                    .map(|e| format!(" = {}", e.get_rust()))
                     .unwrap_or_default();
 
-                cg.add_indentedln(&format!("let {}{}{}{};", mutability, decl.name, ty, init));
+                cg.add_indentedln(&format!("let {}{};", decl.get_rust(), init));
             }
 
             Statement::VarAssign(VarAssignStmt { target, value }) => {
-                cg.add_indentedln(&format!(
-                    "{} = {};",
-                    target.get_rust(cg),
-                    value.get_rust(cg),
-                ));
+                cg.add_indentedln(&format!("{} = {};", target.get_rust(), value.get_rust(),));
             }
 
             Statement::If(IfStmt {
@@ -284,7 +264,7 @@ impl ToRust for Statement {
                 then_branch,
                 else_branch,
             }) => {
-                cg.add_indentedln(&format!("if {} {{", condition.get_rust(cg)));
+                cg.add_indentedln(&format!("if {} {{", condition.get_rust()));
                 cg.indent += 1;
                 then_branch.to_rust(cg);
                 cg.indent -= 1;
@@ -300,7 +280,7 @@ impl ToRust for Statement {
             }
 
             Statement::While(WhileStmt { condition, body }) => {
-                cg.add_indentedln(&format!("while {} {{", condition.get_rust(cg)));
+                cg.add_indentedln(&format!("while {} {{", condition.get_rust()));
                 cg.indent += 1;
                 body.to_rust(cg);
                 cg.indent -= 1;
@@ -312,12 +292,26 @@ impl ToRust for Statement {
             }
 
             Statement::Return(expr) => {
-                let val = expr.as_ref().map(|e| e.get_rust(cg)).unwrap_or_default();
+                let val = expr.as_ref().map(|e| e.get_rust()).unwrap_or_default();
                 cg.add_indentedln(&format!("return {};", val));
             }
 
             Statement::Break => cg.add_indentedln("break;"),
             Statement::Continue => cg.add_indentedln("continue;"),
         }
+    }
+}
+
+impl GetRust for VarDecl {
+    fn get_rust(&self) -> String {
+        let mutability = if self.mutable { "mut " } else { "" };
+
+        let ty = self
+            .type_
+            .as_ref()
+            .map(|t| format!(": {}", t.get_rust()))
+            .unwrap_or_default();
+
+        format!("{}{}{}", mutability, self.name, ty)
     }
 }

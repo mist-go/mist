@@ -366,7 +366,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
 
                 VarDecl {
                     mutable,
-                    name: name.as_str().to_string(),
+                    name,
                     type_,
                 }
             }
