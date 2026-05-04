@@ -33,8 +33,14 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExpr {
             Rule::tuple_type => TypeExpr::Tuple(pair.into_inner().map(TypeExpr::from).collect()),
             Rule::path_type => {
                 let mut inner = pair.into_inner();
+                let path = StaticPath::from(inner.next().unwrap());
+                let params = inner.map(TypeExpr::from).collect::<Vec<_>>();
 
-                TypeExpr::Path(StaticPath::from(inner.next().unwrap()), inner.map(TypeExpr::from).collect())
+                if params.len() == 0 {
+                    TypeExpr::Path(path)
+                } else {
+                    TypeExpr::PathParams(path, params)
+                }
             }
             _ => unimplemented!("{pair:#?}"),
         }
