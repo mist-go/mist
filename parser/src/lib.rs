@@ -285,11 +285,9 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
                     prefixes.push(Prefix::from(inner.next().unwrap()));
                 }
 
-                println!("{:#?}", prefixes);
-
                 let exp = Expression::from(inner.next().unwrap());
 
-                if inner.len() > 0 {
+                if inner.len() > 0 || prefixes.len() > 0 {
                     Expression::Fix {
                         initial: Box::new(exp),
                         prefixes,
