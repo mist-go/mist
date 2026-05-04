@@ -28,42 +28,45 @@ pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
 
 impl From<pest::iterators::Pair<'_, Rule>> for TypeExpr {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
-        match pair.as_rule() {
-            Rule::type_expr => {
-                let mut inner = pair.into_inner();
-                TypeExpr(
-                    TypeExprKind::from(inner.next().unwrap()),
-                    inner.map(TypePostfix::from).collect(),
-                )
-            }
-            _ => unimplemented!("{pair:#?}"),
+        let rule = pair.as_rule();
+        let mut inner = pair.into_inner();
+
+        match rule {
+            Rule::type_expr => TypeExpr(
+                TypeExprKind::from(inner.next().unwrap()),
+                inner.map(TypePostfix::from).collect(),
+            ),
+            _ => unimplemented!("{rule:#?}"),
         }
     }
 }
 
 impl From<pest::iterators::Pair<'_, Rule>> for TypePostfix {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
-        match pair.as_rule() {
+        let rule = pair.as_rule();
+        let inner = pair.into_inner();
+
+        match rule {
             Rule::ref_type => {
-                if pair.into_inner().peek().is_some() {
+                if inner.peek().is_some() {
                     TypePostfix::RefMut
                 } else {
                     TypePostfix::Ref
                 }
             }
-            _ => unimplemented!("{pair:#?}"),
+            _ => unimplemented!("{rule:#?}"),
         }
     }
 }
 
 impl From<pest::iterators::Pair<'_, Rule>> for TypeExprKind {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
-        match pair.as_rule() {
-            Rule::tuple_type => {
-                TypeExprKind::Tuple(pair.into_inner().map(TypeExpr::from).collect())
-            }
+        let rule = pair.as_rule();
+        let mut inner = pair.into_inner();
+
+        match rule {
+            Rule::tuple_type => TypeExprKind::Tuple(inner.map(TypeExpr::from).collect()),
             Rule::path_type => {
-                let mut inner = pair.into_inner();
                 let path = StaticPath::from(inner.next().unwrap());
                 let params = inner.map(TypeExpr::from).collect::<Vec<_>>();
 
@@ -73,7 +76,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExprKind {
                     TypeExprKind::PathParams(path, params)
                 }
             }
-            _ => unimplemented!("{pair:#?}"),
+            _ => unimplemented!("{rule:#?}"),
         }
     }
 }
@@ -113,23 +116,20 @@ impl From<pest::iterators::Pair<'_, Rule>> for FieldList {
 
 impl From<pest::iterators::Pair<'_, Rule>> for ParamList {
     fn from(pair: pest::iterators::Pair<Rule>) -> Self {
-        let params = pair.into_inner().map(VarDecl::from).collect();
-
-        ParamList(params)
+        ParamList(pair.into_inner().map(VarDecl::from).collect())
     }
 }
 
 impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
     type Error = ();
     fn try_from(pair: pest::iterators::Pair<Rule>) -> Result<Self, ()> {
-        match pair.as_rule() {
-            Rule::import => Ok(TopLevel::Include(StaticPath::from(
-                pair.into_inner().next().unwrap(),
-            ))),
+        let rule = pair.as_rule();
+        let mut inner = pair.into_inner();
+
+        match rule {
+            Rule::import => Ok(TopLevel::Include(StaticPath::from(inner.next().unwrap()))),
 
             Rule::function_decl => {
-                let mut inner = pair.into_inner();
-
                 let export = if let Some(first) = inner.peek() {
                     if first.as_rule() == Rule::export {
                         inner.next();
@@ -162,7 +162,6 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
             }
 
             Rule::struct_decl => {
-                let mut inner = pair.into_inner();
                 let export = if let Some(first) = inner.peek() {
                     if first.as_rule() == Rule::export {
                         inner.next();
@@ -185,7 +184,7 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
             }
 
             Rule::EOI => Err(()),
-            _ => unimplemented!("TopLevel parsing not implemented yet {:?}", pair.as_rule()),
+            _ => unimplemented!("{rule:#?}"),
         }
     }
 }
@@ -208,24 +207,19 @@ impl From<pest::iterators::Pair<'_, Rule>> for Block {
 
 impl From<pest::iterators::Pair<'_, Rule>> for Statement {
     fn from(pair: pest::iterators::Pair<Rule>) -> Self {
-        match pair.as_rule() {
-            Rule::statement => {
-                let inner = pair.into_inner().next().unwrap();
-                Statement::from(inner)
-            }
+        let rule = pair.as_rule();
+        let mut inner = pair.clone().into_inner();
 
-            Rule::expr_stmt => {
-                let expr_pair = pair.into_inner().next().unwrap();
-                Statement::Expression(Expression::from(expr_pair))
-            }
+        match rule {
+            Rule::statement => Statement::from(inner.next().unwrap()),
 
-            Rule::block => Statement::Block(Block::from(pair.into_inner().next().unwrap())),
+            Rule::expr_stmt => Statement::Expression(Expression::from(inner.next().unwrap())),
+
+            Rule::block => Statement::Block(Block::from(inner.next().unwrap())),
 
             Rule::var_decl_statement => Statement::VarDecl(VarDeclStmt::from(pair)),
 
             Rule::return_stmt => {
-                let mut inner = pair.into_inner();
-
                 let expr = inner.next().map(Expression::from);
 
                 Statement::Return(expr)
@@ -236,8 +230,6 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
             Rule::continue_stmt => Statement::Continue,
 
             Rule::if_stmt => {
-                let mut inner = pair.into_inner();
-
                 let condition = Expression::from(inner.next().unwrap());
                 let then_branch = Statement::from(inner.next().unwrap());
 
@@ -251,8 +243,6 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
             }
 
             Rule::while_stmt => {
-                let mut inner = pair.into_inner();
-
                 let condition = Expression::from(inner.next().unwrap());
                 let body = Statement::from(inner.next().unwrap());
 
@@ -262,28 +252,23 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                 })
             }
 
-            Rule::assign_statement => {
-                let mut inner = pair.into_inner();
+            Rule::assign_statement => Statement::VarAssign(VarAssignStmt {
+                target: Expression::from(inner.next().unwrap()),
+                value: Expression::from(inner.next().unwrap()),
+            }),
 
-                Statement::VarAssign(VarAssignStmt {
-                    target: Expression::from(inner.next().unwrap()),
-                    value: Expression::from(inner.next().unwrap()),
-                })
-            }
-
-            _ => unimplemented!(
-                "Statement parsing not implemented yet: {:?}",
-                pair.as_rule()
-            ),
+            _ => unimplemented!("{rule:#?}"),
         }
     }
 }
 
 impl From<pest::iterators::Pair<'_, Rule>> for Expression {
     fn from(pair: pest::iterators::Pair<Rule>) -> Self {
-        match pair.as_rule() {
+        let rule = pair.as_rule();
+        let mut inner = pair.clone().into_inner();
+
+        match rule {
             Rule::expr => {
-                let mut inner = pair.into_inner();
                 let mut prefixes = Vec::new();
 
                 while inner
@@ -306,7 +291,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
                     exp
                 }
             }
-            Rule::primary => Expression::from(pair.into_inner().next().unwrap()),
+            Rule::primary => Expression::from(inner.next().unwrap()),
             Rule::static_path => Expression::Path(StaticPath::from(pair)),
             Rule::integer => {
                 let value = pair.as_str().parse::<i64>().unwrap();
@@ -325,10 +310,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
                 Expression::StringLiteral(inner_str.to_string())
             }
 
-            _ => unimplemented!(
-                "Expression parsing not implemented yet {:?}",
-                pair.as_rule()
-            ),
+            _ => unimplemented!("{rule:#?}"),
         }
     }
 }
@@ -347,18 +329,21 @@ impl From<pest::iterators::Pair<'_, Rule>> for Prefix {
 
 impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
     fn from(pair: pest::iterators::Pair<Rule>) -> Self {
-        match pair.as_rule() {
-            Rule::postfix => Postfix::from(pair.into_inner().next().unwrap()),
+        let rule = pair.as_rule();
+        let mut inner = pair.into_inner();
+
+        match rule {
+            Rule::postfix => Postfix::from(inner.next().unwrap()),
 
             Rule::field_px => {
-                let field_name = pair.into_inner().next().unwrap().as_str().to_string();
+                let field_name = inner.next().unwrap().as_str().to_string();
                 Postfix::FieldAccess(field_name)
             }
 
-            Rule::call_px => Postfix::Call(pair.into_inner().map(Expression::from).collect()),
+            Rule::call_px => Postfix::Call(inner.map(Expression::from).collect()),
 
             Rule::struct_px => Postfix::StructCall(
-                pair.into_inner()
+                inner
                     .map(|p| {
                         let mut pi = p.into_inner();
                         (
@@ -369,10 +354,9 @@ impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
                     .collect(),
             ),
 
-            Rule::index_px => Postfix::Index(Expression::from(pair.into_inner().next().unwrap())),
+            Rule::index_px => Postfix::Index(Expression::from(inner.next().unwrap())),
 
             Rule::binary_px => {
-                let mut inner = pair.into_inner();
                 let op_pair = inner.next().unwrap();
                 let op = match op_pair.as_str() {
                     "+" => BinaryOp::Plus,
@@ -394,9 +378,9 @@ impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
                 Postfix::Binary(op, Expression::from(inner.next().unwrap()))
             }
 
-            Rule::macro_call_px => Postfix::MacroCall(pair.into_inner().as_str().to_string()),
+            Rule::macro_call_px => Postfix::MacroCall(inner.as_str().to_string()),
 
-            _ => unimplemented!("Postfix parsing not implemented yet {:?}", pair.as_rule()),
+            _ => unimplemented!("{rule:#?}"),
         }
     }
 }
