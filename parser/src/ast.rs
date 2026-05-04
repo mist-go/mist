@@ -47,7 +47,7 @@ pub enum TopLevel {
         export: bool,
         name: String,
         params: ParamList,
-        return_type: Option<TypeExpr>,
+        return_type: TypeExpr,
         body: Block,
     },
 }

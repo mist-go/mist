@@ -100,7 +100,7 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
                     false
                 };
 
-                let return_type = Some(TypeExpr::from(inner.next().unwrap()));
+                let return_type = TypeExpr::from(inner.next().unwrap());
 
                 let name = inner.next().unwrap().as_str().to_string();
                 let params = if inner.peek().unwrap().as_rule() == Rule::param_list {

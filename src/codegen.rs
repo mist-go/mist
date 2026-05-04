@@ -217,12 +217,13 @@ impl ToRust for TopLevel {
                     .collect::<Vec<_>>()
                     .join(", ");
 
-                let ret = return_type
-                    .as_ref()
-                    .map(|t| format!(" -> {}", t.get_rust()))
-                    .unwrap_or_default();
-
-                cg.addln(&format!("{}fn {}({}){} {{", vis, name, params_str, ret));
+                cg.addln(&format!(
+                    "{}fn {}({}) -> {} {{",
+                    vis,
+                    name,
+                    params_str,
+                    return_type.get_rust()
+                ));
                 cg.indent += 1;
                 body.to_rust(cg);
                 cg.indent -= 1;
