@@ -142,6 +142,7 @@ pub enum Expression {
     FloatLiteral(f64),
     BoolLiteral(bool),
     StringLiteral(String),
+    TupleLiteral(Vec<Expression>),
     Fix {
         initial: Box<Expression>,
         prefixes: Vec<Prefix>,

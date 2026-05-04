@@ -309,7 +309,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
                 let inner_str = pair.into_inner().next().unwrap().as_str();
                 Expression::StringLiteral(inner_str.to_string())
             }
-
+            Rule::tuple => Expression::TupleLiteral(inner.map(Expression::from).collect()),
             _ => unimplemented!("{rule:#?}"),
         }
     }

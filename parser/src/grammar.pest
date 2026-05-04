@@ -87,12 +87,15 @@ macro_inner_v = {
   | (!("(" | ")") ~ ANY)
 }
 
+tuple = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
+
 primary = {
     integer
   | float
   | boolean
   | string_lit
   | static_path
+  | tuple
 }
 
 postfix = {

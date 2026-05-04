@@ -113,7 +113,15 @@ impl GetRust for Expression {
             Expression::FloatLiteral(n) => n.to_string(),
             Expression::BoolLiteral(b) => b.to_string(),
             Expression::StringLiteral(s) => format!("\"{}\".to_string()", s),
-
+            Expression::TupleLiteral(t) => {
+                format!(
+                    "({})",
+                    t.iter()
+                        .map(Expression::get_rust)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
             Expression::Fix {
                 initial,
                 prefixes,
