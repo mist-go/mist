@@ -1,3 +1,89 @@
-void main() {
-    (i32, i32, str*) my_tuple = (10, 20, "hello, world");
+#include <std::math>
+#include <std::io>
+
+public struct Vec2 {
+    f32 x,
+    f32 y,
+}
+
+public struct Body {
+    Vec2 pos,
+    Vec2 vel,
+    f32 mass,
+}
+
+public struct World {
+    Body bodies,
+}
+
+// ---------- Utility Functions ----------
+
+public Vec2 add(Vec2 a, Vec2 b) {
+    return Vec2{ x: a.x + b.x, y: a.y + b.y };
+}
+
+public Vec2 scale(Vec2 v, f32 s) {
+    return Vec2{ x: v.x * s, y: v.y * s };
+}
+
+public f32 length(Vec2 v) {
+    return std::math::sqrt(v.x * v.x + v.y * v.y);
+}
+
+// ---------- Physics Step ----------
+
+public void integrate(Body mut* body, f32 dt) {
+    body.pos = add(body.pos, scale(body.vel, dt));
+}
+
+public void apply_gravity(Body mut* body) {
+    // simple constant gravity
+    body.vel.y = body.vel.y - 9.81;
+}
+
+// ---------- Simulation ----------
+
+public void simulate(World mut* world, i32 steps, f32 dt) {
+    i32 i = 0;
+
+    while (i < steps) {
+        i = i + 1;
+
+        // pretend we have an array-like world.bodies
+        i32 j = 0;
+
+        while (j < 10) {
+            Body b = world.bodies[j];
+
+            apply_gravity(&mut b);
+            integrate(&mut b, dt);
+
+            world.bodies[j] = b;
+            j = j + 1;
+        }
+    }
+}
+
+// ---------- Debug / Logging ----------
+
+public void debug_body(Body b) {
+    std::io::println!("Body -> pos(", b.pos.x, ", ", b.pos.y, ")");
+}
+
+// ---------- Entry Point ----------
+
+public void main() {
+    Body player = Body{
+        pos: Vec2{ x: 0.0, y: 10.0 },
+        vel: Vec2{ x: 1.0, y: 0.0 },
+        mass: 1.0,
+    };
+
+    World world = World{
+        bodies: player
+    };
+
+    simulate(&mut world, 60, 0.016);
+
+    debug_body(world.bodies[0]);
 }

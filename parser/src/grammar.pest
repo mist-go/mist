@@ -90,8 +90,8 @@ macro_inner_v = {
 tuple = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
 
 primary = {
-    integer
-  | float
+    float
+  | integer
   | boolean
   | string_lit
   | static_path
@@ -110,7 +110,7 @@ postfix = {
 field_px          = { "." ~ identifier }
 call_px           = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
 macro_call_px     = { "!" ~ "(" ~ macro_inner_v* ~ ")" }
-struct_px         = { "{" ~ (struct_field_decl ~ ("," ~ struct_field_decl)*)? ~ "}" }
+struct_px         = { "{" ~ (struct_field_decl ~ ("," ~ struct_field_decl)*)? ~ ","? ~ "}" }
 index_px          = { "[" ~ expr ~ "]" }
 binary_px         = { bin_op ~ expr }
 bin_op            = { "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" }
