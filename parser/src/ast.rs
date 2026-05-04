@@ -17,6 +17,9 @@ pub enum TypeExpr {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct StaticPath(pub Vec<String>);
+
+#[derive(Debug, Clone, Serialize)]
 pub enum BinaryOp {
     Plus,
     Minus,

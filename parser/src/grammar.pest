@@ -4,12 +4,13 @@ COMMENT    = _{ "//" ~ (!"\n" ~ ANY)* }
 program = { SOI ~ top_level* ~ EOI }
 
 // primitives
-identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
-integer    = @{ ASCII_DIGIT+ }
-float      = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
-boolean    =  { "true" | "false" }
-string_lit =  { "\"" ~ inner_str ~ "\"" }
-inner_str  = @{ (!"\"" ~ ANY)* }
+identifier  = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+integer     = @{ ASCII_DIGIT+ }
+float       = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
+boolean     =  { "true" | "false" }
+string_lit  =  { "\"" ~ inner_str ~ "\"" }
+inner_str   = @{ (!"\"" ~ ANY)* }
+static_path =  { identifier ~ ("::" ~ identifier)* }
 
 export   = { "public" }
 mutable  = { "mut" }
@@ -72,14 +73,14 @@ while_stmt = {
 }
 
 // ================= EXPRESSIONS =================
-type_expr = { identifier }
+type_expr = { static_path }
 
 primary = {
     integer
   | float
   | boolean
   | string_lit
-  | identifier
+  | static_path
 }
 
 postfix = {
