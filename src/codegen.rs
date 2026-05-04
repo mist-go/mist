@@ -75,7 +75,7 @@ impl Default for RustCodegen {
 impl GetRust for TypeExpr {
     fn get_rust(&self) -> String {
         match self {
-            TypeExpr::Path(path) => path.get_rust(),
+            TypeExpr::Path(path) => get_static_type_path(path),
         }
     }
 }
@@ -312,5 +312,15 @@ impl GetRust for VarDecl {
 impl GetRust for StaticPath {
     fn get_rust(&self) -> String {
         self.0.join("::")
+    }
+}
+
+pub fn get_static_type_path(path: &StaticPath) -> String {
+    let rust_path = path.get_rust();
+
+    if rust_path == "void" {
+        format!("()")
+    } else {
+        rust_path
     }
 }

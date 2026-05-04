@@ -1,3 +1,3 @@
-i32 test() {
-    std::fs::write();
+void main() {
+    
 }
