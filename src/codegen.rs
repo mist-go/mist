@@ -76,6 +76,14 @@ impl GetRust for TypeExpr {
     fn get_rust(&self) -> String {
         match self {
             TypeExpr::Path(path) => get_static_type_path(path),
+            TypeExpr::Tuple(types) => format!(
+                "({})",
+                types
+                    .iter()
+                    .map(|t| t.get_rust())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
         }
     }
 }
