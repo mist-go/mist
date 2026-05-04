@@ -112,7 +112,7 @@ impl GetRust for Expression {
             Expression::IntLiteral(n) => n.to_string(),
             Expression::FloatLiteral(n) => n.to_string(),
             Expression::BoolLiteral(b) => b.to_string(),
-            Expression::StringLiteral(s) => format!("\"{}\".to_string()", s),
+            Expression::StringLiteral(s) => format!("\"{s}\""),
             Expression::TupleLiteral(t) => {
                 format!(
                     "({})",
