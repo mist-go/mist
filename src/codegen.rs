@@ -83,7 +83,7 @@ impl GetRust for TypeExpr {
 impl GetRust for Expression {
     fn get_rust(&self) -> String {
         match self {
-            Expression::Identifier(name) => name.clone(),
+            Expression::Path(path) => path.get_rust(),
             Expression::IntLiteral(n) => n.to_string(),
             Expression::FloatLiteral(n) => n.to_string(),
             Expression::BoolLiteral(b) => b.to_string(),

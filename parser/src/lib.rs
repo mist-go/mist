@@ -262,7 +262,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
                 }
             }
             Rule::primary => Expression::from(pair.into_inner().next().unwrap()),
-            Rule::identifier => Expression::Identifier(pair.as_str().to_string()),
+            Rule::static_path => Expression::Path(StaticPath::from(pair)),
             Rule::integer => {
                 let value = pair.as_str().parse::<i64>().unwrap();
                 Expression::IntLiteral(value)

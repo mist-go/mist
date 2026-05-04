@@ -118,7 +118,7 @@ pub struct ForStmt {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Expression {
-    Identifier(String),
+    Path(StaticPath),
     IntLiteral(i64),
     FloatLiteral(f64),
     BoolLiteral(bool),
