@@ -114,73 +114,69 @@ impl GetRust for Expression {
             Expression::BoolLiteral(b) => b.to_string(),
             Expression::StringLiteral(s) => format!("\"{}\".to_string()", s),
 
-            Expression::Fix { initial, postfixes } => {
-                let base = initial.get_rust();
-                postfixes.get_rust_with_base(&base)
+            Expression::Fix {
+                initial,
+                prefixes,
+                postfixes,
+            } => initial.get_rust() + &postfixes.get_rust(),
+        }
+    }
+}
+
+impl GetRust for Postfix {
+    fn get_rust(&self) -> String {
+        match self {
+            Postfix::FieldAccess(field) => format!(".{}", field),
+
+            Postfix::Call(args) => {
+                let args = args
+                    .iter()
+                    .map(|a| a.get_rust())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("({})", args)
+            }
+
+            Postfix::MacroCall(inner) => {
+                format!("!({})", inner)
+            }
+
+            Postfix::StructCall(fields) => {
+                let fields = fields
+                    .iter()
+                    .map(|(k, v)| format!("{}: {}", k, v.get_rust()))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{{ {} }}", fields)
+            }
+
+            Postfix::Index(idx) => {
+                format!("[{}]", idx.get_rust())
+            }
+
+            Postfix::Binary(op, rhs) => {
+                let op_str = match op {
+                    BinaryOp::Plus => "+",
+                    BinaryOp::Minus => "-",
+                    BinaryOp::Multiply => "*",
+                    BinaryOp::Divide => "/",
+                    BinaryOp::Modulo => "%",
+                    BinaryOp::Equal => "==",
+                    BinaryOp::NotEqual => "!=",
+                    BinaryOp::LessThan => "<",
+                    BinaryOp::GreaterThan => ">",
+                    BinaryOp::LessThanOrEqual => "<=",
+                    BinaryOp::GreaterThanOrEqual => ">=",
+                };
+                format!("{} {}", op_str, rhs.get_rust())
             }
         }
     }
 }
 
-/// Helper — applies a slice of postfixes onto an already-rendered base string.
-trait PostfixChain {
-    fn get_rust_with_base(&self, base: &str) -> String;
-}
-
-impl PostfixChain for [Postfix] {
-    fn get_rust_with_base(&self, base: &str) -> String {
-        let mut result = base.to_string();
-
-        for postfix in self {
-            result = match postfix {
-                Postfix::FieldAccess(field) => format!("{}.{}", result, field),
-
-                Postfix::Call(args) => {
-                    let args = args
-                        .iter()
-                        .map(|a| a.get_rust())
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    format!("{}({})", result, args)
-                }
-
-                Postfix::MacroCall(inner) => {
-                    format!("{}!({})", result, inner)
-                }
-
-                Postfix::StructCall(fields) => {
-                    let fields = fields
-                        .iter()
-                        .map(|(k, v)| format!("{}: {}", k, v.get_rust()))
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    format!("{} {{ {} }}", result, fields)
-                }
-
-                Postfix::Index(idx) => {
-                    format!("{}[{}]", result, idx.get_rust())
-                }
-
-                Postfix::Binary(op, rhs) => {
-                    let op_str = match op {
-                        BinaryOp::Plus => "+",
-                        BinaryOp::Minus => "-",
-                        BinaryOp::Multiply => "*",
-                        BinaryOp::Divide => "/",
-                        BinaryOp::Modulo => "%",
-                        BinaryOp::Equal => "==",
-                        BinaryOp::NotEqual => "!=",
-                        BinaryOp::LessThan => "<",
-                        BinaryOp::GreaterThan => ">",
-                        BinaryOp::LessThanOrEqual => "<=",
-                        BinaryOp::GreaterThanOrEqual => ">=",
-                    };
-                    format!("{} {} {}", result, op_str, rhs.get_rust())
-                }
-            };
-        }
-
-        result
+impl GetRust for [Postfix] {
+    fn get_rust(&self) -> String {
+        self.iter().map(Postfix::get_rust).collect()
     }
 }
 
