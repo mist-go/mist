@@ -144,6 +144,10 @@ impl PostfixChain for [Postfix] {
                     format!("{}({})", result, args)
                 }
 
+                Postfix::MacroCall(inner) => {
+                    format!("{}!({})", result, inner)
+                }
+
                 Postfix::StructCall(fields) => {
                     let fields = fields
                         .iter()

@@ -66,6 +66,7 @@ pub enum TopLevel {
 pub enum Postfix {
     FieldAccess(String),
     Call(Vec<Expression>),
+    MacroCall(String),
     StructCall(HashMap<String, Expression>),
     Index(Expression),
     Binary(BinaryOp, Expression),

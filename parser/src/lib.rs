@@ -362,6 +362,8 @@ impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
                 Postfix::Binary(op, Expression::from(inner.next().unwrap()))
             }
 
+            Rule::macro_call_px => Postfix::MacroCall(pair.into_inner().as_str().to_string()),
+
             _ => unimplemented!("Postfix parsing not implemented yet {:?}", pair.as_rule()),
         }
     }
