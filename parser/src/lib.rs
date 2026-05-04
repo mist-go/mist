@@ -30,8 +30,12 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExpr {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         match pair.as_rule() {
             Rule::type_expr => TypeExpr::from(pair.into_inner().next().unwrap()),
-            Rule::static_path => TypeExpr::Path(StaticPath::from(pair)),
             Rule::tuple_type => TypeExpr::Tuple(pair.into_inner().map(TypeExpr::from).collect()),
+            Rule::path_type => {
+                let mut inner = pair.into_inner();
+
+                TypeExpr::Path(StaticPath::from(inner.next().unwrap()), inner.map(TypeExpr::from).collect())
+            }
             _ => unimplemented!("{pair:#?}"),
         }
     }
