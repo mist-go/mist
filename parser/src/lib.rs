@@ -26,22 +26,14 @@ pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
     Ok(statements)
 }
 
-impl TryFrom<pest::iterators::Pair<'_, Rule>> for TypeExpr {
-    type Error = ();
-
-    fn try_from(pair: pest::iterators::Pair<'_, Rule>) -> Result<Self, Self::Error> {
-        if pair.as_str() == "void" {
-            return Err(());
-        }
-
-        Ok(match pair.as_rule() {
-            Rule::type_expr => {
-                let inner = pair.into_inner().next().unwrap();
-                TypeExpr::try_from(inner)?
-            }
+impl From<pest::iterators::Pair<'_, Rule>> for TypeExpr {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::type_expr => TypeExpr::from(pair.into_inner().next().unwrap()),
             Rule::static_path => TypeExpr::Path(StaticPath::from(pair)),
+            Rule::tuple_type => TypeExpr::Tuple(pair.into_inner().map(TypeExpr::from).collect()),
             _ => unimplemented!("{pair:#?}"),
-        })
+        }
     }
 }
 
@@ -68,7 +60,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for FieldList {
                 } else {
                     false
                 };
-                let param_type = TypeExpr::try_from(param_inner.next().unwrap()).unwrap();
+                let param_type = TypeExpr::from(param_inner.next().unwrap());
                 let param_name = param_inner.next().unwrap().as_str().to_string();
                 (param_name, (export, param_type))
             })
@@ -108,15 +100,7 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
                     false
                 };
 
-                let return_type = if let Some(next) = inner.peek() {
-                    if next.as_rule() == Rule::type_expr {
-                        TypeExpr::try_from(inner.next().unwrap()).ok()
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
+                let return_type = Some(TypeExpr::from(inner.next().unwrap()));
 
                 let name = inner.next().unwrap().as_str().to_string();
                 let params = if inner.peek().unwrap().as_rule() == Rule::param_list {
@@ -366,7 +350,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
             Rule::var_decl => {
                 let mut inner = pair.into_inner();
 
-                let type_ = inner.next().map(TypeExpr::try_from).unwrap().ok();
+                let type_ = Some(inner.next().map(TypeExpr::from).unwrap());
                 let mutable = if inner.peek().unwrap().as_rule() == Rule::mutable {
                     inner.next();
                     true
