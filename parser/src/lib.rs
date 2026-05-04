@@ -262,6 +262,15 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                 })
             }
 
+            Rule::assign_statement => {
+                let mut inner = pair.into_inner();
+
+                Statement::VarAssign(VarAssignStmt {
+                    target: Expression::from(inner.next().unwrap()),
+                    value: Expression::from(inner.next().unwrap()),
+                })
+            }
+
             _ => unimplemented!(
                 "Statement parsing not implemented yet: {:?}",
                 pair.as_rule()

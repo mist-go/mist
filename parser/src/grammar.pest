@@ -45,6 +45,7 @@ statement_list = { statement* }
 statement = _{
     expr_stmt
   | var_decl_statement
+  | assign_statement
   | if_stmt
   | while_stmt
   | return_stmt
@@ -64,6 +65,8 @@ break_stmt = { "break" ~ ";" }
 continue_stmt = { "continue" ~ ";" }
 
 var_decl_statement = { var_decl ~ ("=" ~ expr)? ~ ";" }
+
+assign_statement = { expr ~ "=" ~ expr ~ ";" }
 
 if_stmt = {
     "if" ~ "(" ~ expr ~ ")" ~ statement ~ ("else" ~ statement)?
