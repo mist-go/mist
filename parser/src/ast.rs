@@ -73,6 +73,13 @@ pub enum Postfix {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub enum PreFix {
+    Ref,
+    RefMut,
+    Deref,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum Statement {
     Expression(Expression),
     Block(Block),
@@ -135,8 +142,9 @@ pub enum Expression {
     FloatLiteral(f64),
     BoolLiteral(bool),
     StringLiteral(String),
-    Postfix {
+    Fix {
         initial: Box<Expression>,
+        prefixes: Vec<PreFix>,
         postfixes: Vec<Postfix>,
     },
 }

@@ -275,11 +275,24 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
         match pair.as_rule() {
             Rule::expr => {
                 let mut inner = pair.into_inner();
+                let mut prefixes = Vec::new();
+
+                while inner
+                    .peek()
+                    .map(|v| v.as_rule() == Rule::prefix)
+                    .unwrap_or_default()
+                {
+                    prefixes.push(PreFix::from(inner.next().unwrap()));
+                }
+
+                println!("{:#?}", prefixes);
+
                 let exp = Expression::from(inner.next().unwrap());
 
                 if inner.len() > 0 {
-                    Expression::Postfix {
+                    Expression::Fix {
                         initial: Box::new(exp),
+                        prefixes,
                         postfixes: inner.map(|p| Postfix::from(p)).collect(),
                     }
                 } else {
@@ -309,6 +322,18 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
                 "Expression parsing not implemented yet {:?}",
                 pair.as_rule()
             ),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for PreFix {
+    fn from(pair: pest::iterators::Pair<Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::prefix => Self::from(pair.into_inner().next().unwrap()),
+            Rule::deref_px => Self::Deref,
+            Rule::mut_ref_px => Self::RefMut,
+            Rule::ref_px => Self::Ref,
+            _ => unimplemented!("{pair:#?}"),
         }
     }
 }

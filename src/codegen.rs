@@ -114,7 +114,7 @@ impl GetRust for Expression {
             Expression::BoolLiteral(b) => b.to_string(),
             Expression::StringLiteral(s) => format!("\"{}\".to_string()", s),
 
-            Expression::Postfix { initial, postfixes } => {
+            Expression::Fix { initial, postfixes } => {
                 let base = initial.get_rust();
                 postfixes.get_rust_with_base(&base)
             }

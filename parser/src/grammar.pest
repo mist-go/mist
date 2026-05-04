@@ -110,6 +110,16 @@ binary_px         = { bin_op ~ expr }
 bin_op            = { "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" }
 struct_field_decl = { identifier ~ ":" ~ expr }
 
+prefix = {
+    deref_px
+  | mut_ref_px
+  | ref_px
+}
+
+deref_px   = { "*" }
+mut_ref_px = { "&" ~ mutable }
+ref_px     = { "&" }
+
 expr = {
-    primary ~ postfix*
+    prefix* ~ primary ~ postfix*
 }
