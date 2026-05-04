@@ -123,10 +123,10 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
     type Error = ();
     fn try_from(pair: pest::iterators::Pair<Rule>) -> Result<Self, ()> {
         match pair.as_rule() {
-            Rule::import => {
-                let path = pair.into_inner().next().unwrap().as_str().to_string();
-                Ok(TopLevel::Import(path))
-            }
+            Rule::import => Ok(TopLevel::Include(StaticPath::from(
+                pair.into_inner().next().unwrap(),
+            ))),
+
             Rule::function_decl => {
                 let mut inner = pair.into_inner();
 

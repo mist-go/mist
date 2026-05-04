@@ -195,9 +195,8 @@ impl ToRust for Block {
 impl ToRust for TopLevel {
     fn to_rust(&self, cg: &mut RustCodegen) {
         match self {
-            TopLevel::Import(path) => {
-                let path = path.replace('"', "");
-                cg.addln(&format!("use {};", path));
+            TopLevel::Include(path) => {
+                cg.addln(&format!("use {};", path.get_rust()));
             }
 
             TopLevel::StructDecl {
