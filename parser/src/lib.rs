@@ -39,26 +39,20 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TypeExpr {
                 let inner = pair.into_inner().next().unwrap();
                 TypeExpr::try_from(inner)?
             }
-            Rule::identifier => TypeExpr::Identifier(pair.as_str().to_string()),
+            Rule::static_path => TypeExpr::Path(StaticPath::from(pair)),
             _ => unimplemented!("{pair:#?}"),
         })
     }
 }
 
-impl TryFrom<pest::iterators::Pair<'_, Rule>> for StaticPath {
-    type Error = ();
-
-    fn try_from(pair: pest::iterators::Pair<'_, Rule>) -> Result<Self, Self::Error> {
-        if pair.as_str() == "void" {
-            return Err(());
-        }
-
-        Ok(match pair.as_rule() {
+impl From<pest::iterators::Pair<'_, Rule>> for StaticPath {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        match pair.as_rule() {
             Rule::static_path => {
                 StaticPath(pair.into_inner().map(|i| i.as_str().to_string()).collect())
             }
             _ => unimplemented!("{pair:#?}"),
-        })
+        }
     }
 }
 

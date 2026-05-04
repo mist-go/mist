@@ -13,7 +13,7 @@ pub struct Block(pub Vec<Statement>);
 
 #[derive(Debug, Clone, Serialize)]
 pub enum TypeExpr {
-    Identifier(String),
+    Path(StaticPath),
 }
 
 #[derive(Debug, Clone, Serialize)]
