@@ -47,7 +47,7 @@ pub enum BinaryOp {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum TopLevel {
-    Import(String),
+    Include(StaticPath),
     StructDecl {
         export: bool,
         name: String,
@@ -66,9 +66,17 @@ pub enum TopLevel {
 pub enum Postfix {
     FieldAccess(String),
     Call(Vec<Expression>),
+    MacroCall(String),
     StructCall(HashMap<String, Expression>),
     Index(Expression),
     Binary(BinaryOp, Expression),
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum Prefix {
+    Ref,
+    RefMut,
+    Deref,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -134,8 +142,10 @@ pub enum Expression {
     FloatLiteral(f64),
     BoolLiteral(bool),
     StringLiteral(String),
-    Postfix {
+    TupleLiteral(Vec<Expression>),
+    Fix {
         initial: Box<Expression>,
+        prefixes: Vec<Prefix>,
         postfixes: Vec<Postfix>,
     },
 }
