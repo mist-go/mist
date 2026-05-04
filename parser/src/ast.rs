@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct ParamList(pub HashMap<String, (bool, TypeExpr)>);
+pub struct FieldList(pub HashMap<String, (bool, TypeExpr)>);
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ParamList(pub Vec<VarDecl>);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Block(pub Vec<Statement>);
@@ -34,7 +37,7 @@ pub enum TopLevel {
     StructDecl {
         export: bool,
         name: String,
-        fields: ParamList,
+        fields: FieldList,
     },
     FunctionDecl {
         export: bool,
@@ -71,11 +74,16 @@ pub enum Statement {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct VarDeclStmt {
+pub struct VarDecl {
     pub mutable: bool,
     pub name: String,
-    pub init: Option<Expression>,
     pub type_: Option<TypeExpr>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct VarDeclStmt {
+    pub decl: VarDecl,
+    pub init: Option<Expression>,
 }
 
 #[derive(Debug, Clone, Serialize)]

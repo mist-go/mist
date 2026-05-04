@@ -78,7 +78,15 @@ impl RustCodegen {
                 let params_str = params
                     .0
                     .iter()
-                    .map(|(n, (_, t))| format!("{}: {}", n, self.translate_type(t)))
+                    .map(|v| {
+                        format!(
+                            "{name}{}",
+                            v.type_
+                                .as_ref()
+                                .map(|t| format!(": {}", self.translate_type(t)))
+                                .unwrap_or_default()
+                        )
+                    })
                     .collect::<Vec<_>>()
                     .join(", ");
 
@@ -131,15 +139,11 @@ impl RustCodegen {
                 self.add_indentedln("}");
             }
 
-            Statement::VarDecl(VarDeclStmt {
-                mutable,
-                name,
-                init,
-                type_,
-            }) => {
-                let mutability = if *mutable { "mut " } else { "" };
+            Statement::VarDecl(VarDeclStmt { decl, init }) => {
+                let mutability = if decl.mutable { "mut " } else { "" };
 
-                let ty = type_
+                let ty = decl
+                    .type_
                     .as_ref()
                     .map(|t| format!(": {}", self.translate_type(t)))
                     .unwrap_or_default();
@@ -149,7 +153,7 @@ impl RustCodegen {
                     .map(|e| format!(" = {}", self.generate_expression(e)))
                     .unwrap_or_default();
 
-                self.add_indentedln(&format!("let {}{}{}{};", mutability, name, ty, init));
+                self.add_indentedln(&format!("let {}{}{}{};", mutability, decl.name, ty, init));
             }
 
             Statement::VarAssign(VarAssignStmt { target, value }) => {

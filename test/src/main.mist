@@ -1,3 +1,3 @@
-int test() {
+int test(int mut b) {
     int mut a = 10;
 }
