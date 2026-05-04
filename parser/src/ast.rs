@@ -17,11 +17,14 @@ pub enum TypePostfix {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub enum TypeExpr {
-    Path(StaticPath, Vec<TypePostfix>),
-    PathParams(StaticPath, Vec<TypeExpr>, Vec<TypePostfix>),
-    Tuple(Vec<TypeExpr>, Vec<TypePostfix>),
+pub enum TypeExprKind {
+    Path(StaticPath),
+    PathParams(StaticPath, Vec<TypeExpr>),
+    Tuple(Vec<TypeExpr>),
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TypeExpr(pub TypeExprKind, pub Vec<TypePostfix>);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct StaticPath(pub Vec<String>);

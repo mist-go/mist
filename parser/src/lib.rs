@@ -29,17 +29,44 @@ pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
 impl From<pest::iterators::Pair<'_, Rule>> for TypeExpr {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         match pair.as_rule() {
-            Rule::type_expr => TypeExpr::from(pair.into_inner().next().unwrap()),
-            Rule::tuple_type => TypeExpr::Tuple(pair.into_inner().map(TypeExpr::from).collect()),
+            Rule::type_expr => {
+                let mut inner = pair.into_inner();
+                TypeExpr(
+                    TypeExprKind::from(inner.next().unwrap()),
+                    inner.map(TypePostfix::from).collect(),
+                )
+            }
+            _ => unimplemented!("{pair:#?}"),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for TypePostfix {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::ref_type => match pair.as_str().trim() {
+                _ => Self::Ref,
+            },
+            _ => unimplemented!("{pair:#?}"),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for TypeExprKind {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::tuple_type => {
+                TypeExprKind::Tuple(pair.into_inner().map(TypeExpr::from).collect())
+            }
             Rule::path_type => {
                 let mut inner = pair.into_inner();
                 let path = StaticPath::from(inner.next().unwrap());
                 let params = inner.map(TypeExpr::from).collect::<Vec<_>>();
 
                 if params.len() == 0 {
-                    TypeExpr::Path(path)
+                    TypeExprKind::Path(path)
                 } else {
-                    TypeExpr::PathParams(path, params)
+                    TypeExprKind::PathParams(path, params)
                 }
             }
             _ => unimplemented!("{pair:#?}"),
