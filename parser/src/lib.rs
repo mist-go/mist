@@ -44,9 +44,13 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExpr {
 impl From<pest::iterators::Pair<'_, Rule>> for TypePostfix {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         match pair.as_rule() {
-            Rule::ref_type => match pair.as_str().trim() {
-                _ => Self::Ref,
-            },
+            Rule::ref_type => {
+                if pair.into_inner().peek().is_some() {
+                    TypePostfix::RefMut
+                } else {
+                    TypePostfix::Ref
+                }
+            }
             _ => unimplemented!("{pair:#?}"),
         }
     }

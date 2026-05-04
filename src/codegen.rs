@@ -345,6 +345,7 @@ impl GetRust for TypePostfix {
     fn get_rust(&self) -> String {
         match self {
             TypePostfix::Ref => format!("&"),
+            TypePostfix::RefMut => format!("&mut "),
         }
     }
 }
