@@ -74,6 +74,12 @@ pub enum TopLevelKind {
         return_type: TypeExpr,
         body: Block,
     },
+    ClassDecl {
+        export: bool,
+        name: String,
+        fields: Vec<VarDeclStmt>,
+        constructor: (ParamList, Block),
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]
