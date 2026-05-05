@@ -15,7 +15,8 @@ static_path =  { identifier ~ ("::" ~ identifier)* }
 export    =  { "public" }
 mutable   =  { "mut" }
 sharp     = _{ "#" }
-var_decl  =  { type_expr ~ mutable? ~ identifier }
+var       =  { "var" }
+var_decl  =  { (var | type_expr) ~ mutable? ~ identifier }
 semicolon = _{ ";" }
 
 // ================= TOP LEVEL =================

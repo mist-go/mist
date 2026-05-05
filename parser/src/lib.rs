@@ -516,7 +516,13 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
             Rule::var_decl => {
                 let mut inner = pair.into_inner();
 
-                let type_ = Some(inner.next().map(TypeExpr::from).unwrap());
+                let type_ = inner.next().and_then(|pair| {
+                    if pair.as_str().trim() == "var" {
+                        None
+                    } else {
+                        Some(TypeExpr::from(pair))
+                    }
+                });
                 let mutable = if inner.peek().unwrap().as_rule() == Rule::mutable {
                     inner.next();
                     true
