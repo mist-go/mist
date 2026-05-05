@@ -18,9 +18,7 @@ pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
     let mut statements = vec![];
 
     for pair in pairs.next().unwrap().into_inner() {
-        if let Ok(stmt) = TopLevel::try_from(pair) {
-            statements.push(stmt);
-        }
+        statements.push(TopLevel::from(pair));
     }
 
     Ok(statements)
@@ -120,14 +118,79 @@ impl From<pest::iterators::Pair<'_, Rule>> for ParamList {
     }
 }
 
-impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
-    type Error = ();
-    fn try_from(pair: pest::iterators::Pair<Rule>) -> Result<Self, ()> {
+impl From<pest::iterators::Pair<'_, Rule>> for Attribute {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let rule = pair.as_rule();
+
+        // If we start at the top-level #[...], dive into the meta_item
+        if rule == Rule::attribute {
+            return Attribute::from(pair.into_inner().next().unwrap());
+        }
+
+        let mut inner = pair.into_inner();
+        // Every style starts with an identifier (the path)
+        let path = StaticPath::from(inner.next().expect("Path identifier expected"));
+
+        let kind = match rule {
+            Rule::simple_style => MetaItemKind::Word,
+
+            Rule::key_value_style | Rule::pair => {
+                let lit = Literal::from(inner.next().unwrap());
+                MetaItemKind::NameValue(lit)
+            }
+
+            Rule::list_style => {
+                // derive(Debug, Clone) -> NestedMetaItem::MetaItem(Attribute { path: "Debug", kind: Word })
+                let items = inner
+                    .map(|p| {
+                        NestedMetaItem::MetaItem(Attribute {
+                            path: StaticPath::from(p),
+                            kind: MetaItemKind::Word,
+                        })
+                    })
+                    .collect();
+                MetaItemKind::List(items)
+            }
+
+            Rule::structured_style => {
+                // link(name = "readline") -> NestedMetaItem::MetaItem(Attribute { path: "name", kind: NameValue(...) })
+                let items = inner
+                    .map(|p| NestedMetaItem::MetaItem(Attribute::from(p)))
+                    .collect();
+                MetaItemKind::List(items)
+            }
+
+            _ => unreachable!("Unexpected rule: {:?}", rule),
+        };
+
+        Attribute { path, kind }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for TopLevel {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let mut inner = pair.into_inner();
+        let mut attributes = Vec::new();
+
+        while inner
+            .peek()
+            .map(|v| v.as_rule() == Rule::attribute)
+            .unwrap_or_default()
+        {
+            attributes.push(Attribute::from(inner.next().unwrap()));
+        }
+
+        TopLevel(inner.next().unwrap().into(), attributes)
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let rule = pair.as_rule();
         let mut inner = pair.into_inner();
 
         match rule {
-            Rule::import => Ok(TopLevel::Include(StaticPath::from(inner.next().unwrap()))),
+            Rule::import => TopLevelKind::Include(StaticPath::from(inner.next().unwrap())),
 
             Rule::function_decl => {
                 let export = if let Some(first) = inner.peek() {
@@ -152,13 +215,13 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
 
                 let body = Block::from(inner.next().unwrap());
 
-                Ok(TopLevel::FunctionDecl {
+                TopLevelKind::FunctionDecl {
                     export,
                     name,
                     params,
                     return_type,
                     body,
-                })
+                }
             }
 
             Rule::struct_decl => {
@@ -176,14 +239,14 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
                 let fields_pair = inner.next().unwrap();
                 let fields = FieldList::from(fields_pair);
 
-                Ok(TopLevel::StructDecl {
+                TopLevelKind::StructDecl {
                     export,
                     name,
                     fields,
-                })
+                }
             }
 
-            Rule::EOI => Err(()),
+            Rule::EOI => TopLevelKind::EOI,
             _ => unimplemented!("{rule:#?}"),
         }
     }
@@ -257,6 +320,22 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                 value: Expression::from(inner.next().unwrap()),
             }),
 
+            _ => unimplemented!("{rule:#?}"),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for Literal {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let rule = pair.as_rule();
+        let inner = pair.clone().into_inner();
+
+        match rule {
+            Rule::integer => Literal::Int(pair.as_str().parse::<i64>().unwrap()),
+            Rule::float => Literal::Float(pair.as_str().parse::<f64>().unwrap()),
+            Rule::boolean => Literal::Bool(pair.as_str().parse::<bool>().unwrap()),
+            Rule::string_lit => Literal::String(inner.as_str().to_string()),
+            Rule::tuple => Literal::Tuple(inner.map(Expression::from).collect()),
             _ => unimplemented!("{rule:#?}"),
         }
     }

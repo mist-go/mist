@@ -20,22 +20,20 @@ pub enum TypePostfix {
 #[derive(Debug, Clone, Serialize)]
 pub struct Attribute {
     pub path: StaticPath,
-    pub args: Vec<AttributeArg>,
+    pub kind: MetaItemKind,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub enum AttributeArg {
-    Named(String, Literal),
-    Positional(Literal),
+pub enum MetaItemKind {
+    Word,
+    NameValue(Literal),
+    List(Vec<NestedMetaItem>),
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub enum Literal {
-    String(String),
-    Int(i64),
-    Float(f64),
-    Bool(bool),
-    Tuple(Vec<Expression>),
+pub enum NestedMetaItem {
+    Literal(Literal),
+    MetaItem(Attribute),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -67,7 +65,10 @@ pub enum BinaryOp {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub enum TopLevel {
+pub struct TopLevel(pub TopLevelKind, pub Vec<Attribute>);
+
+#[derive(Debug, Clone, Serialize)]
+pub enum TopLevelKind {
     Include(StaticPath),
     StructDecl {
         export: bool,
@@ -81,6 +82,7 @@ pub enum TopLevel {
         return_type: TypeExpr,
         body: Block,
     },
+    EOI,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -165,4 +167,13 @@ pub enum Expression {
         prefixes: Vec<Prefix>,
         postfixes: Vec<Postfix>,
     },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum Literal {
+    String(String),
+    Int(i64),
+    Float(f64),
+    Bool(bool),
+    Tuple(Vec<Expression>),
 }
