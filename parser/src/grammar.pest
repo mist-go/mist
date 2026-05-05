@@ -20,22 +20,19 @@ var_decl =  { type_expr ~ mutable? ~ identifier }
 // ================= TOP LEVEL =================
 
 attribute = {
-    "#" ~ "[" ~ (structured_style | list_style | key_value_style | simple_style) ~ "]"
+    "#" ~ "[" ~ (structured_style | list_style | pair_attr | simple_style) ~ "]"
 }
 
 // Simple: #[test]
-simple_style = { identifier }
-
-// Key-Value: #[crate_type = "lib"]
-key_value_style = { identifier ~ "=" ~ primary }
+simple_style = { static_path }
 
 // #[derive(PartialEq, PartialOrd)]
-list_style = { identifier ~ "(" ~ identifier ~ ("," ~ identifier)* ~ ","? ~ ")" }
+list_style = { static_path ~ "(" ~ identifier ~ ("," ~ identifier)* ~ ","? ~ ")" }
 
 // #[link(name = "readline")]
-structured_style = { identifier ~ "(" ~ pair ~ ("," ~ pair)* ~ ","? ~ ")" }
+structured_style = { static_path ~ "(" ~ pair_attr ~ ("," ~ pair_attr)* ~ ","? ~ ")" }
 
-pair = { identifier ~ "=" ~ primary }
+pair_attr = { identifier ~ "=" ~ primary }
 
 top_level = { attribute* ~ (import | function_decl | struct_decl) }
 

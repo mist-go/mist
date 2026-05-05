@@ -1,6 +1,7 @@
 use parser::ast::{
     BinaryOp, Block, Expression, IfStmt, Literal, Postfix, Prefix, Statement, StaticPath, TopLevel,
-    TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, WhileStmt,
+    TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt,
+    WhileStmt,
 };
 
 // ---------------------------------------------------------------------------
@@ -227,12 +228,18 @@ impl ToRust for Block {
 
 impl ToRust for TopLevel {
     fn to_rust(&self, cg: &mut RustCodegen) {
+        self.0.to_rust(cg);
+    }
+}
+
+impl ToRust for TopLevelKind {
+    fn to_rust(&self, cg: &mut RustCodegen) {
         match self {
-            TopLevel::Include(path) => {
+            Self::Include(path) => {
                 cg.addln(&format!("use {};", path.get_rust()));
             }
 
-            TopLevel::StructDecl {
+            Self::StructDecl {
                 export,
                 name,
                 fields,
@@ -250,7 +257,7 @@ impl ToRust for TopLevel {
                 cg.addln("}\n");
             }
 
-            TopLevel::FunctionDecl {
+            Self::FunctionDecl {
                 export,
                 name,
                 params,
@@ -278,6 +285,7 @@ impl ToRust for TopLevel {
                 cg.indent -= 1;
                 cg.addln("}\n");
             }
+            Self::EOI => {}
         }
     }
 }
