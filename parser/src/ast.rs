@@ -79,6 +79,7 @@ pub enum TopLevelKind {
         name: String,
         fields: Vec<VarDeclStmt>,
         constructor: ClassConstructor,
+        methods: Vec<ClassMethod>,
     },
 }
 
@@ -91,11 +92,11 @@ pub struct ClassConstructor {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ClassMethod {
-    export: bool,
-    name: String,
-    params: ParamList,
-    return_type: TypeExpr,
-    body: Block,
+    pub export: bool,
+    pub name: String,
+    pub params: ParamList,
+    pub return_type: TypeExpr,
+    pub body: Block,
 }
 
 #[derive(Debug, Clone, Serialize)]

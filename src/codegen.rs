@@ -362,7 +362,9 @@ impl ToRust for TopLevelKind {
                 name,
                 fields,
                 constructor,
+                methods,
             } => {
+                dbg!(methods);
                 // Struct decl
                 let vis = if *export { "pub " } else { "" };
                 cg.addln(&format!("{}struct {} {{", vis, name));

@@ -26,8 +26,6 @@ class_constructor = {
 
 class_fields = { var_decl_statement* }
 
-class_methods = { method* }
-
 self_param = { "self" ~ mutable? ~ deref_px? }
 
 method = {
@@ -35,7 +33,7 @@ method = {
 }
 
 class_decl = {
-    "class" ~ identifier ~ "{" ~ class_fields ~ class_constructor ~ class_methods ~ "}"
+    "class" ~ identifier ~ "{" ~ class_fields ~ class_constructor ~ method* ~ "}"
 }
 
 // ================= TOP LEVEL =================

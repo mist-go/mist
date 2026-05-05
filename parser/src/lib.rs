@@ -320,6 +320,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
                     .map(VarDeclStmt::from)
                     .collect(),
                 constructor: ClassConstructor::from(inner.next().unwrap()),
+                methods: inner.into_iter().map(ClassMethod::from).collect(),
             },
 
             _ => unimplemented!("{rule:#?}"),
@@ -591,6 +592,88 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
             }
 
             _ => unimplemented!("{:?}", pair.as_rule()),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for ClassMethod {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let mut inner = pair.into_inner();
+
+        let export = if let Some(first) = inner.peek() {
+            if first.as_rule() == Rule::export {
+                inner.next();
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        let return_type = TypeExpr::from(inner.next().unwrap());
+
+        let name = inner.next().unwrap().as_str().to_string();
+        let self_param = if inner.peek().unwrap().as_rule() == Rule::self_param {
+            let mut param = inner.next().unwrap().into_inner();
+            let name = format!("self");
+
+            let mutable = param
+                .peek()
+                .map(|p| p.as_rule() == Rule::mutable)
+                .unwrap_or_default();
+
+            if mutable {
+                param.next();
+            }
+
+            let is_ref = param
+                .peek()
+                .map(|p| p.as_rule() == Rule::deref_px)
+                .unwrap_or_default();
+
+            if is_ref {
+                param.next();
+            }
+
+            Some(VarDecl {
+                mutable: mutable && !is_ref,
+                name,
+                type_: Some(TypeExpr(
+                    TypeExprKind::Path(Path(vec![format!("Self")])),
+                    if is_ref {
+                        vec![if mutable {
+                            TypePostfix::RefMut
+                        } else {
+                            TypePostfix::Ref
+                        }]
+                    } else {
+                        Vec::new()
+                    },
+                )),
+            })
+        } else {
+            None
+        };
+
+        let params = if inner.peek().unwrap().as_rule() == Rule::param_list {
+            let mut params = ParamList::from(inner.next().unwrap());
+            if let Some(x) = self_param {
+                params.0.insert(0, x);
+            }
+            params
+        } else {
+            ParamList(self_param.into_iter().collect())
+        };
+
+        let body = Block::from(inner.next().unwrap());
+
+        Self {
+            export,
+            name,
+            params,
+            return_type,
+            body,
         }
     }
 }
