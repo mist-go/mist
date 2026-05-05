@@ -16,7 +16,7 @@ export    =  { "public" }
 mutable   =  { "mut" }
 sharp     = _{ "#" }
 var_decl  =  { type_expr ~ mutable? ~ identifier }
-semicolon =  { ";" }
+semicolon = _{ ";" }
 
 // ================= TOP LEVEL =================
 
@@ -101,7 +101,7 @@ while_stmt = {
 }
 
 c_for_stmt = {
-    "for" ~ "(" ~ statement ~ expr ~ ";" ~ statement ~ ")" ~ statement
+    "for" ~ "(" ~ statement ~ expr ~ semicolon ~ statement ~ ")" ~ statement
 }
 
 // ================= EXPRESSIONS =================
