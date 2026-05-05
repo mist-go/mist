@@ -106,7 +106,12 @@ pub enum Statement {
         else_branch: Option<Box<Statement>>,
     },
     While(StatementBranch),
-    For(ForStmt),
+    CStyleFor {
+        init: Box<Statement>,
+        condition: Box<Expression>,
+        update: Box<Statement>,
+        body: Box<Statement>,
+    },
 
     Return(Option<Expression>),
     Break,
@@ -135,14 +140,6 @@ pub struct VarAssignStmt {
 #[derive(Debug, Clone, Serialize)]
 pub struct StatementBranch {
     pub condition: Expression,
-    pub body: Box<Statement>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct ForStmt {
-    pub init: (bool, String, Option<Expression>),
-    pub condition: Option<Expression>,
-    pub update: Option<Box<Statement>>,
     pub body: Box<Statement>,
 }
 

@@ -1,28 +1,3 @@
-#![allow(unused_mut)]
-
-#[derive(Debug)]
-public struct ApiCall {
-    i32 x,
-    i32 y,
-}
-
 void main() {
-    ApiCall mut call = ApiCall { x: 10, y: 12 };
-
-    if (call.x == 20) {
-        println!("= 20");
-    } else if (call.x == 10) {
-        println!("= 10");
-    } else if (call.x == 5) {
-        println!("= 5");
-    } else {
-        println!("= unknown");
-    }
-
-    while (call.x <= 40) {
-        call.x = call.x - 1;
-        println!("while");
-    }
-
-    println!("{call:?}");
+    
 }

@@ -390,8 +390,31 @@ impl ToRust for Statement {
                 cg.ensure_brackets(body);
             }
 
-            Statement::For { .. } => {
-                cg.add_indentedln("// TODO: transform into iterator-based loop");
+            Statement::CStyleFor {
+                init,
+                condition,
+                update,
+                body,
+            } => {
+                cg.add_indentedln("{");
+                cg.indent += 1;
+
+                init.to_rust(cg);
+
+                cg.add_indentedln(&format!("while {}", condition.get_rust()));
+
+                cg.add_indentedln("{");
+                cg.indent += 1;
+
+                cg.ensure_brackets(body);
+
+                update.to_rust(cg);
+
+                cg.indent -= 1;
+                cg.add_indentedln("}");
+
+                cg.indent -= 1;
+                cg.add_indentedln("}");
             }
 
             Statement::Return(expr) => {
