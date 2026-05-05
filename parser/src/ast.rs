@@ -78,7 +78,6 @@ pub enum TopLevelKind {
         return_type: TypeExpr,
         body: Block,
     },
-    EOI,
 }
 
 #[derive(Debug, Clone, Serialize)]

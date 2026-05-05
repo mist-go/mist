@@ -285,7 +285,6 @@ impl ToRust for TopLevelKind {
                 cg.indent -= 1;
                 cg.addln("}\n");
             }
-            Self::EOI => {}
         }
     }
 }

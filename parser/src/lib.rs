@@ -18,7 +18,9 @@ pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
     let mut statements = vec![];
 
     for pair in pairs.next().unwrap().into_inner() {
-        statements.push(TopLevel::from(pair));
+        if pair.as_rule() != Rule::EOI {
+            statements.push(TopLevel::from(pair));
+        }
     }
 
     Ok(statements)
@@ -120,36 +122,73 @@ impl From<pest::iterators::Pair<'_, Rule>> for ParamList {
 
 impl From<pest::iterators::Pair<'_, Rule>> for Attribute {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
-        let rule = pair.as_rule();
+        match pair.as_rule() {
+            Rule::attribute => {
+                // unwrap #[ ... ]
+                Attribute::from(pair.into_inner().next().unwrap())
+            }
 
-        // If we start at the top-level #[...], dive into the meta_item
-        if rule == Rule::attribute {
-            return Attribute::from(pair.into_inner().next().unwrap());
+            Rule::meta => {
+                let mut inner = pair.into_inner();
+
+                // first item is always the path
+                let path = StaticPath::from(inner.next().unwrap());
+
+                // check what comes next
+                match inner.next() {
+                    None => {
+                        // #[path]
+                        Attribute::Path(path)
+                    }
+
+                    Some(next) => match next.as_rule() {
+                        Rule::primary => {
+                            // #[path = literal]
+                            Attribute::NameValue {
+                                path,
+                                value: Literal::from(next),
+                            }
+                        }
+
+                        Rule::meta_list => {
+                            // #[path(...)]
+                            let items = next.into_inner().map(Attribute::from).collect();
+
+                            Attribute::List { path, items }
+                        }
+
+                        _ => unreachable!("unexpected rule in meta: {:?}", next.as_rule()),
+                    },
+                }
+            }
+
+            Rule::meta_list => {
+                // This case usually won't be hit directly,
+                // but it's nice to keep it safe if reused
+                let items = pair.into_inner().map(Attribute::from).collect::<Vec<_>>();
+
+                // NOTE: this shouldn't normally construct an Attribute alone
+                // but you can panic or wrap depending on your design
+                panic!("meta_list should be handled inside meta: {:?}", items);
+            }
+
+            _ => unreachable!("unexpected rule: {:?}", pair.as_rule()),
         }
-
-        let mut inner = pair.into_inner();
-        let path = StaticPath::from(inner.next().unwrap());
-
-        let kind = match rule {
-            _ => unimplemented!("{:?}", rule),
-        };
     }
 }
 
 impl From<pest::iterators::Pair<'_, Rule>> for TopLevel {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let mut inner = pair.into_inner();
-        let mut attributes = Vec::new();
 
-        while inner
-            .peek()
-            .map(|v| v.as_rule() == Rule::attribute)
-            .unwrap_or_default()
-        {
-            attributes.push(Attribute::from(inner.next().unwrap()));
-        }
+        let attributes = inner
+            .next()
+            .unwrap()
+            .into_inner()
+            .map(Attribute::from)
+            .collect::<Vec<_>>();
 
-        TopLevel(inner.next().unwrap().into(), attributes)
+        TopLevel(TopLevelKind::from(inner.next().unwrap()), attributes)
     }
 }
 
@@ -214,8 +253,6 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
                     fields,
                 }
             }
-
-            Rule::EOI => TopLevelKind::EOI,
             _ => unimplemented!("{rule:#?}"),
         }
     }
