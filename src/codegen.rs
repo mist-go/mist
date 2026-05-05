@@ -1,6 +1,7 @@
 use parser::ast::{
-    BinaryOp, Block, Expression, IfStmt, Postfix, Prefix, Statement, StaticPath, TopLevel,
-    TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, WhileStmt,
+    Attribute, BinaryOp, Block, Expression, IfStmt, Literal, Path, Postfix, Prefix, Statement,
+    TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl,
+    VarDeclStmt, WhileStmt,
 };
 
 // ---------------------------------------------------------------------------
@@ -105,15 +106,14 @@ impl GetRust for TypeExprKind {
     }
 }
 
-impl GetRust for Expression {
+impl GetRust for Literal {
     fn get_rust(&self) -> String {
         match self {
-            Expression::Path(path) => path.get_rust(),
-            Expression::IntLiteral(n) => n.to_string(),
-            Expression::FloatLiteral(n) => n.to_string(),
-            Expression::BoolLiteral(b) => b.to_string(),
-            Expression::StringLiteral(s) => format!("\"{s}\""),
-            Expression::TupleLiteral(t) => {
+            Self::Int(n) => n.to_string(),
+            Self::Float(n) => format!("{n:?}"),
+            Self::Bool(b) => b.to_string(),
+            Self::String(s) => format!("\"{s}\""),
+            Self::Tuple(t) => {
                 format!(
                     "({})",
                     t.iter()
@@ -122,6 +122,15 @@ impl GetRust for Expression {
                         .join(", ")
                 )
             }
+        }
+    }
+}
+
+impl GetRust for Expression {
+    fn get_rust(&self) -> String {
+        match self {
+            Expression::Path(path) => path.get_rust(),
+            Expression::Literal(literal) => literal.get_rust(),
             Expression::Fix {
                 initial,
                 prefixes,
@@ -219,12 +228,54 @@ impl ToRust for Block {
 
 impl ToRust for TopLevel {
     fn to_rust(&self, cg: &mut RustCodegen) {
+        match &self.0 {
+            TopLevelKind::ModAttribute => {
+                for attr in &self.1 {
+                    cg.addln(&format!("#![{}]", attr.get_rust()));
+                }
+            }
+            _ => {
+                for attr in &self.1 {
+                    cg.addln(&format!("#[{}]", attr.get_rust()));
+                }
+            }
+        }
+
+        self.0.to_rust(cg);
+    }
+}
+
+impl GetRust for Attribute {
+    fn get_rust(&self) -> String {
         match self {
-            TopLevel::Include(path) => {
+            Self::Path(path) => path.get_rust(),
+            Self::NameValue { path, value } => {
+                format!("{} = {}", path.get_rust(), value.get_rust())
+            }
+            Self::List { path, items } => {
+                format!(
+                    "{}({})",
+                    path.get_rust(),
+                    items
+                        .iter()
+                        .map(Attribute::get_rust)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
+        }
+    }
+}
+
+impl ToRust for TopLevelKind {
+    fn to_rust(&self, cg: &mut RustCodegen) {
+        match self {
+            Self::ModAttribute => {}
+            Self::Include(path) => {
                 cg.addln(&format!("use {};", path.get_rust()));
             }
 
-            TopLevel::StructDecl {
+            Self::StructDecl {
                 export,
                 name,
                 fields,
@@ -242,7 +293,7 @@ impl ToRust for TopLevel {
                 cg.addln("}\n");
             }
 
-            TopLevel::FunctionDecl {
+            Self::FunctionDecl {
                 export,
                 name,
                 params,
@@ -359,7 +410,7 @@ impl GetRust for VarDecl {
     }
 }
 
-impl GetRust for StaticPath {
+impl GetRust for Path {
     fn get_rust(&self) -> String {
         self.0.join("::")
     }
@@ -374,7 +425,7 @@ impl GetRust for TypePostfix {
     }
 }
 
-pub fn get_static_type_path(path: &StaticPath) -> String {
+pub fn get_static_type_path(path: &Path) -> String {
     let rust_path = path.get_rust();
 
     if rust_path == "void" {

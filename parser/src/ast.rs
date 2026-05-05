@@ -18,9 +18,21 @@ pub enum TypePostfix {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub enum Attribute {
+    /// #[test]
+    Path(Path),
+
+    /// #[name = "value"]
+    NameValue { path: Path, value: Literal },
+
+    /// #[derive(Clone, Copy)]
+    List { path: Path, items: Vec<Attribute> },
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum TypeExprKind {
-    Path(StaticPath),
-    PathParams(StaticPath, Vec<TypeExpr>),
+    Path(Path),
+    PathParams(Path, Vec<TypeExpr>),
     Tuple(Vec<TypeExpr>),
 }
 
@@ -28,7 +40,7 @@ pub enum TypeExprKind {
 pub struct TypeExpr(pub TypeExprKind, pub Vec<TypePostfix>);
 
 #[derive(Debug, Clone, Serialize)]
-pub struct StaticPath(pub Vec<String>);
+pub struct Path(pub Vec<String>);
 
 #[derive(Debug, Clone, Serialize)]
 pub enum BinaryOp {
@@ -46,8 +58,12 @@ pub enum BinaryOp {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub enum TopLevel {
-    Include(StaticPath),
+pub struct TopLevel(pub TopLevelKind, pub Vec<Attribute>);
+
+#[derive(Debug, Clone, Serialize)]
+pub enum TopLevelKind {
+    ModAttribute,
+    Include(Path),
     StructDecl {
         export: bool,
         name: String,
@@ -137,15 +153,20 @@ pub struct ForStmt {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Expression {
-    Path(StaticPath),
-    IntLiteral(i64),
-    FloatLiteral(f64),
-    BoolLiteral(bool),
-    StringLiteral(String),
-    TupleLiteral(Vec<Expression>),
+    Literal(Literal),
+    Path(Path),
     Fix {
         initial: Box<Expression>,
         prefixes: Vec<Prefix>,
         postfixes: Vec<Postfix>,
     },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum Literal {
+    String(String),
+    Int(i64),
+    Float(f64),
+    Bool(bool),
+    Tuple(Vec<Expression>),
 }

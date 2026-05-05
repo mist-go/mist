@@ -18,8 +18,8 @@ pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
     let mut statements = vec![];
 
     for pair in pairs.next().unwrap().into_inner() {
-        if let Ok(stmt) = TopLevel::try_from(pair) {
-            statements.push(stmt);
+        if pair.as_rule() != Rule::EOI {
+            statements.push(TopLevel::from(pair));
         }
     }
 
@@ -67,7 +67,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExprKind {
         match rule {
             Rule::tuple_type => TypeExprKind::Tuple(inner.map(TypeExpr::from).collect()),
             Rule::path_type => {
-                let path = StaticPath::from(inner.next().unwrap());
+                let path = Path::from(inner.next().unwrap());
                 let params = inner.map(TypeExpr::from).collect::<Vec<_>>();
 
                 if params.len() == 0 {
@@ -81,12 +81,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExprKind {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for StaticPath {
+impl From<pest::iterators::Pair<'_, Rule>> for Path {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         match pair.as_rule() {
-            Rule::static_path => {
-                StaticPath(pair.into_inner().map(|i| i.as_str().to_string()).collect())
-            }
+            Rule::static_path => Path(pair.into_inner().map(|i| i.as_str().to_string()).collect()),
             _ => unimplemented!("{pair:#?}"),
         }
     }
@@ -120,14 +118,91 @@ impl From<pest::iterators::Pair<'_, Rule>> for ParamList {
     }
 }
 
-impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
-    type Error = ();
-    fn try_from(pair: pest::iterators::Pair<Rule>) -> Result<Self, ()> {
+impl From<pest::iterators::Pair<'_, Rule>> for Attribute {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::attribute => {
+                // unwrap #[ ... ]
+                Attribute::from(pair.into_inner().next().unwrap())
+            }
+
+            Rule::meta => {
+                let mut inner = pair.into_inner();
+
+                // first item is always the path
+                let path = Path::from(inner.next().unwrap());
+
+                // check what comes next
+                match inner.next() {
+                    None => {
+                        // #[path]
+                        Attribute::Path(path)
+                    }
+
+                    Some(next) => match next.as_rule() {
+                        Rule::primary => {
+                            // #[path = literal]
+                            Attribute::NameValue {
+                                path,
+                                value: Literal::from(next),
+                            }
+                        }
+
+                        Rule::meta_list => {
+                            // #[path(...)]
+                            let items = next.into_inner().map(Attribute::from).collect();
+
+                            Attribute::List { path, items }
+                        }
+
+                        _ => unreachable!("unexpected rule in meta: {:?}", next.as_rule()),
+                    },
+                }
+            }
+
+            Rule::meta_list => {
+                // This case usually won't be hit directly,
+                // but it's nice to keep it safe if reused
+                let items = pair.into_inner().map(Attribute::from).collect::<Vec<_>>();
+
+                // NOTE: this shouldn't normally construct an Attribute alone
+                // but you can panic or wrap depending on your design
+                panic!("meta_list should be handled inside meta: {:?}", items);
+            }
+
+            _ => unreachable!("unexpected rule: {:?}", pair.as_rule()),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for TopLevel {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let mut inner = pair.into_inner();
+
+        let attributes = inner
+            .next()
+            .unwrap()
+            .into_inner()
+            .map(Attribute::from)
+            .collect::<Vec<_>>();
+
+        TopLevel(
+            inner
+                .next()
+                .map(TopLevelKind::from)
+                .unwrap_or(TopLevelKind::ModAttribute),
+            attributes,
+        )
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let rule = pair.as_rule();
         let mut inner = pair.into_inner();
 
         match rule {
-            Rule::import => Ok(TopLevel::Include(StaticPath::from(inner.next().unwrap()))),
+            Rule::import => TopLevelKind::Include(Path::from(inner.next().unwrap())),
 
             Rule::function_decl => {
                 let export = if let Some(first) = inner.peek() {
@@ -152,13 +227,13 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
 
                 let body = Block::from(inner.next().unwrap());
 
-                Ok(TopLevel::FunctionDecl {
+                TopLevelKind::FunctionDecl {
                     export,
                     name,
                     params,
                     return_type,
                     body,
-                })
+                }
             }
 
             Rule::struct_decl => {
@@ -176,14 +251,12 @@ impl TryFrom<pest::iterators::Pair<'_, Rule>> for TopLevel {
                 let fields_pair = inner.next().unwrap();
                 let fields = FieldList::from(fields_pair);
 
-                Ok(TopLevel::StructDecl {
+                TopLevelKind::StructDecl {
                     export,
                     name,
                     fields,
-                })
+                }
             }
-
-            Rule::EOI => Err(()),
             _ => unimplemented!("{rule:#?}"),
         }
     }
@@ -262,6 +335,23 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
     }
 }
 
+impl From<pest::iterators::Pair<'_, Rule>> for Literal {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let rule = pair.as_rule();
+        let mut inner = pair.clone().into_inner();
+
+        match rule {
+            Rule::primary => Self::from(inner.next().unwrap()),
+            Rule::integer => Literal::Int(pair.as_str().parse::<i64>().unwrap()),
+            Rule::float => Literal::Float(pair.as_str().parse::<f64>().unwrap()),
+            Rule::boolean => Literal::Bool(pair.as_str().parse::<bool>().unwrap()),
+            Rule::string_lit => Literal::String(inner.as_str().to_string()),
+            Rule::tuple => Literal::Tuple(inner.map(Expression::from).collect()),
+            _ => unimplemented!("{rule:#?}"),
+        }
+    }
+}
+
 impl From<pest::iterators::Pair<'_, Rule>> for Expression {
     fn from(pair: pest::iterators::Pair<Rule>) -> Self {
         let rule = pair.as_rule();
@@ -292,12 +382,20 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
                 }
             }
             Rule::primary => Expression::from(inner.next().unwrap()),
-            Rule::static_path => Expression::Path(StaticPath::from(pair)),
-            Rule::integer => Expression::IntLiteral(pair.as_str().parse::<i64>().unwrap()),
-            Rule::float => Expression::FloatLiteral(pair.as_str().parse::<f64>().unwrap()),
-            Rule::boolean => Expression::BoolLiteral(pair.as_str().parse::<bool>().unwrap()),
-            Rule::string_lit => Expression::StringLiteral(inner.as_str().to_string()),
-            Rule::tuple => Expression::TupleLiteral(inner.map(Expression::from).collect()),
+            Rule::static_path => Expression::Path(Path::from(pair)),
+            Rule::integer => {
+                Expression::Literal(Literal::Int(pair.as_str().parse::<i64>().unwrap()))
+            }
+            Rule::float => {
+                Expression::Literal(Literal::Float(pair.as_str().parse::<f64>().unwrap()))
+            }
+            Rule::boolean => {
+                Expression::Literal(Literal::Bool(pair.as_str().parse::<bool>().unwrap()))
+            }
+            Rule::string_lit => Expression::Literal(Literal::String(inner.as_str().to_string())),
+            Rule::tuple => {
+                Expression::Literal(Literal::Tuple(inner.map(Expression::from).collect()))
+            }
             _ => unimplemented!("{rule:#?}"),
         }
     }
