@@ -333,6 +333,13 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
 
             Rule::while_stmt => Statement::While(pair.into()),
 
+            Rule::c_for_stmt => Statement::CStyleFor {
+                init: Box::new(Statement::from(inner.next().unwrap())),
+                condition: inner.next().unwrap().into(),
+                update: Box::new(Statement::from(inner.next().unwrap())),
+                body: Box::new(Statement::from(inner.next().unwrap())),
+            },
+
             Rule::assign_statement => Statement::VarAssign(VarAssignStmt {
                 target: Expression::from(inner.next().unwrap()),
                 value: Expression::from(inner.next().unwrap()),

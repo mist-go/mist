@@ -1,5 +1,5 @@
 void main() {
-    for (usize i; i < 10; i = i + 1;) {
+    for (usize mut i = 0; i < 10; i = i + 1;) {
         println!("{i}");
     }
 }

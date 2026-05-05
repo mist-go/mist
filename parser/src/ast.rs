@@ -108,7 +108,7 @@ pub enum Statement {
     While(StatementBranch),
     CStyleFor {
         init: Box<Statement>,
-        condition: Box<Expression>,
+        condition: Expression,
         update: Box<Statement>,
         body: Box<Statement>,
     },
