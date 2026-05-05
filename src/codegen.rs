@@ -1,5 +1,5 @@
 use parser::ast::{
-    BinaryOp, Block, Expression, IfStmt, Literal, Postfix, Prefix, Statement, StaticPath, TopLevel,
+    BinaryOp, Block, Expression, IfStmt, Literal, Path, Postfix, Prefix, Statement, TopLevel,
     TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt,
     WhileStmt,
 };
@@ -374,7 +374,7 @@ impl GetRust for VarDecl {
     }
 }
 
-impl GetRust for StaticPath {
+impl GetRust for Path {
     fn get_rust(&self) -> String {
         self.0.join("::")
     }
@@ -389,7 +389,7 @@ impl GetRust for TypePostfix {
     }
 }
 
-pub fn get_static_type_path(path: &StaticPath) -> String {
+pub fn get_static_type_path(path: &Path) -> String {
     let rust_path = path.get_rust();
 
     if rust_path == "void" {

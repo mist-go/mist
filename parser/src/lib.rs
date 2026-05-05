@@ -67,7 +67,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExprKind {
         match rule {
             Rule::tuple_type => TypeExprKind::Tuple(inner.map(TypeExpr::from).collect()),
             Rule::path_type => {
-                let path = StaticPath::from(inner.next().unwrap());
+                let path = Path::from(inner.next().unwrap());
                 let params = inner.map(TypeExpr::from).collect::<Vec<_>>();
 
                 if params.len() == 0 {
@@ -81,11 +81,11 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExprKind {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for StaticPath {
+impl From<pest::iterators::Pair<'_, Rule>> for Path {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         match pair.as_rule() {
             Rule::static_path => {
-                StaticPath(pair.into_inner().map(|i| i.as_str().to_string()).collect())
+                Path(pair.into_inner().map(|i| i.as_str().to_string()).collect())
             }
             _ => unimplemented!("{pair:#?}"),
         }
@@ -132,7 +132,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Attribute {
                 let mut inner = pair.into_inner();
 
                 // first item is always the path
-                let path = StaticPath::from(inner.next().unwrap());
+                let path = Path::from(inner.next().unwrap());
 
                 // check what comes next
                 match inner.next() {
@@ -198,7 +198,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
         let mut inner = pair.into_inner();
 
         match rule {
-            Rule::import => TopLevelKind::Include(StaticPath::from(inner.next().unwrap())),
+            Rule::import => TopLevelKind::Include(Path::from(inner.next().unwrap())),
 
             Rule::function_decl => {
                 let export = if let Some(first) = inner.peek() {
@@ -378,7 +378,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
                 }
             }
             Rule::primary => Expression::from(inner.next().unwrap()),
-            Rule::static_path => Expression::Path(StaticPath::from(pair)),
+            Rule::static_path => Expression::Path(Path::from(pair)),
             Rule::integer => {
                 Expression::Literal(Literal::Int(pair.as_str().parse::<i64>().unwrap()))
             }
