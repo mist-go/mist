@@ -69,13 +69,13 @@ pub enum TopLevelKind {
     ModAttribute,
     Include(Path),
     StructDecl {
-        export: Visibility,
+        visibility: Visibility,
         name: String,
         fields: FieldList,
     },
     FunctionDecl(FunctionDecl),
     ClassDecl {
-        export: Visibility,
+        visibility: Visibility,
         name: String,
         fields: Vec<VarDeclStmt>,
         constructor: ClassConstructor,
@@ -85,14 +85,14 @@ pub enum TopLevelKind {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ClassConstructor {
-    pub export: Visibility,
+    pub visibility: Visibility,
     pub params: ParamList,
     pub body: Block,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FunctionDecl {
-    pub export: Visibility,
+    pub visibility: Visibility,
     pub name: String,
     pub params: ParamList,
     pub return_type: TypeExpr,

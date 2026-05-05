@@ -1,7 +1,7 @@
 use parser::ast::{
     Attribute, BinaryOp, Block, Expression, FunctionDecl, Literal, Path, Postfix, Prefix,
     Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix,
-    VarAssignStmt, VarDecl, VarDeclStmt,
+    VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -312,12 +312,11 @@ impl ToRust for TopLevelKind {
             }
             Self::FunctionDecl(decl) => decl.to_rust(cg),
             Self::StructDecl {
-                export,
+                visibility,
                 name,
                 fields,
             } => {
-                let vis = if *export { "pub " } else { "" };
-                cg.addln(&format!("{}struct {} {{", vis, name));
+                cg.addln(&format!("{}struct {} {{", visibility.get_rust(), name));
                 cg.indent += 1;
 
                 for (field_name, _, ty) in &fields.0 {
@@ -329,15 +328,14 @@ impl ToRust for TopLevelKind {
                 cg.addln("}\n");
             }
             Self::ClassDecl {
-                export,
+                visibility,
                 name,
                 fields,
                 constructor,
                 methods,
             } => {
                 // Struct decl
-                let vis = if *export { "pub " } else { "" };
-                cg.addln(&format!("{}struct {} {{", vis, name));
+                cg.addln(&format!("{}struct {} {{", visibility.get_rust(), name));
                 cg.indent += 1;
 
                 for field in fields {
@@ -362,7 +360,7 @@ impl ToRust for TopLevelKind {
 
                 cg.add_indentedln(&format!(
                     "{}fn new({}) -> Self {{",
-                    if constructor.export { "pub " } else { "" },
+                    constructor.visibility.get_rust(),
                     params_str
                 ));
                 cg.indent += 1;
@@ -398,7 +396,7 @@ impl ToRust for TopLevelKind {
                 // Constructor function
                 cg.add_indentedln(&format!(
                     "{}fn construct_class(&mut self, {}) {{",
-                    if constructor.export { "pub " } else { "" },
+                    constructor.visibility.get_rust(),
                     params_str
                 ));
                 cg.indent += 1;
@@ -520,8 +518,6 @@ impl ToRust for Statement {
 
 impl ToRust for FunctionDecl {
     fn to_rust(&self, cg: &mut RustCodegen) {
-        let vis = if self.export { "pub " } else { "" };
-
         let params_str = self
             .params
             .0
@@ -532,7 +528,7 @@ impl ToRust for FunctionDecl {
 
         cg.add_indentedln(&format!(
             "{}fn {}({}) -> {} {{",
-            vis,
+            self.visibility.get_rust(),
             self.name,
             params_str,
             self.return_type.get_rust()
@@ -570,6 +566,16 @@ impl GetRust for TypePostfix {
             TypePostfix::Ref => format!("&"),
             TypePostfix::RefMut => format!("&mut "),
         }
+    }
+}
+
+impl GetRust for Visibility {
+    fn get_rust(&self) -> String {
+        match self {
+            Visibility::Public => "pub ",
+            Visibility::Private => "",
+        }
+        .to_string()
     }
 }
 

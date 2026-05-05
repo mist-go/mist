@@ -96,15 +96,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for FieldList {
             .into_inner()
             .map(|p| {
                 let mut param_inner = p.into_inner();
-                let export = if param_inner.peek().unwrap().as_rule() == Rule::export {
-                    param_inner.next().unwrap();
-                    true
-                } else {
-                    false
-                };
+                let visibility = Visibility::from(&mut param_inner);
                 let param_type = TypeExpr::from(param_inner.next().unwrap());
                 let param_name = param_inner.next().unwrap().as_str().to_string();
-                (param_name, export, param_type)
+                (param_name, visibility, param_type)
             })
             .collect();
 
@@ -214,16 +209,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for ClassConstructor {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let mut inner = pair.into_inner();
 
-        let export = if let Some(first) = inner.peek() {
-            if first.as_rule() == Rule::export {
-                inner.next();
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        };
+        let visibility = Visibility::from(&mut inner);
 
         let params = if inner.peek().unwrap().as_rule() == Rule::param_list {
             ParamList::from(inner.next().unwrap())
@@ -232,7 +218,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for ClassConstructor {
         };
 
         Self {
-            export,
+            visibility,
             params,
             body: Block::from(inner.next().unwrap()),
         }
@@ -250,38 +236,20 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
             Rule::function_decl => TopLevelKind::FunctionDecl(FunctionDecl::from(pair)),
 
             Rule::struct_decl => {
-                let export = if let Some(first) = inner.peek() {
-                    if first.as_rule() == Rule::export {
-                        inner.next();
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                };
+                let visibility = Visibility::from(&mut inner);
                 let name = inner.next().unwrap().as_str().to_string();
                 let fields_pair = inner.next().unwrap();
                 let fields = FieldList::from(fields_pair);
 
                 TopLevelKind::StructDecl {
-                    export,
+                    visibility,
                     name,
                     fields,
                 }
             }
 
             Rule::class_decl => TopLevelKind::ClassDecl {
-                export: if let Some(first) = inner.peek() {
-                    if first.as_rule() == Rule::export {
-                        inner.next();
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                },
+                visibility: Visibility::from(&mut inner),
                 name: inner.next().unwrap().as_str().to_string(),
                 fields: inner
                     .next()
@@ -566,16 +534,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let mut inner = pair.into_inner();
 
-        let export = if let Some(first) = inner.peek() {
-            if first.as_rule() == Rule::export {
-                inner.next();
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        };
+        let visibility = Visibility::from(&mut inner);
 
         let return_type = TypeExpr::from(inner.next().unwrap());
 
@@ -621,11 +580,21 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
         let body = Block::from(inner.next().unwrap());
 
         Self {
-            export,
+            visibility,
             name,
             params,
             return_type,
             body,
+        }
+    }
+}
+
+impl From<&mut pest::iterators::Pairs<'_, Rule>> for Visibility {
+    fn from(pairs: &mut pest::iterators::Pairs<'_, Rule>) -> Self {
+        if listen_rule(pairs, Rule::export) {
+            Visibility::Public
+        } else {
+            Visibility::Private
         }
     }
 }
