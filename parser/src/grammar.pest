@@ -179,6 +179,8 @@ mut_ref_px = { "&" ~ mutable }
 ref_px     = { "&" }
 new_px     = { "new" }
 
+prefix_list = { prefix* }
+
 expr = {
-    prefix* ~ primary ~ postfix*
+    prefix_list ~ primary ~ postfix*
 }

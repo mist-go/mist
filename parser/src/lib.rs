@@ -368,15 +368,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
 
         match rule {
             Rule::expr => {
-                let mut prefixes = Vec::new();
-
-                while inner
-                    .peek()
-                    .map(|v| v.as_rule() == Rule::prefix)
-                    .unwrap_or_default()
-                {
-                    prefixes.push(Prefix::from(inner.next().unwrap()));
-                }
+                let prefixes: Vec<Prefix> = inner
+                    .next()
+                    .map(|p| p.into_inner().into_iter().map(Prefix::from).collect())
+                    .unwrap_or_default();
 
                 let exp = Expression::from(inner.next().unwrap());
 
