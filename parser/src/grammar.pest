@@ -26,7 +26,13 @@ class_constructor = {
 
 class_fields = { var_decl_statement* }
 
-class_methods = { function_decl* }
+class_methods = { method* }
+
+self_param = { "self" ~ mutable? ~ deref_px? }
+
+method = {
+    export? ~ type_expr ~ identifier ~ "(" ~ self_param? ~ param_list? ~ ")" ~ block
+}
 
 class_decl = {
     "class" ~ identifier ~ "{" ~ class_fields ~ class_constructor ~ class_methods ~ "}"
@@ -167,7 +173,7 @@ prefix = {
     deref_px
   | mut_ref_px
   | ref_px
-| new_px
+  | new_px
 }
 
 deref_px   = { "*" }

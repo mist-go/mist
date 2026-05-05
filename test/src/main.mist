@@ -4,9 +4,13 @@ class MyClass {
     public constructor(str* name) {
         self.message = format!("Hello {}!", name);
     }
+
+    public void greet(self*) {
+        println!("{}", self.message);
+    }
 }
 
 void main() {
     var my_class = new MyClass("World");
-    println!("{}", my_class.message);
+    my_class.greet();
 }

@@ -90,6 +90,15 @@ pub struct ClassConstructor {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct ClassMethod {
+    export: bool,
+    name: String,
+    params: ParamList,
+    return_type: TypeExpr,
+    body: Block,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum Postfix {
     FieldAccess(String),
     Call(Vec<Expression>),
