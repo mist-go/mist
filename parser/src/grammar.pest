@@ -68,6 +68,7 @@ statement = _{
   | if_stmt
   | while_stmt
   | c_for_stmt
+  | for_stmt
   | return_stmt
   | break_stmt
   | continue_stmt
@@ -102,6 +103,10 @@ while_stmt = {
 
 c_for_stmt = {
     "for" ~ "(" ~ statement ~ expr ~ semicolon ~ statement ~ ")" ~ statement
+}
+
+for_stmt = {
+    "for" ~ "(" ~ identifier ~ "in" ~ expr ~ ")" ~ statement
 }
 
 // ================= EXPRESSIONS =================
