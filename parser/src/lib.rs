@@ -196,6 +196,20 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevel {
     }
 }
 
+impl From<pest::iterators::Pair<'_, Rule>> for StatementBranch {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let mut inner = pair.into_inner();
+
+        let condition = Expression::from(inner.next().unwrap());
+        let body = Statement::from(inner.next().unwrap());
+
+        StatementBranch {
+            condition,
+            body: Box::new(body),
+        }
+    }
+}
+
 impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let rule = pair.as_rule();
@@ -303,29 +317,21 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
             Rule::continue_stmt => Statement::Continue,
 
             Rule::if_stmt => {
-                let condition = Expression::from(inner.next().unwrap());
-                let then_branch = Statement::from(inner.next().unwrap());
+                let mut inner = inner.skip(2);
 
-                let else_branch = inner.next().map(Statement::from);
-
-                Statement::Break
-
-                // Statement::If(IfStmt {
-                //     condition,
-                //     then_branch: Box::new(then_branch),
-                //     else_branch: else_branch.map(Box::new),
-                // })
+                Statement::If {
+                    initial: pair.into(),
+                    else_if: inner
+                        .next()
+                        .unwrap()
+                        .into_inner()
+                        .map(StatementBranch::from)
+                        .collect(),
+                    else_branch: inner.next().map(Statement::from).map(Box::new),
+                }
             }
 
-            Rule::while_stmt => {
-                let condition = Expression::from(inner.next().unwrap());
-                let body = Statement::from(inner.next().unwrap());
-
-                Statement::While(StatementBranch {
-                    condition,
-                    body: Box::new(body),
-                })
-            }
+            Rule::while_stmt => Statement::While(pair.into()),
 
             Rule::assign_statement => Statement::VarAssign(VarAssignStmt {
                 target: Expression::from(inner.next().unwrap()),

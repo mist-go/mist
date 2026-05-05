@@ -86,8 +86,12 @@ var_decl_statement = { var_decl ~ ("=" ~ expr)? ~ ";" }
 
 assign_statement = { expr ~ "=" ~ expr ~ ";" }
 
+else_if = { "else" ~ "if" ~ "(" ~ expr ~ ")" ~ statement }
+
+else_if_list = { else_if* }
+
 if_stmt = {
-    "if" ~ "(" ~ expr ~ ")" ~ statement ~ ("else" ~ statement)?
+    "if" ~ "(" ~ expr ~ ")" ~ statement ~ else_if_list ~ ("else" ~ statement)?
 }
 
 while_stmt = {
