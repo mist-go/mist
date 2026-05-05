@@ -110,7 +110,7 @@ impl GetRust for Expression {
         match self {
             Expression::Path(path) => path.get_rust(),
             Expression::IntLiteral(n) => n.to_string(),
-            Expression::FloatLiteral(n) => n.to_string(),
+            Expression::FloatLiteral(n) => format!("{n:?}"),
             Expression::BoolLiteral(b) => b.to_string(),
             Expression::StringLiteral(s) => format!("\"{s}\""),
             Expression::TupleLiteral(t) => {

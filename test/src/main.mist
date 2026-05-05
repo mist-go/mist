@@ -1,6 +1,3 @@
-#include <std::math>
-#include <std::io>
-
 public struct Vec2 {
     f32 x,
     f32 y,
@@ -27,7 +24,7 @@ public Vec2 scale(Vec2 v, f32 s) {
 }
 
 public f32 length(Vec2 v) {
-    return std::math::sqrt(v.x * v.x + v.y * v.y);
+    return (v.x * v.x + v.y * v.y).sqrt();
 }
 
 // ---------- Physics Step ----------
@@ -67,7 +64,7 @@ public void simulate(World mut* world, i32 steps, f32 dt) {
 // ---------- Debug / Logging ----------
 
 public void debug_body(Body b) {
-    std::io::println!("Body -> pos(", b.pos.x, ", ", b.pos.y, ")");
+    println!("Body -> pos(", b.pos.x, ", ", b.pos.y, ")");
 }
 
 // ---------- Entry Point ----------
