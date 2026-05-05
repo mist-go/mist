@@ -211,11 +211,9 @@ impl From<pest::iterators::Pair<'_, Rule>> for ClassConstructor {
 
         let visibility = Visibility::from(&mut inner);
 
-        let params = if inner.peek().unwrap().as_rule() == Rule::param_list {
-            ParamList::from(inner.next().unwrap())
-        } else {
-            ParamList(Vec::new())
-        };
+        let params = consume_rule(&mut inner, Rule::param_list)
+            .map(ParamList::from)
+            .unwrap_or_else(|| ParamList(Vec::new()));
 
         Self {
             visibility,
@@ -394,18 +392,8 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
             }
             Rule::primary => Expression::from(inner.next().unwrap()),
             Rule::static_path => Expression::Path(Path::from(pair)),
-            Rule::integer => {
-                Expression::Literal(Literal::Int(pair.as_str().parse::<i64>().unwrap()))
-            }
-            Rule::float => {
-                Expression::Literal(Literal::Float(pair.as_str().parse::<f64>().unwrap()))
-            }
-            Rule::boolean => {
-                Expression::Literal(Literal::Bool(pair.as_str().parse::<bool>().unwrap()))
-            }
-            Rule::string_lit => Expression::Literal(Literal::String(inner.as_str().to_string())),
-            Rule::tuple => {
-                Expression::Literal(Literal::Tuple(inner.map(Expression::from).collect()))
+            Rule::integer | Rule::float | Rule::boolean | Rule::string_lit | Rule::tuple => {
+                Expression::Literal(Literal::from(pair))
             }
             _ => unimplemented!("{rule:#?}"),
         }
@@ -539,15 +527,15 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
         let return_type = TypeExpr::from(inner.next().unwrap());
 
         let name = inner.next().unwrap().as_str().to_string();
-        let self_param = if inner.peek().unwrap().as_rule() == Rule::self_param {
-            let mut param = inner.next().unwrap().into_inner();
+        let self_param = consume_rule(&mut inner, Rule::self_param).map(|param| {
+            let mut param_inner = param.into_inner();
             let name = format!("self");
 
-            let mutable = listen_rule(&mut param, Rule::mutable);
+            let mutable = listen_rule(&mut param_inner, Rule::mutable);
 
-            let is_ref = listen_rule(&mut param, Rule::deref_px);
+            let is_ref = listen_rule(&mut param_inner, Rule::deref_px);
 
-            Some(VarDecl {
+            VarDecl {
                 mutable: mutable && !is_ref,
                 name,
                 type_: Some(TypeExpr(
@@ -562,20 +550,21 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
                         Vec::new()
                     },
                 )),
-            })
-        } else {
-            None
-        };
-
-        let params = if inner.peek().unwrap().as_rule() == Rule::param_list {
-            let mut params = ParamList::from(inner.next().unwrap());
-            if let Some(x) = self_param {
-                params.0.insert(0, x);
             }
-            params
-        } else {
-            ParamList(self_param.into_iter().collect())
-        };
+        });
+
+        let params = consume_rule(&mut inner, Rule::param_list)
+            .map({
+                let self_param = self_param.clone();
+                |params_pair| {
+                    let mut params = ParamList::from(params_pair);
+                    if let Some(x) = self_param {
+                        params.0.insert(0, x);
+                    }
+                    params
+                }
+            })
+            .unwrap_or_else(|| ParamList(self_param.into_iter().collect()));
 
         let body = Block::from(inner.next().unwrap());
 
@@ -610,4 +599,16 @@ pub fn listen_rule(pairs: &mut pest::iterators::Pairs<'_, Rule>, rule: Rule) -> 
     }
 
     consumed
+}
+
+pub fn consume_rule<'a>(
+    pairs: &mut pest::iterators::Pairs<'a, Rule>,
+    rule: Rule,
+) -> Option<pest::iterators::Pair<'a, Rule>> {
+    let consumed = pairs
+        .peek()
+        .map(|p| p.as_rule() == rule)
+        .unwrap_or_default();
+
+    if consumed { pairs.next() } else { None }
 }
