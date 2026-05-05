@@ -13,4 +13,5 @@ class MyClass {
 void main() {
     var my_class = new MyClass("World");
     my_class.greet();
+    var x = 1 + 2 + 3;
 }
