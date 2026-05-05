@@ -1,7 +1,7 @@
 use parser::ast::{
-    BinaryOp, Block, Expression, IfStmt, Literal, Path, Postfix, Prefix, Statement, TopLevel,
-    TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt,
-    WhileStmt,
+    Attribute, BinaryOp, Block, Expression, IfStmt, Literal, Path, Postfix, Prefix, Statement,
+    TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl,
+    VarDeclStmt, WhileStmt,
 };
 
 // ---------------------------------------------------------------------------
@@ -228,7 +228,33 @@ impl ToRust for Block {
 
 impl ToRust for TopLevel {
     fn to_rust(&self, cg: &mut RustCodegen) {
+        for attr in &self.1 {
+            cg.addln(&format!("#[{}]", attr.get_rust()));
+        }
+
         self.0.to_rust(cg);
+    }
+}
+
+impl GetRust for Attribute {
+    fn get_rust(&self) -> String {
+        match self {
+            Self::Path(path) => path.get_rust(),
+            Self::NameValue { path, value } => {
+                format!("{} = {}", path.get_rust(), value.get_rust())
+            }
+            Self::List { path, items } => {
+                format!(
+                    "{}({})",
+                    path.get_rust(),
+                    items
+                        .iter()
+                        .map(Attribute::get_rust)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
+        }
     }
 }
 

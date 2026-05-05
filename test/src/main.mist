@@ -3,3 +3,9 @@ public struct ApiCall {
     i32 x,
     i32 y,
 }
+
+void main() {
+    ApiCall call = ApiCall { x: 10, y: 12 };
+
+    println!("{call:?}");
+}
