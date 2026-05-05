@@ -308,18 +308,20 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
 
                 let else_branch = inner.next().map(Statement::from);
 
-                Statement::If(IfStmt {
-                    condition,
-                    then_branch: Box::new(then_branch),
-                    else_branch: else_branch.map(Box::new),
-                })
+                Statement::Break
+
+                // Statement::If(IfStmt {
+                //     condition,
+                //     then_branch: Box::new(then_branch),
+                //     else_branch: else_branch.map(Box::new),
+                // })
             }
 
             Rule::while_stmt => {
                 let condition = Expression::from(inner.next().unwrap());
                 let body = Statement::from(inner.next().unwrap());
 
-                Statement::While(WhileStmt {
+                Statement::While(StatementBranch {
                     condition,
                     body: Box::new(body),
                 })

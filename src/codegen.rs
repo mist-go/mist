@@ -1,7 +1,7 @@
 use parser::ast::{
-    Attribute, BinaryOp, Block, Expression, IfStmt, Literal, Path, Postfix, Prefix, Statement,
-    TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl,
-    VarDeclStmt, WhileStmt,
+    Attribute, BinaryOp, Block, Expression, Literal, Path, Postfix, Prefix, Statement,
+    StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt,
+    VarDecl, VarDeclStmt,
 };
 
 // ---------------------------------------------------------------------------
@@ -353,13 +353,18 @@ impl ToRust for Statement {
                 cg.add_indentedln(&format!("{} = {};", target.get_rust(), value.get_rust(),));
             }
 
-            Statement::If(IfStmt {
-                condition,
-                then_branch,
+            Statement::If {
+                initial,
+                else_if,
                 else_branch,
-            }) => {
-                cg.add_indentedln(&format!("if {}", condition.get_rust()));
-                then_branch.to_rust(cg);
+            } => {
+                cg.add_indentedln(&format!("if {}", initial.condition.get_rust()));
+                initial.body.to_rust(cg);
+
+                for else_if_branch in else_if {
+                    cg.add_indentedln(&format!("else if {}", else_if_branch.condition.get_rust()));
+                    else_if_branch.body.to_rust(cg);
+                }
 
                 if let Some(else_br) = else_branch {
                     cg.add_indentedln("else");
@@ -367,7 +372,7 @@ impl ToRust for Statement {
                 }
             }
 
-            Statement::While(WhileStmt { condition, body }) => {
+            Statement::While(StatementBranch { condition, body }) => {
                 cg.add_indentedln(&format!("while {} {{", condition.get_rust()));
                 cg.indent += 1;
                 body.to_rust(cg);

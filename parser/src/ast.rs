@@ -102,8 +102,12 @@ pub enum Statement {
 
     VarDecl(VarDeclStmt),
     VarAssign(VarAssignStmt),
-    If(IfStmt),
-    While(WhileStmt),
+    If {
+        initial: StatementBranch,
+        else_if: Vec<StatementBranch>,
+        else_branch: Option<Box<Statement>>,
+    },
+    While(StatementBranch),
     For(ForStmt),
 
     Return(Option<Expression>),
@@ -131,14 +135,7 @@ pub struct VarAssignStmt {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct IfStmt {
-    pub condition: Expression,
-    pub then_branch: Box<Statement>,
-    pub else_branch: Option<Box<Statement>>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct WhileStmt {
+pub struct StatementBranch {
     pub condition: Expression,
     pub body: Box<Statement>,
 }
