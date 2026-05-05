@@ -545,7 +545,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
 
             let mutable = listen_rule(&mut param, Rule::mutable);
 
-            let is_ref = listen_rule(&mut param, Rule::mutable);
+            let is_ref = listen_rule(&mut param, Rule::deref_px);
 
             Some(VarDecl {
                 mutable: mutable && !is_ref,
