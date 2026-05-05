@@ -115,6 +115,7 @@ pub enum Statement {
     For {
         pattern: String,
         iterator: Expression,
+        body: Box<Statement>,
     },
 
     Return(Option<Expression>),

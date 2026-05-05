@@ -417,6 +417,15 @@ impl ToRust for Statement {
                 cg.add_indentedln("}");
             }
 
+            Statement::For {
+                pattern,
+                iterator,
+                body,
+            } => {
+                cg.add_indentedln(&format!("for {} in {}", pattern, iterator.get_rust()));
+                cg.ensure_brackets(body);
+            }
+
             Statement::Return(expr) => {
                 let val = expr.as_ref().map(|e| e.get_rust()).unwrap_or_default();
                 cg.add_indentedln(&format!("return {};", val));

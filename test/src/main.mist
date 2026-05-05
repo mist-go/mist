@@ -1,5 +1,5 @@
 void main() {
-    let iter = vec!(1, 2, 3, 4, 5);
+    Vec<i32> iter = vec!(1, 2, 3, 4, 5);
 
     for (i in iter) {
         println!("{i}");
