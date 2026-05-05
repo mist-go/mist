@@ -112,6 +112,10 @@ pub enum Statement {
         update: Box<Statement>,
         body: Box<Statement>,
     },
+    For {
+        pattern: String,
+        iterator: Expression,
+    },
 
     Return(Option<Expression>),
     Break,

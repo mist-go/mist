@@ -340,6 +340,11 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                 body: Box::new(Statement::from(inner.next().unwrap())),
             },
 
+            Rule::for_stmt => Statement::For {
+                pattern: inner.next().unwrap().as_str().to_string(),
+                iterator: inner.next().unwrap().into(),
+            },
+
             Rule::assign_statement => Statement::VarAssign(VarAssignStmt {
                 target: Expression::from(inner.next().unwrap()),
                 value: Expression::from(inner.next().unwrap()),
