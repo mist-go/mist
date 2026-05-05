@@ -128,42 +128,11 @@ impl From<pest::iterators::Pair<'_, Rule>> for Attribute {
         }
 
         let mut inner = pair.into_inner();
-        // Every style starts with an identifier (the path)
-        let path = StaticPath::from(inner.next().expect("Path identifier expected"));
+        let path = StaticPath::from(inner.next().unwrap());
 
         let kind = match rule {
-            Rule::simple_style => MetaItemKind::Word,
-
-            Rule::key_value_style | Rule::pair => {
-                let lit = Literal::from(inner.next().unwrap());
-                MetaItemKind::NameValue(lit)
-            }
-
-            Rule::list_style => {
-                // derive(Debug, Clone) -> NestedMetaItem::MetaItem(Attribute { path: "Debug", kind: Word })
-                let items = inner
-                    .map(|p| {
-                        NestedMetaItem::MetaItem(Attribute {
-                            path: StaticPath::from(p),
-                            kind: MetaItemKind::Word,
-                        })
-                    })
-                    .collect();
-                MetaItemKind::List(items)
-            }
-
-            Rule::structured_style => {
-                // link(name = "readline") -> NestedMetaItem::MetaItem(Attribute { path: "name", kind: NameValue(...) })
-                let items = inner
-                    .map(|p| NestedMetaItem::MetaItem(Attribute::from(p)))
-                    .collect();
-                MetaItemKind::List(items)
-            }
-
-            _ => unreachable!("Unexpected rule: {:?}", rule),
+            _ => unimplemented!("{:?}", rule),
         };
-
-        Attribute { path, kind }
     }
 }
 

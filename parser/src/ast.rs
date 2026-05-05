@@ -18,22 +18,18 @@ pub enum TypePostfix {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct Attribute {
-    pub path: StaticPath,
-    pub kind: MetaItemKind,
-}
+pub enum Attribute {
+    /// #[test]
+    Path(StaticPath),
 
-#[derive(Debug, Clone, Serialize)]
-pub enum MetaItemKind {
-    Word,
-    NameValue(Literal),
-    List(Vec<NestedMetaItem>),
-}
+    /// #[name = "value"]
+    NameValue { path: StaticPath, value: Literal },
 
-#[derive(Debug, Clone, Serialize)]
-pub enum NestedMetaItem {
-    Literal(Literal),
-    MetaItem(Attribute),
+    /// #[derive(Clone, Copy)]
+    List {
+        path: StaticPath,
+        items: Vec<Attribute>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]
