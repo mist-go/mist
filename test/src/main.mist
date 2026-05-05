@@ -1,13 +1,7 @@
-#![allow(unused_mut)]
-
-#[derive(Debug)]
-public struct ApiCall {
-    i32 x,
-    i32 y,
-}
-
 void main() {
-    ApiCall call = ApiCall { x: 10, y: 12 };
+    var iter = vec!(1, 2, 3, 4, 5);
 
-    println!("{call:?}");
+    for (i in iter) {
+        println!("{i}");
+    }
 }

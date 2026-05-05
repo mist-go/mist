@@ -104,7 +104,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for FieldList {
                 };
                 let param_type = TypeExpr::from(param_inner.next().unwrap());
                 let param_name = param_inner.next().unwrap().as_str().to_string();
-                (param_name, (export, param_type))
+                (param_name, export, param_type)
             })
             .collect();
 
@@ -193,6 +193,20 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevel {
                 .unwrap_or(TopLevelKind::ModAttribute),
             attributes,
         )
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for StatementBranch {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let mut inner = pair.into_inner();
+
+        let condition = Expression::from(inner.next().unwrap());
+        let body = Statement::from(inner.next().unwrap());
+
+        StatementBranch {
+            condition,
+            body: Box::new(body),
+        }
     }
 }
 
@@ -303,27 +317,34 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
             Rule::continue_stmt => Statement::Continue,
 
             Rule::if_stmt => {
-                let condition = Expression::from(inner.next().unwrap());
-                let then_branch = Statement::from(inner.next().unwrap());
+                let mut inner = inner.skip(2);
 
-                let else_branch = inner.next().map(Statement::from);
-
-                Statement::If(IfStmt {
-                    condition,
-                    then_branch: Box::new(then_branch),
-                    else_branch: else_branch.map(Box::new),
-                })
+                Statement::If {
+                    initial: pair.into(),
+                    else_if: inner
+                        .next()
+                        .unwrap()
+                        .into_inner()
+                        .map(StatementBranch::from)
+                        .collect(),
+                    else_branch: inner.next().map(Statement::from).map(Box::new),
+                }
             }
 
-            Rule::while_stmt => {
-                let condition = Expression::from(inner.next().unwrap());
-                let body = Statement::from(inner.next().unwrap());
+            Rule::while_stmt => Statement::While(pair.into()),
 
-                Statement::While(WhileStmt {
-                    condition,
-                    body: Box::new(body),
-                })
-            }
+            Rule::c_for_stmt => Statement::CStyleFor {
+                init: Box::new(Statement::from(inner.next().unwrap())),
+                condition: inner.next().unwrap().into(),
+                update: Box::new(Statement::from(inner.next().unwrap())),
+                body: Box::new(Statement::from(inner.next().unwrap())),
+            },
+
+            Rule::for_stmt => Statement::For {
+                pattern: inner.next().unwrap().as_str().to_string(),
+                iterator: inner.next().unwrap().into(),
+                body: Box::new(Statement::from(inner.next().unwrap())),
+            },
 
             Rule::assign_statement => Statement::VarAssign(VarAssignStmt {
                 target: Expression::from(inner.next().unwrap()),
@@ -495,7 +516,13 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
             Rule::var_decl => {
                 let mut inner = pair.into_inner();
 
-                let type_ = Some(inner.next().map(TypeExpr::from).unwrap());
+                let type_ = inner.next().and_then(|pair| {
+                    if pair.as_str().trim() == "var" {
+                        None
+                    } else {
+                        Some(TypeExpr::from(pair))
+                    }
+                });
                 let mutable = if inner.peek().unwrap().as_rule() == Rule::mutable {
                     inner.next();
                     true

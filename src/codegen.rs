@@ -1,7 +1,7 @@
 use parser::ast::{
-    Attribute, BinaryOp, Block, Expression, IfStmt, Literal, Path, Postfix, Prefix, Statement,
-    TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl,
-    VarDeclStmt, WhileStmt,
+    Attribute, BinaryOp, Block, Expression, Literal, Path, Postfix, Prefix, Statement,
+    StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt,
+    VarDecl, VarDeclStmt,
 };
 
 // ---------------------------------------------------------------------------
@@ -60,6 +60,19 @@ impl RustCodegen {
             tl.to_rust(self);
         }
         self.output.clone()
+    }
+
+    pub fn ensure_brackets(&mut self, stmt: &Statement) {
+        match stmt {
+            Statement::Block(_) => stmt.to_rust(self),
+            _ => {
+                self.add_indentedln("{");
+                self.indent += 1;
+                stmt.to_rust(self);
+                self.indent -= 1;
+                self.add_indentedln("}");
+            }
+        }
     }
 }
 
@@ -202,7 +215,7 @@ impl GetRust for Postfix {
                     BinaryOp::LessThanOrEqual => "<=",
                     BinaryOp::GreaterThanOrEqual => ">=",
                 };
-                format!("{} {}", op_str, rhs.get_rust())
+                format!(" {} {}", op_str, rhs.get_rust())
             }
         }
     }
@@ -284,7 +297,7 @@ impl ToRust for TopLevelKind {
                 cg.addln(&format!("{}struct {} {{", vis, name));
                 cg.indent += 1;
 
-                for (field_name, (_, ty)) in &fields.0 {
+                for (field_name, _, ty) in &fields.0 {
                     let ty = ty.get_rust();
                     cg.add_indentedln(&format!("pub {}: {},", field_name, ty));
                 }
@@ -353,36 +366,64 @@ impl ToRust for Statement {
                 cg.add_indentedln(&format!("{} = {};", target.get_rust(), value.get_rust(),));
             }
 
-            Statement::If(IfStmt {
-                condition,
-                then_branch,
+            Statement::If {
+                initial,
+                else_if,
                 else_branch,
-            }) => {
-                cg.add_indentedln(&format!("if {} {{", condition.get_rust()));
-                cg.indent += 1;
-                then_branch.to_rust(cg);
-                cg.indent -= 1;
-                cg.add_indentedln("}");
+            } => {
+                cg.add_indentedln(&format!("if {}", initial.condition.get_rust()));
+                cg.ensure_brackets(&initial.body);
+
+                for else_if_branch in else_if {
+                    cg.add_indentedln(&format!("else if {}", else_if_branch.condition.get_rust()));
+                    cg.ensure_brackets(&else_if_branch.body);
+                }
 
                 if let Some(else_br) = else_branch {
-                    cg.add_indentedln("else {");
-                    cg.indent += 1;
-                    else_br.to_rust(cg);
-                    cg.indent -= 1;
-                    cg.add_indentedln("}");
+                    cg.add_indentedln("else");
+                    cg.ensure_brackets(else_br);
                 }
             }
 
-            Statement::While(WhileStmt { condition, body }) => {
-                cg.add_indentedln(&format!("while {} {{", condition.get_rust()));
+            Statement::While(StatementBranch { condition, body }) => {
+                cg.add_indentedln(&format!("while {}", condition.get_rust()));
+                cg.ensure_brackets(body);
+            }
+
+            Statement::CStyleFor {
+                init,
+                condition,
+                update,
+                body,
+            } => {
+                cg.add_indentedln("{");
                 cg.indent += 1;
-                body.to_rust(cg);
+
+                init.to_rust(cg);
+
+                cg.add_indentedln(&format!("while {}", condition.get_rust()));
+
+                cg.add_indentedln("{");
+                cg.indent += 1;
+
+                cg.ensure_brackets(body);
+
+                update.to_rust(cg);
+
+                cg.indent -= 1;
+                cg.add_indentedln("}");
+
                 cg.indent -= 1;
                 cg.add_indentedln("}");
             }
 
-            Statement::For { .. } => {
-                cg.add_indentedln("// TODO: transform into iterator-based loop");
+            Statement::For {
+                pattern,
+                iterator,
+                body,
+            } => {
+                cg.add_indentedln(&format!("for {} in {}", pattern, iterator.get_rust()));
+                cg.ensure_brackets(body);
             }
 
             Statement::Return(expr) => {

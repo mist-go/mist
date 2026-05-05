@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct FieldList(pub HashMap<String, (bool, TypeExpr)>);
+pub struct FieldList(pub Vec<(String, bool, TypeExpr)>);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ParamList(pub Vec<VarDecl>);
@@ -83,7 +81,7 @@ pub enum Postfix {
     FieldAccess(String),
     Call(Vec<Expression>),
     MacroCall(String),
-    StructCall(HashMap<String, Expression>),
+    StructCall(Vec<(String, Expression)>),
     Index(Expression),
     Binary(BinaryOp, Expression),
 }
@@ -102,9 +100,23 @@ pub enum Statement {
 
     VarDecl(VarDeclStmt),
     VarAssign(VarAssignStmt),
-    If(IfStmt),
-    While(WhileStmt),
-    For(ForStmt),
+    If {
+        initial: StatementBranch,
+        else_if: Vec<StatementBranch>,
+        else_branch: Option<Box<Statement>>,
+    },
+    While(StatementBranch),
+    CStyleFor {
+        init: Box<Statement>,
+        condition: Expression,
+        update: Box<Statement>,
+        body: Box<Statement>,
+    },
+    For {
+        pattern: String,
+        iterator: Expression,
+        body: Box<Statement>,
+    },
 
     Return(Option<Expression>),
     Break,
@@ -131,23 +143,8 @@ pub struct VarAssignStmt {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct IfStmt {
+pub struct StatementBranch {
     pub condition: Expression,
-    pub then_branch: Box<Statement>,
-    pub else_branch: Option<Box<Statement>>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct WhileStmt {
-    pub condition: Expression,
-    pub body: Box<Statement>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct ForStmt {
-    pub init: (bool, String, Option<Expression>),
-    pub condition: Option<Expression>,
-    pub update: Option<Box<Statement>>,
     pub body: Box<Statement>,
 }
 
