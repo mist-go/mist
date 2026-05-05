@@ -372,11 +372,24 @@ impl ToRust for TopLevelKind {
                 ));
                 cg.indent += 1;
 
-                cg.add_indentedln("let this: Self = unsafe { std::mem::zeroed() };");
+                cg.add_indentedln("let mut this: Self = unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
 
-                constructor.body.to_rust(cg);
+                cg.add_indentedln("this.construct_class();");
 
                 cg.add_indentedln("this");
+
+                cg.indent -= 1;
+                cg.add_indentedln("}\n");
+
+                // Constructor function
+                cg.add_indentedln(&format!(
+                    "{}fn construct_class(&mut self, {}) {{",
+                    if constructor.export { "pub " } else { "" },
+                    params_str
+                ));
+                cg.indent += 1;
+
+                constructor.body.to_rust(cg);
 
                 cg.indent -= 1;
                 cg.add_indentedln("}\n");

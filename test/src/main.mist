@@ -2,10 +2,11 @@ class MyClass {
     String my_item;
 
     constructor() {
-        
+        self.my_item = "Hello World!".to_string();
     }
 }
 
 void main() {
     var my_class = MyClass::new();
+    println!("{}", my_class.my_item);
 }
