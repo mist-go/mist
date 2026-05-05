@@ -12,10 +12,11 @@ string_lit  =  { "\"" ~ inner_str ~ "\"" }
 inner_str   = @{ (!"\"" ~ ("\\\"" | ANY))* }
 static_path =  { identifier ~ ("::" ~ identifier)* }
 
-export   =  { "public" }
-mutable  =  { "mut" }
-sharp    = _{ "#" }
-var_decl =  { type_expr ~ mutable? ~ identifier }
+export    =  { "public" }
+mutable   =  { "mut" }
+sharp     = _{ "#" }
+var_decl  =  { type_expr ~ mutable? ~ identifier }
+semicolon =  { ";" }
 
 // ================= TOP LEVEL =================
 
@@ -74,17 +75,17 @@ statement = _{
 
 // --- basic statements ---
 
-expr_stmt = { expr ~ ";" }
+expr_stmt = { expr ~ semicolon }
 
-return_stmt = { "return" ~ expr? ~ ";" }
+return_stmt = { "return" ~ expr? ~ semicolon }
 
-break_stmt = { "break" ~ ";" }
+break_stmt = { "break" ~ semicolon }
 
-continue_stmt = { "continue" ~ ";" }
+continue_stmt = { "continue" ~ semicolon }
 
-var_decl_statement = { var_decl ~ ("=" ~ expr)? ~ ";" }
+var_decl_statement = { var_decl ~ ("=" ~ expr)? ~ semicolon }
 
-assign_statement = { expr ~ "=" ~ expr ~ ";" }
+assign_statement = { expr ~ "=" ~ expr ~ semicolon }
 
 else_if = { "else" ~ "if" ~ "(" ~ expr ~ ")" ~ statement }
 
@@ -135,7 +136,7 @@ macro_call_px     = { "!" ~ "(" ~ macro_inner_v* ~ ")" }
 struct_px         = { "{" ~ (struct_field_decl ~ ("," ~ struct_field_decl)*)? ~ ","? ~ "}" }
 index_px          = { "[" ~ expr ~ "]" }
 binary_px         = { bin_op ~ expr }
-bin_op            = { "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" }
+bin_op            = { "<=" | ">=" | "==" | "!=" | "+" | "-" | "*" | "/" | "%" | "<" | ">" }
 struct_field_decl = { identifier ~ ":" ~ expr }
 
 prefix = {

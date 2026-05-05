@@ -7,7 +7,7 @@ public struct ApiCall {
 }
 
 void main() {
-    ApiCall call = ApiCall { x: 10, y: 12 };
+    ApiCall mut call = ApiCall { x: 10, y: 12 };
 
     if (call.x == 20) {
         println!("= 20");
@@ -17,6 +17,11 @@ void main() {
         println!("= 5");
     } else {
         println!("= unknown");
+    }
+
+    while (call.x <= 40) {
+        call.x = call.x - 1;
+        println!("while");
     }
 
     println!("{call:?}");
