@@ -1,12 +1,12 @@
 class MyClass {
-    String my_item;
+    String message;
 
-    constructor() {
-        self.my_item = "Hello World!".to_string();
+    public constructor(str* name) {
+        self.message = format!("Hello {}!", name);
     }
 }
 
 void main() {
-    var my_class = MyClass::new();
-    println!("{}", my_class.my_item);
+    var my_class = MyClass::new("World");
+    println!("{}", my_class.message);
 }

@@ -374,7 +374,26 @@ impl ToRust for TopLevelKind {
 
                 cg.add_indentedln("let mut this: Self = unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
 
-                cg.add_indentedln("this.construct_class();");
+                for field in fields {
+                    if let Some(init) = &field.init {
+                        cg.add_indentedln(&format!(
+                            "this.{} = {};",
+                            field.decl.name,
+                            init.get_rust()
+                        ));
+                    }
+                }
+
+                cg.add_indentedln(&format!(
+                    "this.construct_class({});",
+                    constructor
+                        .params
+                        .0
+                        .iter()
+                        .map(|e| e.name.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
 
                 cg.add_indentedln("this");
 
