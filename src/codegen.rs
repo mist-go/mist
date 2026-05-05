@@ -334,6 +334,56 @@ impl ToRust for TopLevelKind {
                 cg.indent -= 1;
                 cg.addln("}\n");
             }
+            Self::ClassDecl {
+                export,
+                name,
+                fields,
+                constructor,
+            } => {
+                // Struct decl
+                let vis = if *export { "pub " } else { "" };
+                cg.addln(&format!("{}struct {} {{", vis, name));
+                cg.indent += 1;
+
+                for field in fields {
+                    let ty = field.decl.type_.clone().unwrap().get_rust();
+                    cg.add_indentedln(&format!("pub {}: {},", field.decl.name, ty));
+                }
+
+                cg.indent -= 1;
+                cg.addln("}\n");
+
+                // Constructor
+                cg.addln(&format!("impl {} {{", name));
+                cg.indent += 1;
+
+                let params_str = constructor
+                    .params
+                    .0
+                    .iter()
+                    .map(VarDecl::get_rust)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                cg.add_indentedln(&format!(
+                    "{}fn new({}) -> Self {{",
+                    if constructor.export { "pub " } else { "" },
+                    params_str
+                ));
+                cg.indent += 1;
+
+                cg.add_indentedln("let this: Self = unsafe { std::mem::zeroed() };");
+
+                constructor.body.to_rust(cg);
+
+                cg.add_indentedln("this");
+
+                cg.indent -= 1;
+                cg.add_indentedln("}\n");
+
+                cg.indent -= 1;
+                cg.addln("}\n");
+            }
         }
     }
 }

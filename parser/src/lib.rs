@@ -225,9 +225,15 @@ impl From<pest::iterators::Pair<'_, Rule>> for ClassConstructor {
             false
         };
 
+        let params = if inner.peek().unwrap().as_rule() == Rule::param_list {
+            ParamList::from(inner.next().unwrap())
+        } else {
+            ParamList(Vec::new())
+        };
+
         Self {
             export,
-            params: ParamList::from(inner.next().unwrap()),
+            params,
             body: Block::from(inner.next().unwrap()),
         }
     }

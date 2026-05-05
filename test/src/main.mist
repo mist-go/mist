@@ -5,3 +5,7 @@ class MyClass {
         
     }
 }
+
+void main() {
+    var my_class = MyClass::new();
+}
