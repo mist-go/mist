@@ -18,6 +18,27 @@ pub enum TypePostfix {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct Attribute {
+    pub path: StaticPath,
+    pub args: Vec<AttributeArg>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum AttributeArg {
+    Named(String, Literal),
+    Positional(Literal),
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum Literal {
+    String(String),
+    Int(i64),
+    Float(f64),
+    Bool(bool),
+    Tuple(Vec<Expression>),
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum TypeExprKind {
     Path(StaticPath),
     PathParams(StaticPath, Vec<TypeExpr>),
@@ -137,12 +158,8 @@ pub struct ForStmt {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Expression {
+    Literal(Literal),
     Path(StaticPath),
-    IntLiteral(i64),
-    FloatLiteral(f64),
-    BoolLiteral(bool),
-    StringLiteral(String),
-    TupleLiteral(Vec<Expression>),
     Fix {
         initial: Box<Expression>,
         prefixes: Vec<Prefix>,

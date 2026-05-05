@@ -293,11 +293,19 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
             }
             Rule::primary => Expression::from(inner.next().unwrap()),
             Rule::static_path => Expression::Path(StaticPath::from(pair)),
-            Rule::integer => Expression::IntLiteral(pair.as_str().parse::<i64>().unwrap()),
-            Rule::float => Expression::FloatLiteral(pair.as_str().parse::<f64>().unwrap()),
-            Rule::boolean => Expression::BoolLiteral(pair.as_str().parse::<bool>().unwrap()),
-            Rule::string_lit => Expression::StringLiteral(inner.as_str().to_string()),
-            Rule::tuple => Expression::TupleLiteral(inner.map(Expression::from).collect()),
+            Rule::integer => {
+                Expression::Literal(Literal::Int(pair.as_str().parse::<i64>().unwrap()))
+            }
+            Rule::float => {
+                Expression::Literal(Literal::Float(pair.as_str().parse::<f64>().unwrap()))
+            }
+            Rule::boolean => {
+                Expression::Literal(Literal::Bool(pair.as_str().parse::<bool>().unwrap()))
+            }
+            Rule::string_lit => Expression::Literal(Literal::String(inner.as_str().to_string())),
+            Rule::tuple => {
+                Expression::Literal(Literal::Tuple(inner.map(Expression::from).collect()))
+            }
             _ => unimplemented!("{rule:#?}"),
         }
     }

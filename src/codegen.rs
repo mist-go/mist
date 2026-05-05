@@ -1,5 +1,5 @@
 use parser::ast::{
-    BinaryOp, Block, Expression, IfStmt, Postfix, Prefix, Statement, StaticPath, TopLevel,
+    BinaryOp, Block, Expression, IfStmt, Literal, Postfix, Prefix, Statement, StaticPath, TopLevel,
     TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, WhileStmt,
 };
 
@@ -105,15 +105,14 @@ impl GetRust for TypeExprKind {
     }
 }
 
-impl GetRust for Expression {
+impl GetRust for Literal {
     fn get_rust(&self) -> String {
         match self {
-            Expression::Path(path) => path.get_rust(),
-            Expression::IntLiteral(n) => n.to_string(),
-            Expression::FloatLiteral(n) => format!("{n:?}"),
-            Expression::BoolLiteral(b) => b.to_string(),
-            Expression::StringLiteral(s) => format!("\"{s}\""),
-            Expression::TupleLiteral(t) => {
+            Self::Int(n) => n.to_string(),
+            Self::Float(n) => format!("{n:?}"),
+            Self::Bool(b) => b.to_string(),
+            Self::String(s) => format!("\"{s}\""),
+            Self::Tuple(t) => {
                 format!(
                     "({})",
                     t.iter()
@@ -122,6 +121,15 @@ impl GetRust for Expression {
                         .join(", ")
                 )
             }
+        }
+    }
+}
+
+impl GetRust for Expression {
+    fn get_rust(&self) -> String {
+        match self {
+            Expression::Path(path) => path.get_rust(),
+            Expression::Literal(literal) => literal.get_rust(),
             Expression::Fix {
                 initial,
                 prefixes,
