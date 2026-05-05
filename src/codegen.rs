@@ -202,7 +202,7 @@ impl GetRust for Postfix {
                     BinaryOp::LessThanOrEqual => "<=",
                     BinaryOp::GreaterThanOrEqual => ">=",
                 };
-                format!("{} {}", op_str, rhs.get_rust())
+                format!(" {} {}", op_str, rhs.get_rust())
             }
         }
     }
@@ -358,18 +358,12 @@ impl ToRust for Statement {
                 then_branch,
                 else_branch,
             }) => {
-                cg.add_indentedln(&format!("if {} {{", condition.get_rust()));
-                cg.indent += 1;
+                cg.add_indentedln(&format!("if {}", condition.get_rust()));
                 then_branch.to_rust(cg);
-                cg.indent -= 1;
-                cg.add_indentedln("}");
 
                 if let Some(else_br) = else_branch {
-                    cg.add_indentedln("else {");
-                    cg.indent += 1;
+                    cg.add_indentedln("else");
                     else_br.to_rust(cg);
-                    cg.indent -= 1;
-                    cg.add_indentedln("}");
                 }
             }
 

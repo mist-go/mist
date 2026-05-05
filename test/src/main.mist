@@ -9,5 +9,9 @@ public struct ApiCall {
 void main() {
     ApiCall call = ApiCall { x: 10, y: 12 };
 
+    if (call.x == 20) {
+        println("= 20");
+    }
+
     println!("{call:?}");
 }
