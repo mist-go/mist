@@ -67,6 +67,7 @@ statement = _{
   | assign_statement
   | if_stmt
   | while_stmt
+  | c_for_stmt
   | return_stmt
   | break_stmt
   | continue_stmt
@@ -97,6 +98,10 @@ if_stmt = {
 
 while_stmt = {
     "while" ~ "(" ~ expr ~ ")" ~ statement
+}
+
+c_for_stmt = {
+    "for" ~ "(" ~ statement ~ expr ~ ";" ~ statement ~ ")" ~ statement
 }
 
 // ================= EXPRESSIONS =================

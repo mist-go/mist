@@ -1,3 +1,5 @@
 void main() {
-    
+    for (usize i; i < 10; i = i + 1;) {
+        println!("{i}");
+    }
 }
