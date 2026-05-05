@@ -10,13 +10,13 @@ void main() {
     ApiCall call = ApiCall { x: 10, y: 12 };
 
     if (call.x == 20) {
-        println("= 20");
+        println!("= 20");
     } else if (call.x == 10) {
-        println("= 10");
+        println!("= 10");
     } else if (call.x == 5) {
-        println("= 5");
+        println!("= 5");
     } else {
-        println("= unknown");
+        println!("= unknown");
     }
 
     println!("{call:?}");
