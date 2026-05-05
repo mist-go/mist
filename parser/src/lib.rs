@@ -546,12 +546,8 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
                         Some(TypeExpr::from(pair))
                     }
                 });
-                let mutable = if inner.peek().unwrap().as_rule() == Rule::mutable {
-                    inner.next();
-                    true
-                } else {
-                    false
-                };
+                let mutable = listen_rule(&mut inner, Rule::mutable);
+
                 let name = inner.next().unwrap().as_str().to_string();
 
                 VarDecl {
@@ -588,23 +584,9 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
             let mut param = inner.next().unwrap().into_inner();
             let name = format!("self");
 
-            let mutable = param
-                .peek()
-                .map(|p| p.as_rule() == Rule::mutable)
-                .unwrap_or_default();
+            let mutable = listen_rule(&mut param, Rule::mutable);
 
-            if mutable {
-                param.next();
-            }
-
-            let is_ref = param
-                .peek()
-                .map(|p| p.as_rule() == Rule::deref_px)
-                .unwrap_or_default();
-
-            if is_ref {
-                param.next();
-            }
+            let is_ref = listen_rule(&mut param, Rule::mutable);
 
             Some(VarDecl {
                 mutable: mutable && !is_ref,
@@ -646,4 +628,17 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
             body,
         }
     }
+}
+
+pub fn listen_rule(pairs: &mut pest::iterators::Pairs<'_, Rule>, rule: Rule) -> bool {
+    let consumed = pairs
+        .peek()
+        .map(|p| p.as_rule() == rule)
+        .unwrap_or_default();
+
+    if consumed {
+        pairs.next();
+    }
+
+    consumed
 }

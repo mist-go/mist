@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct FieldList(pub Vec<(String, bool, TypeExpr)>);
+pub struct FieldList(pub Vec<(String, Visibility, TypeExpr)>);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ParamList(pub Vec<VarDecl>);
@@ -69,13 +69,13 @@ pub enum TopLevelKind {
     ModAttribute,
     Include(Path),
     StructDecl {
-        export: bool,
+        export: Visibility,
         name: String,
         fields: FieldList,
     },
     FunctionDecl(FunctionDecl),
     ClassDecl {
-        export: bool,
+        export: Visibility,
         name: String,
         fields: Vec<VarDeclStmt>,
         constructor: ClassConstructor,
@@ -85,14 +85,14 @@ pub enum TopLevelKind {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ClassConstructor {
-    pub export: bool,
+    pub export: Visibility,
     pub params: ParamList,
     pub body: Block,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FunctionDecl {
-    pub export: bool,
+    pub export: Visibility,
     pub name: String,
     pub params: ParamList,
     pub return_type: TypeExpr,
