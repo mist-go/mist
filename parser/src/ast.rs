@@ -78,8 +78,15 @@ pub enum TopLevelKind {
         export: bool,
         name: String,
         fields: Vec<VarDeclStmt>,
-        constructor: (ParamList, Block),
+        constructor: ClassConstructor,
     },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ClassConstructor {
+    pub export: bool,
+    pub params: ParamList,
+    pub body: Block,
 }
 
 #[derive(Debug, Clone, Serialize)]

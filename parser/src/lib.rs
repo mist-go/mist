@@ -210,6 +210,29 @@ impl From<pest::iterators::Pair<'_, Rule>> for StatementBranch {
     }
 }
 
+impl From<pest::iterators::Pair<'_, Rule>> for ClassConstructor {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let mut inner = pair.into_inner();
+
+        let export = if let Some(first) = inner.peek() {
+            if first.as_rule() == Rule::export {
+                inner.next();
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        Self {
+            export,
+            params: ParamList::from(inner.next().unwrap()),
+            body: Block::from(inner.next().unwrap()),
+        }
+    }
+}
+
 impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let rule = pair.as_rule();
@@ -271,6 +294,28 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
                     fields,
                 }
             }
+
+            Rule::class_decl => TopLevelKind::ClassDecl {
+                export: if let Some(first) = inner.peek() {
+                    if first.as_rule() == Rule::export {
+                        inner.next();
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                },
+                name: inner.next().unwrap().as_str().to_string(),
+                fields: inner
+                    .next()
+                    .unwrap()
+                    .into_inner()
+                    .map(VarDeclStmt::from)
+                    .collect(),
+                constructor: ClassConstructor::from(inner.next().unwrap()),
+            },
+
             _ => unimplemented!("{rule:#?}"),
         }
     }
