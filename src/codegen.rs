@@ -228,8 +228,17 @@ impl ToRust for Block {
 
 impl ToRust for TopLevel {
     fn to_rust(&self, cg: &mut RustCodegen) {
-        for attr in &self.1 {
-            cg.addln(&format!("#[{}]", attr.get_rust()));
+        match &self.0 {
+            TopLevelKind::ModAttribute => {
+                for attr in &self.1 {
+                    cg.addln(&format!("#![{}]", attr.get_rust()));
+                }
+            }
+            _ => {
+                for attr in &self.1 {
+                    cg.addln(&format!("#[{}]", attr.get_rust()));
+                }
+            }
         }
 
         self.0.to_rust(cg);
@@ -261,6 +270,7 @@ impl GetRust for Attribute {
 impl ToRust for TopLevelKind {
     fn to_rust(&self, cg: &mut RustCodegen) {
         match self {
+            Self::ModAttribute => {}
             Self::Include(path) => {
                 cg.addln(&format!("use {};", path.get_rust()));
             }

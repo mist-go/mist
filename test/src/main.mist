@@ -1,3 +1,5 @@
+#![allow(unused_mut)]
+
 #[derive(Debug)]
 public struct ApiCall {
     i32 x,

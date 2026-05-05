@@ -84,9 +84,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExprKind {
 impl From<pest::iterators::Pair<'_, Rule>> for Path {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         match pair.as_rule() {
-            Rule::static_path => {
-                Path(pair.into_inner().map(|i| i.as_str().to_string()).collect())
-            }
+            Rule::static_path => Path(pair.into_inner().map(|i| i.as_str().to_string()).collect()),
             _ => unimplemented!("{pair:#?}"),
         }
     }
@@ -188,7 +186,13 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevel {
             .map(Attribute::from)
             .collect::<Vec<_>>();
 
-        TopLevel(TopLevelKind::from(inner.next().unwrap()), attributes)
+        TopLevel(
+            inner
+                .next()
+                .map(TopLevelKind::from)
+                .unwrap_or(TopLevelKind::ModAttribute),
+            attributes,
+        )
     }
 }
 
