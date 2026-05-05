@@ -480,6 +480,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Prefix {
             Rule::deref_px => Self::Deref,
             Rule::mut_ref_px => Self::RefMut,
             Rule::ref_px => Self::Ref,
+            Rule::new_px => Self::New,
             _ => unimplemented!("{pair:#?}"),
         }
     }

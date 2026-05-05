@@ -148,7 +148,12 @@ impl GetRust for Expression {
                 initial,
                 prefixes,
                 postfixes,
-            } => prefixes.get_rust() + &initial.get_rust() + &postfixes.get_rust(),
+            } => {
+                prefixes.get_rust()
+                    + &initial.get_rust()
+                    + &Some(prefixes).get_rust()
+                    + &postfixes.get_rust()
+            }
         }
     }
 }
@@ -159,6 +164,7 @@ impl GetRust for Prefix {
             Self::Deref => "*",
             Self::Ref => "&",
             Self::RefMut => "&mut ",
+            Self::New => "",
         }
         .to_string()
     }
@@ -167,6 +173,23 @@ impl GetRust for Prefix {
 impl GetRust for [Prefix] {
     fn get_rust(&self) -> String {
         self.iter().map(Prefix::get_rust).collect()
+    }
+}
+
+impl GetRust for Option<&Vec<Prefix>> {
+    fn get_rust(&self) -> String {
+        self.map(|prefixes| {
+            prefixes
+                .iter()
+                .last()
+                .map(|p| match p {
+                    Prefix::New => "::new",
+                    _ => "",
+                })
+                .unwrap_or_default()
+                .to_string()
+        })
+        .unwrap_or_default()
     }
 }
 

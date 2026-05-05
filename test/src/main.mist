@@ -7,6 +7,6 @@ class MyClass {
 }
 
 void main() {
-    var my_class = MyClass::new("World");
+    var my_class = new MyClass("World");
     println!("{}", my_class.message);
 }

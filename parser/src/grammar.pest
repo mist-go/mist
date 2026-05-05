@@ -167,11 +167,13 @@ prefix = {
     deref_px
   | mut_ref_px
   | ref_px
+| new_px
 }
 
 deref_px   = { "*" }
 mut_ref_px = { "&" ~ mutable }
 ref_px     = { "&" }
+new_px     = { "new" }
 
 expr = {
     prefix* ~ primary ~ postfix*
