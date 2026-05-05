@@ -1,5 +1,5 @@
 use parser::ast::{
-    Attribute, BinaryOp, Block, Expression, Literal, Path, Postfix, Prefix, Statement,
+    Attribute, BinaryOp, Block, ClassMethod, Expression, Literal, Path, Postfix, Prefix, Statement,
     StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt,
     VarDecl, VarDeclStmt,
 };
@@ -364,7 +364,6 @@ impl ToRust for TopLevelKind {
                 constructor,
                 methods,
             } => {
-                dbg!(methods);
                 // Struct decl
                 let vis = if *export { "pub " } else { "" };
                 cg.addln(&format!("{}struct {} {{", vis, name));
@@ -437,6 +436,10 @@ impl ToRust for TopLevelKind {
 
                 cg.indent -= 1;
                 cg.add_indentedln("}\n");
+
+                for method in methods {
+                    method.to_rust(cg);
+                }
 
                 cg.indent -= 1;
                 cg.addln("}\n");
@@ -541,6 +544,32 @@ impl ToRust for Statement {
             Statement::Break => cg.add_indentedln("break;"),
             Statement::Continue => cg.add_indentedln("continue;"),
         }
+    }
+}
+
+impl ToRust for ClassMethod {
+    fn to_rust(&self, cg: &mut RustCodegen) {
+        let vis = if self.export { "pub " } else { "" };
+
+        let params_str = self
+            .params
+            .0
+            .iter()
+            .map(VarDecl::get_rust)
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        cg.add_indentedln(&format!(
+            "{}fn {}({}) -> {} {{",
+            vis,
+            self.name,
+            params_str,
+            self.return_type.get_rust()
+        ));
+        cg.indent += 1;
+        self.body.to_rust(cg);
+        cg.indent -= 1;
+        cg.add_indentedln("}\n");
     }
 }
 
