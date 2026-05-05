@@ -16,6 +16,12 @@ pub enum TypePostfix {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub enum Visibility {
+    Public,
+    Private,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum Attribute {
     /// #[test]
     Path(Path),
@@ -67,19 +73,13 @@ pub enum TopLevelKind {
         name: String,
         fields: FieldList,
     },
-    FunctionDecl {
-        export: bool,
-        name: String,
-        params: ParamList,
-        return_type: TypeExpr,
-        body: Block,
-    },
+    FunctionDecl(FunctionDecl),
     ClassDecl {
         export: bool,
         name: String,
         fields: Vec<VarDeclStmt>,
         constructor: ClassConstructor,
-        methods: Vec<ClassMethod>,
+        methods: Vec<FunctionDecl>,
     },
 }
 
@@ -91,7 +91,7 @@ pub struct ClassConstructor {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct ClassMethod {
+pub struct FunctionDecl {
     pub export: bool,
     pub name: String,
     pub params: ParamList,

@@ -242,42 +242,12 @@ impl From<pest::iterators::Pair<'_, Rule>> for ClassConstructor {
 impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let rule = pair.as_rule();
-        let mut inner = pair.into_inner();
+        let mut inner = pair.clone().into_inner();
 
         match rule {
             Rule::import => TopLevelKind::Include(Path::from(inner.next().unwrap())),
 
-            Rule::function_decl => {
-                let export = if let Some(first) = inner.peek() {
-                    if first.as_rule() == Rule::export {
-                        inner.next();
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                };
-
-                let return_type = TypeExpr::from(inner.next().unwrap());
-
-                let name = inner.next().unwrap().as_str().to_string();
-                let params = if inner.peek().unwrap().as_rule() == Rule::param_list {
-                    ParamList::from(inner.next().unwrap())
-                } else {
-                    ParamList(Vec::new())
-                };
-
-                let body = Block::from(inner.next().unwrap());
-
-                TopLevelKind::FunctionDecl {
-                    export,
-                    name,
-                    params,
-                    return_type,
-                    body,
-                }
-            }
+            Rule::function_decl => TopLevelKind::FunctionDecl(FunctionDecl::from(pair)),
 
             Rule::struct_decl => {
                 let export = if let Some(first) = inner.peek() {
@@ -320,7 +290,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
                     .map(VarDeclStmt::from)
                     .collect(),
                 constructor: ClassConstructor::from(inner.next().unwrap()),
-                methods: inner.into_iter().map(ClassMethod::from).collect(),
+                methods: inner.into_iter().map(FunctionDecl::from).collect(),
             },
 
             _ => unimplemented!("{rule:#?}"),
@@ -596,7 +566,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for ClassMethod {
+impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let mut inner = pair.into_inner();
 

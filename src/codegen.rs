@@ -1,7 +1,7 @@
 use parser::ast::{
-    Attribute, BinaryOp, Block, ClassMethod, Expression, Literal, Path, Postfix, Prefix, Statement,
-    StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt,
-    VarDecl, VarDeclStmt,
+    Attribute, BinaryOp, Block, Expression, FunctionDecl, Literal, Path, Postfix, Prefix,
+    Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix,
+    VarAssignStmt, VarDecl, VarDeclStmt,
 };
 
 // ---------------------------------------------------------------------------
@@ -310,7 +310,7 @@ impl ToRust for TopLevelKind {
             Self::Include(path) => {
                 cg.addln(&format!("use {};", path.get_rust()));
             }
-
+            Self::FunctionDecl(decl) => decl.to_rust(cg),
             Self::StructDecl {
                 export,
                 name,
@@ -325,35 +325,6 @@ impl ToRust for TopLevelKind {
                     cg.add_indentedln(&format!("pub {}: {},", field_name, ty));
                 }
 
-                cg.indent -= 1;
-                cg.addln("}\n");
-            }
-
-            Self::FunctionDecl {
-                export,
-                name,
-                params,
-                return_type,
-                body,
-            } => {
-                let vis = if *export { "pub " } else { "" };
-
-                let params_str = params
-                    .0
-                    .iter()
-                    .map(VarDecl::get_rust)
-                    .collect::<Vec<_>>()
-                    .join(", ");
-
-                cg.addln(&format!(
-                    "{}fn {}({}) -> {} {{",
-                    vis,
-                    name,
-                    params_str,
-                    return_type.get_rust()
-                ));
-                cg.indent += 1;
-                body.to_rust(cg);
                 cg.indent -= 1;
                 cg.addln("}\n");
             }
@@ -547,7 +518,7 @@ impl ToRust for Statement {
     }
 }
 
-impl ToRust for ClassMethod {
+impl ToRust for FunctionDecl {
     fn to_rust(&self, cg: &mut RustCodegen) {
         let vis = if self.export { "pub " } else { "" };
 
