@@ -1,7 +1,7 @@
 use parser::ast::{
-    Attribute, BinaryOp, Block, Expression, Literal, Path, Postfix, Prefix, Statement,
-    StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt,
-    VarDecl, VarDeclStmt,
+    Attribute, BinaryOp, Block, Expression, FunctionDecl, Literal, Path, Postfix, Prefix,
+    Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix,
+    VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -148,7 +148,12 @@ impl GetRust for Expression {
                 initial,
                 prefixes,
                 postfixes,
-            } => prefixes.get_rust() + &initial.get_rust() + &postfixes.get_rust(),
+            } => {
+                prefixes.get_rust()
+                    + &initial.get_rust()
+                    + &Some(prefixes).get_rust()
+                    + &postfixes.get_rust()
+            }
         }
     }
 }
@@ -159,6 +164,7 @@ impl GetRust for Prefix {
             Self::Deref => "*",
             Self::Ref => "&",
             Self::RefMut => "&mut ",
+            Self::New => "",
         }
         .to_string()
     }
@@ -167,6 +173,23 @@ impl GetRust for Prefix {
 impl GetRust for [Prefix] {
     fn get_rust(&self) -> String {
         self.iter().map(Prefix::get_rust).collect()
+    }
+}
+
+impl GetRust for Option<&Vec<Prefix>> {
+    fn get_rust(&self) -> String {
+        self.map(|prefixes| {
+            prefixes
+                .iter()
+                .last()
+                .map(|p| match p {
+                    Prefix::New => "::new",
+                    _ => "",
+                })
+                .unwrap_or_default()
+                .to_string()
+        })
+        .unwrap_or_default()
     }
 }
 
@@ -287,14 +310,13 @@ impl ToRust for TopLevelKind {
             Self::Include(path) => {
                 cg.addln(&format!("use {};", path.get_rust()));
             }
-
+            Self::FunctionDecl(decl) => decl.to_rust(cg),
             Self::StructDecl {
-                export,
+                visibility,
                 name,
                 fields,
             } => {
-                let vis = if *export { "pub " } else { "" };
-                cg.addln(&format!("{}struct {} {{", vis, name));
+                cg.addln(&format!("{}struct {} {{", visibility.get_rust(), name));
                 cg.indent += 1;
 
                 for (field_name, _, ty) in &fields.0 {
@@ -305,32 +327,89 @@ impl ToRust for TopLevelKind {
                 cg.indent -= 1;
                 cg.addln("}\n");
             }
-
-            Self::FunctionDecl {
-                export,
+            Self::ClassDecl {
+                visibility,
                 name,
-                params,
-                return_type,
-                body,
+                fields,
+                constructor,
+                methods,
             } => {
-                let vis = if *export { "pub " } else { "" };
+                // Struct decl
+                cg.addln(&format!("{}struct {} {{", visibility.get_rust(), name));
+                cg.indent += 1;
 
-                let params_str = params
+                for field in fields {
+                    let ty = field.decl.type_.clone().unwrap().get_rust();
+                    cg.add_indentedln(&format!("pub {}: {},", field.decl.name, ty));
+                }
+
+                cg.indent -= 1;
+                cg.addln("}\n");
+
+                // Constructor
+                cg.addln(&format!("impl {} {{", name));
+                cg.indent += 1;
+
+                let params_str = constructor
+                    .params
                     .0
                     .iter()
                     .map(VarDecl::get_rust)
                     .collect::<Vec<_>>()
                     .join(", ");
 
-                cg.addln(&format!(
-                    "{}fn {}({}) -> {} {{",
-                    vis,
-                    name,
-                    params_str,
-                    return_type.get_rust()
+                cg.add_indentedln(&format!(
+                    "{}fn new({}) -> Self {{",
+                    constructor.visibility.get_rust(),
+                    params_str
                 ));
                 cg.indent += 1;
-                body.to_rust(cg);
+
+                cg.add_indentedln("let mut this: Self = unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
+
+                for field in fields {
+                    if let Some(init) = &field.init {
+                        cg.add_indentedln(&format!(
+                            "this.{} = {};",
+                            field.decl.name,
+                            init.get_rust()
+                        ));
+                    }
+                }
+
+                cg.add_indentedln(&format!(
+                    "this.construct_class({});",
+                    constructor
+                        .params
+                        .0
+                        .iter()
+                        .map(|e| e.name.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
+
+                cg.add_indentedln("this");
+
+                cg.indent -= 1;
+                cg.add_indentedln("}\n");
+
+                // Constructor function
+                cg.add_indentedln(&format!(
+                    "{}fn construct_class(&mut self, {}) {{",
+                    constructor.visibility.get_rust(),
+                    params_str
+                ));
+                cg.indent += 1;
+
+                constructor.body.to_rust(cg);
+
+                cg.indent -= 1;
+                cg.add_indentedln("}\n");
+
+                for method in methods {
+                    method.to_rust(cg);
+                }
+
                 cg.indent -= 1;
                 cg.addln("}\n");
             }
@@ -437,6 +516,30 @@ impl ToRust for Statement {
     }
 }
 
+impl ToRust for FunctionDecl {
+    fn to_rust(&self, cg: &mut RustCodegen) {
+        let params_str = self
+            .params
+            .0
+            .iter()
+            .map(VarDecl::get_rust)
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        cg.add_indentedln(&format!(
+            "{}fn {}({}) -> {} {{",
+            self.visibility.get_rust(),
+            self.name,
+            params_str,
+            self.return_type.get_rust()
+        ));
+        cg.indent += 1;
+        self.body.to_rust(cg);
+        cg.indent -= 1;
+        cg.add_indentedln("}\n");
+    }
+}
+
 impl GetRust for VarDecl {
     fn get_rust(&self) -> String {
         let mutability = if self.mutable { "mut " } else { "" };
@@ -463,6 +566,16 @@ impl GetRust for TypePostfix {
             TypePostfix::Ref => format!("&"),
             TypePostfix::RefMut => format!("&mut "),
         }
+    }
+}
+
+impl GetRust for Visibility {
+    fn get_rust(&self) -> String {
+        match self {
+            Visibility::Public => "pub ",
+            Visibility::Private => "",
+        }
+        .to_string()
     }
 }
 

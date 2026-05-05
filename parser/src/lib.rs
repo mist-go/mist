@@ -96,15 +96,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for FieldList {
             .into_inner()
             .map(|p| {
                 let mut param_inner = p.into_inner();
-                let export = if param_inner.peek().unwrap().as_rule() == Rule::export {
-                    param_inner.next().unwrap();
-                    true
-                } else {
-                    false
-                };
+                let visibility = Visibility::from(&mut param_inner);
                 let param_type = TypeExpr::from(param_inner.next().unwrap());
                 let param_name = param_inner.next().unwrap().as_str().to_string();
-                (param_name, export, param_type)
+                (param_name, visibility, param_type)
             })
             .collect();
 
@@ -210,67 +205,60 @@ impl From<pest::iterators::Pair<'_, Rule>> for StatementBranch {
     }
 }
 
+impl From<pest::iterators::Pair<'_, Rule>> for ClassConstructor {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let mut inner = pair.into_inner();
+
+        let visibility = Visibility::from(&mut inner);
+
+        let params = consume_rule(&mut inner, Rule::param_list)
+            .map(ParamList::from)
+            .unwrap_or_else(|| ParamList(Vec::new()));
+
+        Self {
+            visibility,
+            params,
+            body: Block::from(inner.next().unwrap()),
+        }
+    }
+}
+
 impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let rule = pair.as_rule();
-        let mut inner = pair.into_inner();
+        let mut inner = pair.clone().into_inner();
 
         match rule {
             Rule::import => TopLevelKind::Include(Path::from(inner.next().unwrap())),
 
-            Rule::function_decl => {
-                let export = if let Some(first) = inner.peek() {
-                    if first.as_rule() == Rule::export {
-                        inner.next();
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                };
-
-                let return_type = TypeExpr::from(inner.next().unwrap());
-
-                let name = inner.next().unwrap().as_str().to_string();
-                let params = if inner.peek().unwrap().as_rule() == Rule::param_list {
-                    ParamList::from(inner.next().unwrap())
-                } else {
-                    ParamList(Vec::new())
-                };
-
-                let body = Block::from(inner.next().unwrap());
-
-                TopLevelKind::FunctionDecl {
-                    export,
-                    name,
-                    params,
-                    return_type,
-                    body,
-                }
-            }
+            Rule::function_decl => TopLevelKind::FunctionDecl(FunctionDecl::from(pair)),
 
             Rule::struct_decl => {
-                let export = if let Some(first) = inner.peek() {
-                    if first.as_rule() == Rule::export {
-                        inner.next();
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                };
+                let visibility = Visibility::from(&mut inner);
                 let name = inner.next().unwrap().as_str().to_string();
                 let fields_pair = inner.next().unwrap();
                 let fields = FieldList::from(fields_pair);
 
                 TopLevelKind::StructDecl {
-                    export,
+                    visibility,
                     name,
                     fields,
                 }
             }
+
+            Rule::class_decl => TopLevelKind::ClassDecl {
+                visibility: Visibility::from(&mut inner),
+                name: inner.next().unwrap().as_str().to_string(),
+                fields: inner
+                    .next()
+                    .unwrap()
+                    .into_inner()
+                    .map(VarDeclStmt::from)
+                    .collect(),
+                constructor: ClassConstructor::from(inner.next().unwrap()),
+                methods: inner.into_iter().map(FunctionDecl::from).collect(),
+            },
+
             _ => unimplemented!("{rule:#?}"),
         }
     }
@@ -380,15 +368,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
 
         match rule {
             Rule::expr => {
-                let mut prefixes = Vec::new();
-
-                while inner
-                    .peek()
-                    .map(|v| v.as_rule() == Rule::prefix)
-                    .unwrap_or_default()
-                {
-                    prefixes.push(Prefix::from(inner.next().unwrap()));
-                }
+                let prefixes: Vec<Prefix> = inner
+                    .next()
+                    .map(|p| p.into_inner().into_iter().map(Prefix::from).collect())
+                    .unwrap_or_default();
 
                 let exp = Expression::from(inner.next().unwrap());
 
@@ -404,18 +387,8 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
             }
             Rule::primary => Expression::from(inner.next().unwrap()),
             Rule::static_path => Expression::Path(Path::from(pair)),
-            Rule::integer => {
-                Expression::Literal(Literal::Int(pair.as_str().parse::<i64>().unwrap()))
-            }
-            Rule::float => {
-                Expression::Literal(Literal::Float(pair.as_str().parse::<f64>().unwrap()))
-            }
-            Rule::boolean => {
-                Expression::Literal(Literal::Bool(pair.as_str().parse::<bool>().unwrap()))
-            }
-            Rule::string_lit => Expression::Literal(Literal::String(inner.as_str().to_string())),
-            Rule::tuple => {
-                Expression::Literal(Literal::Tuple(inner.map(Expression::from).collect()))
+            Rule::integer | Rule::float | Rule::boolean | Rule::string_lit | Rule::tuple => {
+                Expression::Literal(Literal::from(pair))
             }
             _ => unimplemented!("{rule:#?}"),
         }
@@ -429,6 +402,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Prefix {
             Rule::deref_px => Self::Deref,
             Rule::mut_ref_px => Self::RefMut,
             Rule::ref_px => Self::Ref,
+            Rule::new_px => Self::New,
             _ => unimplemented!("{pair:#?}"),
         }
     }
@@ -523,12 +497,8 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
                         Some(TypeExpr::from(pair))
                     }
                 });
-                let mutable = if inner.peek().unwrap().as_rule() == Rule::mutable {
-                    inner.next();
-                    true
-                } else {
-                    false
-                };
+                let mutable = listen_rule(&mut inner, Rule::mutable);
+
                 let name = inner.next().unwrap().as_str().to_string();
 
                 VarDecl {
@@ -541,4 +511,99 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
             _ => unimplemented!("{:?}", pair.as_rule()),
         }
     }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let mut inner = pair.into_inner();
+
+        let visibility = Visibility::from(&mut inner);
+
+        let return_type = TypeExpr::from(inner.next().unwrap());
+
+        let name = inner.next().unwrap().as_str().to_string();
+        let self_param = consume_rule(&mut inner, Rule::self_param).map(|param| {
+            let mut param_inner = param.into_inner();
+            let name = format!("self");
+
+            let mutable = listen_rule(&mut param_inner, Rule::mutable);
+
+            let is_ref = listen_rule(&mut param_inner, Rule::deref_px);
+
+            VarDecl {
+                mutable: mutable && !is_ref,
+                name,
+                type_: Some(TypeExpr(
+                    TypeExprKind::Path(Path(vec![format!("Self")])),
+                    if is_ref {
+                        vec![if mutable {
+                            TypePostfix::RefMut
+                        } else {
+                            TypePostfix::Ref
+                        }]
+                    } else {
+                        Vec::new()
+                    },
+                )),
+            }
+        });
+
+        let params = consume_rule(&mut inner, Rule::param_list)
+            .map({
+                let self_param = self_param.clone();
+                |params_pair| {
+                    let mut params = ParamList::from(params_pair);
+                    if let Some(x) = self_param {
+                        params.0.insert(0, x);
+                    }
+                    params
+                }
+            })
+            .unwrap_or_else(|| ParamList(self_param.into_iter().collect()));
+
+        let body = Block::from(inner.next().unwrap());
+
+        Self {
+            visibility,
+            name,
+            params,
+            return_type,
+            body,
+        }
+    }
+}
+
+impl From<&mut pest::iterators::Pairs<'_, Rule>> for Visibility {
+    fn from(pairs: &mut pest::iterators::Pairs<'_, Rule>) -> Self {
+        if listen_rule(pairs, Rule::export) {
+            Visibility::Public
+        } else {
+            Visibility::Private
+        }
+    }
+}
+
+pub fn listen_rule(pairs: &mut pest::iterators::Pairs<'_, Rule>, rule: Rule) -> bool {
+    let consumed = pairs
+        .peek()
+        .map(|p| p.as_rule() == rule)
+        .unwrap_or_default();
+
+    if consumed {
+        pairs.next();
+    }
+
+    consumed
+}
+
+pub fn consume_rule<'a>(
+    pairs: &mut pest::iterators::Pairs<'a, Rule>,
+    rule: Rule,
+) -> Option<pest::iterators::Pair<'a, Rule>> {
+    let consumed = pairs
+        .peek()
+        .map(|p| p.as_rule() == rule)
+        .unwrap_or_default();
+
+    if consumed { pairs.next() } else { None }
 }

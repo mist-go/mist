@@ -1,7 +1,16 @@
-void main() {
-    var iter = vec!(1, 2, 3, 4, 5);
+class MyClass {
+    String message;
 
-    for (i in iter) {
-        println!("{i}");
+    public constructor(str* name) {
+        self.message = format!("Hello {}!", name);
     }
+
+    public void greet(self*) {
+        println!("{}", self.message);
+    }
+}
+
+void main() {
+    var my_class = new MyClass("World");
+    my_class.greet();
 }

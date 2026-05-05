@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct FieldList(pub Vec<(String, bool, TypeExpr)>);
+pub struct FieldList(pub Vec<(String, Visibility, TypeExpr)>);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ParamList(pub Vec<VarDecl>);
@@ -13,6 +13,12 @@ pub struct Block(pub Vec<Statement>);
 pub enum TypePostfix {
     Ref,
     RefMut,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum Visibility {
+    Public,
+    Private,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -63,17 +69,34 @@ pub enum TopLevelKind {
     ModAttribute,
     Include(Path),
     StructDecl {
-        export: bool,
+        visibility: Visibility,
         name: String,
         fields: FieldList,
     },
-    FunctionDecl {
-        export: bool,
+    FunctionDecl(FunctionDecl),
+    ClassDecl {
+        visibility: Visibility,
         name: String,
-        params: ParamList,
-        return_type: TypeExpr,
-        body: Block,
+        fields: Vec<VarDeclStmt>,
+        constructor: ClassConstructor,
+        methods: Vec<FunctionDecl>,
     },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ClassConstructor {
+    pub visibility: Visibility,
+    pub params: ParamList,
+    pub body: Block,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FunctionDecl {
+    pub visibility: Visibility,
+    pub name: String,
+    pub params: ParamList,
+    pub return_type: TypeExpr,
+    pub body: Block,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -91,6 +114,7 @@ pub enum Prefix {
     Ref,
     RefMut,
     Deref,
+    New,
 }
 
 #[derive(Debug, Clone, Serialize)]

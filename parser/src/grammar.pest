@@ -19,7 +19,26 @@ var       =  { "var" }
 var_decl  =  { (var | type_expr) ~ mutable? ~ identifier }
 semicolon = _{ ";" }
 
+// ================= CLASS =================
+class_constructor = {
+    export? ~ "constructor" ~ "(" ~ param_list? ~ ")" ~ block
+}
+
+class_fields = { var_decl_statement* }
+
+self_param = { "self" ~ mutable? ~ deref_px? }
+
+method = {
+    export? ~ type_expr ~ identifier ~ "(" ~ self_param? ~ param_list? ~ ")" ~ block
+}
+
+class_decl = {
+    "class" ~ identifier ~ "{" ~ class_fields ~ class_constructor ~ method* ~ "}"
+}
+
 // ================= TOP LEVEL =================
+
+top_level = { (attributes ~ (import | function_decl | struct_decl | class_decl)) | mod_attribute }
 
 attribute = {
     "#" ~ "[" ~ meta ~ "]"
@@ -38,8 +57,6 @@ meta_list = {
 }
 
 attributes = { attribute* }
-
-top_level = { (attributes ~ (import | function_decl | struct_decl)) | mod_attribute }
 
 import = { sharp ~ "include" ~ "<" ~ static_path ~ ">" }
 
@@ -154,12 +171,16 @@ prefix = {
     deref_px
   | mut_ref_px
   | ref_px
+  | new_px
 }
 
 deref_px   = { "*" }
 mut_ref_px = { "&" ~ mutable }
 ref_px     = { "&" }
+new_px     = { "new" }
+
+prefix_list = { prefix* }
 
 expr = {
-    prefix* ~ primary ~ postfix*
+    prefix_list ~ primary ~ postfix*
 }
