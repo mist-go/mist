@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct FieldList(pub HashMap<String, (bool, TypeExpr)>);
+pub struct FieldList(pub Vec<(String, bool, TypeExpr)>);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ParamList(pub Vec<VarDecl>);
@@ -83,7 +81,7 @@ pub enum Postfix {
     FieldAccess(String),
     Call(Vec<Expression>),
     MacroCall(String),
-    StructCall(HashMap<String, Expression>),
+    StructCall(Vec<(String, Expression)>),
     Index(Expression),
     Binary(BinaryOp, Expression),
 }

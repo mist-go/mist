@@ -104,7 +104,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for FieldList {
                 };
                 let param_type = TypeExpr::from(param_inner.next().unwrap());
                 let param_name = param_inner.next().unwrap().as_str().to_string();
-                (param_name, (export, param_type))
+                (param_name, export, param_type)
             })
             .collect();
 

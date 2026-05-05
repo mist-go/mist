@@ -284,7 +284,7 @@ impl ToRust for TopLevelKind {
                 cg.addln(&format!("{}struct {} {{", vis, name));
                 cg.indent += 1;
 
-                for (field_name, (_, ty)) in &fields.0 {
+                for (field_name, _, ty) in &fields.0 {
                     let ty = ty.get_rust();
                     cg.add_indentedln(&format!("pub {}: {},", field_name, ty));
                 }
