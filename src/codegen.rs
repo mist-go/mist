@@ -164,6 +164,7 @@ impl GetRust for Prefix {
             Self::Deref => "*",
             Self::Ref => "&",
             Self::RefMut => "&mut ",
+            Self::Not => "!",
             Self::New => "",
         }
         .to_string()

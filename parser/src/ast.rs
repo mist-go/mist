@@ -115,6 +115,7 @@ pub enum Prefix {
     RefMut,
     Deref,
     New,
+    Not,
 }
 
 #[derive(Debug, Clone, Serialize)]

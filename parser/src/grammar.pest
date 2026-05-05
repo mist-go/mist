@@ -172,12 +172,14 @@ prefix = {
   | mut_ref_px
   | ref_px
   | new_px
+  | not_px
 }
 
 deref_px   = { "*" }
 mut_ref_px = { "&" ~ mutable }
 ref_px     = { "&" }
 new_px     = { "new" }
+not_px     = { "!" }
 
 prefix_list = { prefix* }
 
