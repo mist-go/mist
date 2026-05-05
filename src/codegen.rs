@@ -61,6 +61,19 @@ impl RustCodegen {
         }
         self.output.clone()
     }
+
+    pub fn ensure_brackets(&mut self, stmt: &Statement) {
+        match stmt {
+            Statement::Block(_) => stmt.to_rust(self),
+            _ => {
+                self.add_indentedln("{");
+                self.indent += 1;
+                stmt.to_rust(self);
+                self.indent -= 1;
+                self.add_indentedln("}");
+            }
+        }
+    }
 }
 
 impl Default for RustCodegen {
@@ -359,25 +372,22 @@ impl ToRust for Statement {
                 else_branch,
             } => {
                 cg.add_indentedln(&format!("if {}", initial.condition.get_rust()));
-                initial.body.to_rust(cg);
+                cg.ensure_brackets(&initial.body);
 
                 for else_if_branch in else_if {
                     cg.add_indentedln(&format!("else if {}", else_if_branch.condition.get_rust()));
-                    else_if_branch.body.to_rust(cg);
+                    cg.ensure_brackets(&else_if_branch.body);
                 }
 
                 if let Some(else_br) = else_branch {
                     cg.add_indentedln("else");
-                    else_br.to_rust(cg);
+                    cg.ensure_brackets(else_br);
                 }
             }
 
             Statement::While(StatementBranch { condition, body }) => {
-                cg.add_indentedln(&format!("while {} {{", condition.get_rust()));
-                cg.indent += 1;
-                body.to_rust(cg);
-                cg.indent -= 1;
-                cg.add_indentedln("}");
+                cg.add_indentedln(&format!("while {}", condition.get_rust()));
+                cg.ensure_brackets(body);
             }
 
             Statement::For { .. } => {
