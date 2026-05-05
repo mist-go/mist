@@ -334,9 +334,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
 impl From<pest::iterators::Pair<'_, Rule>> for Literal {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let rule = pair.as_rule();
-        let inner = pair.clone().into_inner();
+        let mut inner = pair.clone().into_inner();
 
         match rule {
+            Rule::primary => Self::from(inner.next().unwrap()),
             Rule::integer => Literal::Int(pair.as_str().parse::<i64>().unwrap()),
             Rule::float => Literal::Float(pair.as_str().parse::<f64>().unwrap()),
             Rule::boolean => Literal::Bool(pair.as_str().parse::<bool>().unwrap()),
