@@ -1,6 +1,6 @@
 use parser::ast::{
-    Attribute, BinaryOp, Block, Expression, FunctionDecl, Identifier, Literal, Path, Postfix,
-    Prefix, Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind,
+    Attribute, BinaryOp, Block, EnumItem, Expression, FunctionDecl, Identifier, Literal, Path,
+    Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind,
     TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
 };
 
@@ -311,12 +311,35 @@ impl ToRust for TopLevelKind {
             Self::Import(path) => cg.addln(&format!("use {};", path.get_rust())),
             Self::Mod(id) => cg.addln(&format!("mod {};", id.get_rust())),
             Self::FunctionDecl(decl) => decl.to_rust(cg),
+            Self::EnumDecl {
+                visibility,
+                name,
+                fields,
+            } => {
+                cg.addln(&format!(
+                    "{}struct {} {{",
+                    visibility.get_rust(),
+                    name.get_rust()
+                ));
+                cg.indent += 1;
+
+                for field in fields {
+                    cg.add_indentedln(&(format!("{}", field.get_rust()) + ","));
+                }
+
+                cg.indent -= 1;
+                cg.addln("}\n");
+            }
             Self::StructDecl {
                 visibility,
                 name,
                 fields,
             } => {
-                cg.addln(&format!("{}struct {} {{", visibility.get_rust(), name.get_rust()));
+                cg.addln(&format!(
+                    "{}struct {} {{",
+                    visibility.get_rust(),
+                    name.get_rust()
+                ));
                 cg.indent += 1;
 
                 for (field_name, _, ty) in &fields.0 {
@@ -335,7 +358,11 @@ impl ToRust for TopLevelKind {
                 methods,
             } => {
                 // Struct decl
-                cg.addln(&format!("{}struct {} {{", visibility.get_rust(), name.get_rust()));
+                cg.addln(&format!(
+                    "{}struct {} {{",
+                    visibility.get_rust(),
+                    name.get_rust()
+                ));
                 cg.indent += 1;
 
                 for field in fields {
@@ -501,7 +528,11 @@ impl ToRust for Statement {
                 iterator,
                 body,
             } => {
-                cg.add_indentedln(&format!("for {} in {}", pattern.get_rust(), iterator.get_rust()));
+                cg.add_indentedln(&format!(
+                    "for {} in {}",
+                    pattern.get_rust(),
+                    iterator.get_rust()
+                ));
                 cg.ensure_brackets(body);
             }
 
@@ -556,7 +587,11 @@ impl GetRust for VarDecl {
 
 impl GetRust for Path {
     fn get_rust(&self) -> String {
-        self.0.iter().map(Identifier::get_rust).collect::<Vec<String>>().join("::")
+        self.0
+            .iter()
+            .map(Identifier::get_rust)
+            .collect::<Vec<String>>()
+            .join("::")
     }
 }
 
@@ -582,6 +617,30 @@ impl GetRust for Visibility {
 impl GetRust for Identifier {
     fn get_rust(&self) -> String {
         self.0.clone()
+    }
+}
+
+impl GetRust for EnumItem {
+    fn get_rust(&self) -> String {
+        match self {
+            Self::Named(id) => id.get_rust(),
+            Self::Struct(id, s) => format!(
+                "{} {{{}}}",
+                id.get_rust(),
+                s.0.iter()
+                    .map(|(id, _, ty)| format!("{}: {}", id.get_rust(), ty.get_rust()))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Self::Tuple(id, t) => format!(
+                "{} ({})",
+                id.get_rust(),
+                t.iter()
+                    .map(TypeExpr::get_rust)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        }
     }
 }
 
