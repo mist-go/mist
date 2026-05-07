@@ -1,17 +1,18 @@
-class MyClass {
-    String message;
-
-    public constructor(str* name) {
-        self.message = format!("Hello {}!", name);
-    }
-
-    public void greet(self*) {
-        println!("{}", self.message);
-    }
-}
+mod my_class;
+use <my_class::MyClass>;
+use <my_class::MyEnum>;
 
 void main() {
     var my_class = new MyClass("World");
     my_class.greet();
-    var x = 1 + 2 + 3;
+
+    match (MyEnum::Tuple(10, String::new())) {
+        MyEnum::Tuple(i, _) => {
+            println!("{i}");
+        }
+        MyEnum::Named => {
+
+        }
+        _ => {}
+    }
 }

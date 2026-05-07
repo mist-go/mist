@@ -1,7 +1,7 @@
 use parser::ast::{
-    Attribute, BinaryOp, Block, Expression, FunctionDecl, Literal, Path, Postfix, Prefix,
-    Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix,
-    VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
+    Attribute, BinaryOp, Block, EnumItem, Expression, FunctionDecl, Identifier, Literal, Path,
+    Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr,
+    TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -197,7 +197,7 @@ impl GetRust for Option<&Vec<Prefix>> {
 impl GetRust for Postfix {
     fn get_rust(&self) -> String {
         match self {
-            Postfix::FieldAccess(field) => format!(".{}", field),
+            Postfix::FieldAccess(field) => format!(".{}", field.get_rust()),
 
             Postfix::Call(args) => {
                 let args = args
@@ -215,7 +215,7 @@ impl GetRust for Postfix {
             Postfix::StructCall(fields) => {
                 let fields = fields
                     .iter()
-                    .map(|(k, v)| format!("{}: {}", k, v.get_rust()))
+                    .map(|(k, v)| format!("{}: {}", k.get_rust(), v.get_rust()))
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("{{ {} }}", fields)
@@ -308,21 +308,43 @@ impl ToRust for TopLevelKind {
     fn to_rust(&self, cg: &mut RustCodegen) {
         match self {
             Self::ModAttribute => {}
-            Self::Include(path) => {
-                cg.addln(&format!("use {};", path.get_rust()));
-            }
+            Self::Import(path) => cg.addln(&format!("use {};", path.get_rust())),
+            Self::Mod(id) => cg.addln(&format!("mod {};", id.get_rust())),
             Self::FunctionDecl(decl) => decl.to_rust(cg),
             Self::StructDecl {
                 visibility,
                 name,
                 fields,
             } => {
-                cg.addln(&format!("{}struct {} {{", visibility.get_rust(), name));
+                cg.addln(&format!(
+                    "{}struct {} {{",
+                    visibility.get_rust(),
+                    name.get_rust()
+                ));
                 cg.indent += 1;
 
                 for (field_name, _, ty) in &fields.0 {
                     let ty = ty.get_rust();
-                    cg.add_indentedln(&format!("pub {}: {},", field_name, ty));
+                    cg.add_indentedln(&format!("pub {}: {},", field_name.get_rust(), ty));
+                }
+
+                cg.indent -= 1;
+                cg.addln("}\n");
+            }
+            Self::EnumDecl {
+                visibility,
+                name,
+                fields,
+            } => {
+                cg.addln(&format!(
+                    "{}enum {} {{",
+                    visibility.get_rust(),
+                    name.get_rust()
+                ));
+                cg.indent += 1;
+
+                for field in fields {
+                    cg.add_indentedln(&(format!("{}", field.get_rust()) + ","));
                 }
 
                 cg.indent -= 1;
@@ -336,19 +358,23 @@ impl ToRust for TopLevelKind {
                 methods,
             } => {
                 // Struct decl
-                cg.addln(&format!("{}struct {} {{", visibility.get_rust(), name));
+                cg.addln(&format!(
+                    "{}struct {} {{",
+                    visibility.get_rust(),
+                    name.get_rust()
+                ));
                 cg.indent += 1;
 
                 for field in fields {
                     let ty = field.decl.type_.clone().unwrap().get_rust();
-                    cg.add_indentedln(&format!("pub {}: {},", field.decl.name, ty));
+                    cg.add_indentedln(&format!("pub {}: {},", field.decl.name.get_rust(), ty));
                 }
 
                 cg.indent -= 1;
                 cg.addln("}\n");
 
                 // Constructor
-                cg.addln(&format!("impl {} {{", name));
+                cg.addln(&format!("impl {} {{", name.get_rust()));
                 cg.indent += 1;
 
                 let params_str = constructor
@@ -372,7 +398,7 @@ impl ToRust for TopLevelKind {
                     if let Some(init) = &field.init {
                         cg.add_indentedln(&format!(
                             "this.{} = {};",
-                            field.decl.name,
+                            field.decl.name.get_rust(),
                             init.get_rust()
                         ));
                     }
@@ -384,7 +410,7 @@ impl ToRust for TopLevelKind {
                         .params
                         .0
                         .iter()
-                        .map(|e| e.name.to_string())
+                        .map(|e| e.name.get_rust())
                         .collect::<Vec<_>>()
                         .join(", ")
                 ));
@@ -446,6 +472,23 @@ impl ToRust for Statement {
                 cg.add_indentedln(&format!("{} = {};", target.get_rust(), value.get_rust(),));
             }
 
+            Statement::Match(expr, match_items) => {
+                cg.add_indentedln(&format!("match {} {{", expr.get_rust()));
+                cg.indent += 1;
+
+                for itm in match_items {
+                    cg.add_indentedln(&format!("{} =>", itm.0.get_rust()));
+                    cg.add_indentedln("{");
+                    cg.indent += 1;
+                    itm.1.to_rust(cg);
+                    cg.indent -= 1;
+                    cg.add_indentedln("}");
+                }
+
+                cg.indent -= 1;
+                cg.add_indentedln("}");
+            }
+
             Statement::If {
                 initial,
                 else_if,
@@ -498,11 +541,17 @@ impl ToRust for Statement {
             }
 
             Statement::For {
+                mutable,
                 pattern,
                 iterator,
                 body,
             } => {
-                cg.add_indentedln(&format!("for {} in {}", pattern, iterator.get_rust()));
+                cg.add_indentedln(&format!(
+                    "for {}{} in {}",
+                    get_mutable(*mutable),
+                    pattern.get_rust(),
+                    iterator.get_rust()
+                ));
                 cg.ensure_brackets(body);
             }
 
@@ -530,7 +579,7 @@ impl ToRust for FunctionDecl {
         cg.add_indentedln(&format!(
             "{}fn {}({}) -> {} {{",
             self.visibility.get_rust(),
-            self.name,
+            self.name.get_rust(),
             params_str,
             self.return_type.get_rust()
         ));
@@ -543,21 +592,28 @@ impl ToRust for FunctionDecl {
 
 impl GetRust for VarDecl {
     fn get_rust(&self) -> String {
-        let mutability = if self.mutable { "mut " } else { "" };
-
         let ty = self
             .type_
             .as_ref()
             .map(|t| format!(": {}", t.get_rust()))
             .unwrap_or_default();
 
-        format!("{}{}{}", mutability, self.name, ty)
+        format!(
+            "{}{}{}",
+            get_mutable(self.mutable),
+            self.name.get_rust(),
+            ty
+        )
     }
 }
 
 impl GetRust for Path {
     fn get_rust(&self) -> String {
-        self.0.join("::")
+        self.0
+            .iter()
+            .map(Identifier::get_rust)
+            .collect::<Vec<String>>()
+            .join("::")
     }
 }
 
@@ -580,6 +636,71 @@ impl GetRust for Visibility {
     }
 }
 
+impl GetRust for Identifier {
+    fn get_rust(&self) -> String {
+        self.0.clone()
+    }
+}
+
+impl GetRust for EnumItem {
+    fn get_rust(&self) -> String {
+        match self {
+            Self::Named(id) => id.get_rust(),
+            Self::Struct(id, s) => format!(
+                "{} {{{}}}",
+                id.get_rust(),
+                s.0.iter()
+                    .map(|(id, _, ty)| format!("{}: {}", id.get_rust(), ty.get_rust()))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Self::Tuple(id, t) => format!(
+                "{} ({})",
+                id.get_rust(),
+                t.iter()
+                    .map(TypeExpr::get_rust)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        }
+    }
+}
+
+impl GetRust for Pattern {
+    fn get_rust(&self) -> String {
+        match self {
+            Self::Id(id) => id.get_rust(),
+            Self::Path(path) => path.get_rust(),
+            Self::Literal(lit) => lit.get_rust(),
+            Self::Struct(path, ids) => format!(
+                "{} {{{}}}",
+                path.get_rust(),
+                ids.iter()
+                    .map(Identifier::get_rust)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Self::Tuple(ids) => format!(
+                "({})",
+                ids.iter()
+                    .map(Identifier::get_rust)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Self::NamedTuple(path, ids) => {
+                format!(
+                    "{} ({})",
+                    path.get_rust(),
+                    ids.iter()
+                        .map(Identifier::get_rust)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
+        }
+    }
+}
+
 pub fn get_static_type_path(path: &Path) -> String {
     let rust_path = path.get_rust();
 
@@ -592,4 +713,8 @@ pub fn get_static_type_path(path: &Path) -> String {
 
 pub fn get_type_postfixes(postfixes: &[TypePostfix]) -> String {
     postfixes.iter().map(TypePostfix::get_rust).collect()
+}
+
+pub fn get_mutable(mutable: bool) -> String {
+    if mutable { "mut " } else { "" }.to_string()
 }

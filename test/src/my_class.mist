@@ -1,0 +1,17 @@
+public class MyClass {
+    String message;
+
+    public constructor(str* name) {
+        self.message = format!("Hello {}!", name);
+    }
+
+    public void greet(self*) {
+        println!("{}", self.message);
+    }
+}
+
+public enum MyEnum {
+    Named,
+    Tuple(i32, String),
+    Struct { i32 x }
+}

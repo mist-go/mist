@@ -12,11 +12,16 @@ string_lit  =  { "\"" ~ inner_str ~ "\"" }
 inner_str   = @{ (!"\"" ~ ("\\\"" | ANY))* }
 static_path =  { identifier ~ ("::" ~ identifier)* }
 
+// pattern
+tuple_pattern       =  { "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")" }
+named_tuple_pattern =  { static_path ~ "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")" }
+struct_pattern      =  { static_path ~ "{" ~ (identifier ~ ("," ~ identifier)*)? ~ "}" }
+pattern             = _{ named_tuple_pattern | tuple_pattern | struct_pattern | literal | static_path }
+
 export    =  { "public" }
 mutable   =  { "mut" }
-sharp     = _{ "#" }
 var       =  { "var" }
-var_decl  =  { (var | type_expr) ~ mutable? ~ identifier }
+var_decl  =  { (var | type_expr) ~ mutable? ~ pattern }
 semicolon = _{ ";" }
 
 // ================= CLASS =================
@@ -33,12 +38,22 @@ method = {
 }
 
 class_decl = {
-    "class" ~ identifier ~ "{" ~ class_fields ~ class_constructor ~ method* ~ "}"
+    export? ~ "class" ~ identifier ~ "{" ~ class_fields ~ class_constructor ~ method* ~ "}"
 }
 
 // ================= TOP LEVEL =================
 
-top_level = { (attributes ~ (import | function_decl | struct_decl | class_decl)) | mod_attribute }
+enum_named  = { identifier }
+enum_tuple  = { identifier ~ tuple_type }
+enum_struct = { identifier ~ "{" ~ field_list ~ "}" }
+
+enum_field = _{ enum_tuple | enum_struct | enum_named }
+
+enum_fields = _{ enum_field ~ ("," ~ enum_field)* ~ ","? }
+
+enum_decl = { export? ~ "enum" ~ identifier ~ "{" ~ enum_fields ~ "}" }
+
+top_level = { (attributes ~ (import | function_decl | struct_decl | enum_decl | class_decl | mod_package)) | mod_attribute }
 
 attribute = {
     "#" ~ "[" ~ meta ~ "]"
@@ -49,7 +64,7 @@ mod_attribute = {
 }
 
 meta = {
-    static_path ~ ("=" ~ primary | "(" ~ meta_list? ~ ")")?
+    static_path ~ ("=" ~ literal | "(" ~ meta_list? ~ ")")?
 }
 
 meta_list = {
@@ -58,7 +73,9 @@ meta_list = {
 
 attributes = { attribute* }
 
-import = { sharp ~ "include" ~ "<" ~ static_path ~ ">" }
+import = { "use" ~ "<" ~ static_path ~ ">" ~ semicolon }
+
+mod_package = { "mod" ~ identifier ~ semicolon }
 
 field_list = { field ~ ("," ~ field)* ~ ","? }
 field      = { export? ~ type_expr ~ identifier }
@@ -81,6 +98,7 @@ statement_list = { statement* }
 
 statement = _{
     expr_stmt
+  | match_stmt
   | var_decl_statement
   | assign_statement
   | if_stmt
@@ -124,7 +142,13 @@ c_for_stmt = {
 }
 
 for_stmt = {
-    "for" ~ "(" ~ identifier ~ "in" ~ expr ~ ")" ~ statement
+    "for" ~ "(" ~ mutable? ~ pattern ~ "in" ~ expr ~ ")" ~ statement
+}
+
+match_item = { pattern ~ "=>" ~ block }
+
+match_stmt = {
+    "match" ~ "(" ~ expr ~ ")" ~ "{" ~ match_item* ~ "}"
 }
 
 // ================= EXPRESSIONS =================
@@ -140,11 +164,15 @@ macro_inner_v = {
 
 tuple = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
 
-primary = {
+literal = {
     float
   | integer
   | boolean
   | string_lit
+}
+
+primary = {
+    literal
   | static_path
   | tuple
 }
