@@ -148,7 +148,7 @@ for_stmt = {
 match_item = { pattern ~ "=>" ~ block }
 
 match_stmt = {
-    "match" ~ "(" ~ expr ~ ")" ~ match_item*
+    "match" ~ "(" ~ expr ~ ")" ~ "{" ~ match_item* ~ "}"
 }
 
 // ================= EXPRESSIONS =================
