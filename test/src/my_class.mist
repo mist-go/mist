@@ -10,7 +10,7 @@ class MyClass {
     }
 }
 
-enum MyEnum {
+public enum MyEnum {
     Named,
     Tuple(i32, String),
     Struct { i32 x }

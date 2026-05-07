@@ -6,5 +6,10 @@ void main() {
     var my_class = new MyClass("World");
     my_class.greet();
 
-    match (MyEnum::Tuple(10)) {}
+    match (MyEnum::Tuple(10, String::new())) {
+        MyEnum::Tuple(i, _) => {
+            println!("{i}");
+        }
+        _ => {}
+    }
 }
