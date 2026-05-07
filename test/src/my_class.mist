@@ -1,0 +1,11 @@
+class MyClass {
+    String message;
+
+    public constructor(str* name) {
+        self.message = format!("Hello {}!", name);
+    }
+
+    public void greet(self*) {
+        println!("{}", self.message);
+    }
+}
