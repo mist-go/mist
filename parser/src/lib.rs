@@ -84,7 +84,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExprKind {
 impl From<pest::iterators::Pair<'_, Rule>> for Path {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         match pair.as_rule() {
-            Rule::static_path => Path(pair.into_inner().map(|i| i.as_str().to_string()).collect()),
+            Rule::static_path => Path(pair.into_inner().map(Identifier::from).collect()),
             _ => unimplemented!("{pair:#?}"),
         }
     }
@@ -98,7 +98,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for FieldList {
                 let mut param_inner = p.into_inner();
                 let visibility = Visibility::from(&mut param_inner);
                 let param_type = TypeExpr::from(param_inner.next().unwrap());
-                let param_name = param_inner.next().unwrap().as_str().to_string();
+                let param_name = Identifier::from(param_inner.next().unwrap());
                 (param_name, visibility, param_type)
             })
             .collect();
@@ -235,7 +235,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
 
             Rule::struct_decl => {
                 let visibility = Visibility::from(&mut inner);
-                let name = inner.next().unwrap().as_str().to_string();
+                let name = Identifier::from(inner.next().unwrap());
                 let fields_pair = inner.next().unwrap();
                 let fields = FieldList::from(fields_pair);
 
@@ -248,7 +248,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
 
             Rule::class_decl => TopLevelKind::ClassDecl {
                 visibility: Visibility::from(&mut inner),
-                name: inner.next().unwrap().as_str().to_string(),
+                name: Identifier::from(inner.next().unwrap()),
                 fields: inner
                     .next()
                     .unwrap()
@@ -259,7 +259,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
                 methods: inner.into_iter().map(FunctionDecl::from).collect(),
             },
 
-            Rule::mod_package => TopLevelKind::Mod(inner.next().unwrap().as_str().to_string()),
+            Rule::mod_package => TopLevelKind::Mod(Identifier::from(inner.next().unwrap())),
 
             _ => unimplemented!("{rule:#?}"),
         }
@@ -331,7 +331,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
             },
 
             Rule::for_stmt => Statement::For {
-                pattern: inner.next().unwrap().as_str().to_string(),
+                pattern: Identifier::from(inner.next().unwrap()),
                 iterator: inner.next().unwrap().into(),
                 body: Box::new(Statement::from(inner.next().unwrap())),
             },
@@ -419,10 +419,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
         match rule {
             Rule::postfix => Postfix::from(inner.next().unwrap()),
 
-            Rule::field_px => {
-                let field_name = inner.next().unwrap().as_str().to_string();
-                Postfix::FieldAccess(field_name)
-            }
+            Rule::field_px => Postfix::FieldAccess(Identifier::from(inner.next().unwrap())),
 
             Rule::call_px => Postfix::Call(inner.map(Expression::from).collect()),
 
@@ -431,7 +428,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
                     .map(|p| {
                         let mut pi = p.into_inner();
                         (
-                            pi.next().unwrap().as_str().to_string(),
+                            Identifier::from(pi.next().unwrap()),
                             Expression::from(pi.next().unwrap()),
                         )
                     })
@@ -502,7 +499,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
                 });
                 let mutable = listen_rule(&mut inner, Rule::mutable);
 
-                let name = inner.next().unwrap().as_str().to_string();
+                let name = Identifier::from(inner.next().unwrap());
 
                 VarDecl {
                     mutable,
@@ -524,10 +521,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
 
         let return_type = TypeExpr::from(inner.next().unwrap());
 
-        let name = inner.next().unwrap().as_str().to_string();
+        let name = Identifier::from(inner.next().unwrap());
         let self_param = consume_rule(&mut inner, Rule::self_param).map(|param| {
             let mut param_inner = param.into_inner();
-            let name = format!("self");
+            let name = Identifier(String::from("self"));
 
             let mutable = listen_rule(&mut param_inner, Rule::mutable);
 
@@ -535,9 +532,9 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
 
             VarDecl {
                 mutable: mutable && !is_ref,
-                name,
+                name: name.clone(),
                 type_: Some(TypeExpr(
-                    TypeExprKind::Path(Path(vec![format!("Self")])),
+                    TypeExprKind::Path(Path(vec![name])),
                     if is_ref {
                         vec![if mutable {
                             TypePostfix::RefMut
@@ -609,4 +606,10 @@ pub fn consume_rule<'a>(
         .unwrap_or_default();
 
     if consumed { pairs.next() } else { None }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for Identifier {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        Identifier(pair.as_str().to_string())
+    }
 }

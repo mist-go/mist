@@ -1,7 +1,10 @@
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct FieldList(pub Vec<(String, Visibility, TypeExpr)>);
+pub struct Identifier(pub String);
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FieldList(pub Vec<(Identifier, Visibility, TypeExpr)>);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ParamList(pub Vec<VarDecl>);
@@ -44,7 +47,7 @@ pub enum TypeExprKind {
 pub struct TypeExpr(pub TypeExprKind, pub Vec<TypePostfix>);
 
 #[derive(Debug, Clone, Serialize)]
-pub struct Path(pub Vec<String>);
+pub struct Path(pub Vec<Identifier>);
 
 #[derive(Debug, Clone, Serialize)]
 pub enum BinaryOp {
@@ -68,16 +71,16 @@ pub struct TopLevel(pub TopLevelKind, pub Vec<Attribute>);
 pub enum TopLevelKind {
     ModAttribute,
     Import(Path),
-    Mod(String),
+    Mod(Identifier),
     StructDecl {
         visibility: Visibility,
-        name: String,
+        name: Identifier,
         fields: FieldList,
     },
     FunctionDecl(FunctionDecl),
     ClassDecl {
         visibility: Visibility,
-        name: String,
+        name: Identifier,
         fields: Vec<VarDeclStmt>,
         constructor: ClassConstructor,
         methods: Vec<FunctionDecl>,
@@ -94,7 +97,7 @@ pub struct ClassConstructor {
 #[derive(Debug, Clone, Serialize)]
 pub struct FunctionDecl {
     pub visibility: Visibility,
-    pub name: String,
+    pub name: Identifier,
     pub params: ParamList,
     pub return_type: TypeExpr,
     pub body: Block,
@@ -102,10 +105,10 @@ pub struct FunctionDecl {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Postfix {
-    FieldAccess(String),
+    FieldAccess(Identifier),
     Call(Vec<Expression>),
     MacroCall(String),
-    StructCall(Vec<(String, Expression)>),
+    StructCall(Vec<(Identifier, Expression)>),
     Index(Expression),
     Binary(BinaryOp, Expression),
 }
@@ -139,7 +142,7 @@ pub enum Statement {
         body: Box<Statement>,
     },
     For {
-        pattern: String,
+        pattern: Identifier,
         iterator: Expression,
         body: Box<Statement>,
     },
@@ -152,7 +155,7 @@ pub enum Statement {
 #[derive(Debug, Clone, Serialize)]
 pub struct VarDecl {
     pub mutable: bool,
-    pub name: String,
+    pub name: Identifier,
     pub type_: Option<TypeExpr>,
 }
 
