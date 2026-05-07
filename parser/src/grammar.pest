@@ -98,6 +98,7 @@ statement_list = { statement* }
 
 statement = _{
     expr_stmt
+  | match_stmt
   | var_decl_statement
   | assign_statement
   | if_stmt
@@ -142,6 +143,12 @@ c_for_stmt = {
 
 for_stmt = {
     "for" ~ "(" ~ identifier ~ "in" ~ expr ~ ")" ~ statement
+}
+
+match_item = { pattern ~ "=>" ~ block }
+
+match_stmt = {
+    "match" ~ "(" ~ expr ~ ")" ~ match_item*
 }
 
 // ================= EXPRESSIONS =================
