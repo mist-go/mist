@@ -472,6 +472,23 @@ impl ToRust for Statement {
                 cg.add_indentedln(&format!("{} = {};", target.get_rust(), value.get_rust(),));
             }
 
+            Statement::Match(expr, match_items) => {
+                cg.add_indentedln(&format!("match {} {{", expr.get_rust()));
+                cg.indent += 1;
+
+                for itm in match_items {
+                    cg.add_indentedln(&format!("{} =>", itm.0.get_rust()));
+                    cg.add_indentedln("{");
+                    cg.indent += 1;
+                    itm.1.to_rust(cg);
+                    cg.indent -= 1;
+                    cg.add_indentedln("}");
+                }
+
+                cg.indent -= 1;
+                cg.add_indentedln("}");
+            }
+
             Statement::If {
                 initial,
                 else_if,
