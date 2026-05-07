@@ -13,9 +13,10 @@ inner_str   = @{ (!"\"" ~ ("\\\"" | ANY))* }
 static_path =  { identifier ~ ("::" ~ identifier)* }
 
 // pattern
-tuple_pattern  =  { static_path ~ "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")" }
-struct_pattern =  { static_path ~ "{" ~ (identifier ~ ("," ~ identifier)*)? ~ "}" }
-pattern        = _{ tuple_pattern | struct_pattern | identifier }
+tuple_pattern       =  { "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")" }
+named_tuple_pattern =  { static_path ~ "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")" }
+struct_pattern      =  { static_path ~ "{" ~ (identifier ~ ("," ~ identifier)*)? ~ "}" }
+pattern             = _{ named_tuple_pattern | tuple_pattern | struct_pattern | identifier }
 
 export    =  { "public" }
 mutable   =  { "mut" }

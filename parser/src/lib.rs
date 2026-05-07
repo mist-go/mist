@@ -518,6 +518,33 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDeclStmt {
     }
 }
 
+impl From<pest::iterators::Pair<'_, Rule>> for Pattern {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let rule = pair.as_rule();
+        let mut inner = pair.into_inner();
+
+        match rule {
+            Rule::tuple_pattern => Pattern::Tuple(inner.map(Identifier::from).collect()),
+
+            Rule::named_tuple_pattern => Pattern::NamedTuple(
+                Path::from(inner.next().unwrap()),
+                inner.map(Identifier::from).collect(),
+            ),
+
+            Rule::struct_pattern => Pattern::Struct(
+                Path::from(inner.next().unwrap()),
+                inner.map(Identifier::from).collect(),
+            ),
+
+            Rule::identifier => Pattern::Id(Identifier::from(inner.next().unwrap())),
+
+            Rule::static_path => Pattern::Path(Path::from(inner.next().unwrap())),
+
+            _ => unimplemented!("{rule:?}"),
+        }
+    }
+}
+
 impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         match pair.as_rule() {
