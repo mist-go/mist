@@ -72,6 +72,11 @@ pub enum TopLevelKind {
     ModAttribute,
     Import(Path),
     Mod(Identifier),
+    EnumDecl {
+        visibility: Visibility,
+        name: Identifier,
+        fields: Vec<EnumItem>,
+    },
     StructDecl {
         visibility: Visibility,
         name: Identifier,
@@ -85,6 +90,13 @@ pub enum TopLevelKind {
         constructor: ClassConstructor,
         methods: Vec<FunctionDecl>,
     },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum EnumItem {
+    Named(Identifier),
+    Tuple(Identifier, Vec<TypeExpr>),
+    Struct(Identifier, FieldList),
 }
 
 #[derive(Debug, Clone, Serialize)]
