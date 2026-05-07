@@ -164,7 +164,8 @@ pub enum Statement {
         body: Box<Statement>,
     },
     For {
-        pattern: Identifier,
+        mutable: bool,
+        pattern: Pattern,
         iterator: Expression,
         body: Box<Statement>,
     },

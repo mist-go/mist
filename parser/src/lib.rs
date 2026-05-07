@@ -365,7 +365,8 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
             },
 
             Rule::for_stmt => Statement::For {
-                pattern: Identifier::from(inner.next().unwrap()),
+                mutable: listen_rule(&mut inner, Rule::mutable),
+                pattern: Pattern::from(inner.next().unwrap()),
                 iterator: inner.next().unwrap().into(),
                 body: Box::new(Statement::from(inner.next().unwrap())),
             },

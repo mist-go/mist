@@ -142,7 +142,7 @@ c_for_stmt = {
 }
 
 for_stmt = {
-    "for" ~ "(" ~ identifier ~ "in" ~ expr ~ ")" ~ statement
+    "for" ~ "(" ~ mutable? ~ pattern ~ "in" ~ expr ~ ")" ~ statement
 }
 
 match_item = { pattern ~ "=>" ~ block }

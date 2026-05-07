@@ -541,12 +541,14 @@ impl ToRust for Statement {
             }
 
             Statement::For {
+                mutable,
                 pattern,
                 iterator,
                 body,
             } => {
                 cg.add_indentedln(&format!(
-                    "for {} in {}",
+                    "for {}{} in {}",
+                    get_mutable(*mutable),
                     pattern.get_rust(),
                     iterator.get_rust()
                 ));
@@ -590,15 +592,18 @@ impl ToRust for FunctionDecl {
 
 impl GetRust for VarDecl {
     fn get_rust(&self) -> String {
-        let mutability = if self.mutable { "mut " } else { "" };
-
         let ty = self
             .type_
             .as_ref()
             .map(|t| format!(": {}", t.get_rust()))
             .unwrap_or_default();
 
-        format!("{}{}{}", mutability, self.name.get_rust(), ty)
+        format!(
+            "{}{}{}",
+            get_mutable(self.mutable),
+            self.name.get_rust(),
+            ty
+        )
     }
 }
 
@@ -708,4 +713,8 @@ pub fn get_static_type_path(path: &Path) -> String {
 
 pub fn get_type_postfixes(postfixes: &[TypePostfix]) -> String {
     postfixes.iter().map(TypePostfix::get_rust).collect()
+}
+
+pub fn get_mutable(mutable: bool) -> String {
+    if mutable { "mut " } else { "" }.to_string()
 }
