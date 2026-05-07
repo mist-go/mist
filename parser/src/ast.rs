@@ -97,6 +97,7 @@ pub enum Pattern {
     NamedTuple(Path, Vec<Identifier>),
     Struct(Path, Vec<Identifier>),
     Tuple(Vec<Identifier>),
+    Literal(Literal),
     Path(Path),
     Id(Identifier),
 }

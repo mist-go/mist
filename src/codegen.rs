@@ -666,6 +666,7 @@ impl GetRust for Pattern {
         match self {
             Self::Id(id) => id.get_rust(),
             Self::Path(path) => path.get_rust(),
+            Self::Literal(lit) => lit.get_rust(),
             Self::Struct(path, ids) => format!(
                 "{} {{{}}}",
                 path.get_rust(),

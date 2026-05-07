@@ -16,7 +16,7 @@ static_path =  { identifier ~ ("::" ~ identifier)* }
 tuple_pattern       =  { "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")" }
 named_tuple_pattern =  { static_path ~ "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")" }
 struct_pattern      =  { static_path ~ "{" ~ (identifier ~ ("," ~ identifier)*)? ~ "}" }
-pattern             = _{ named_tuple_pattern | tuple_pattern | struct_pattern | identifier }
+pattern             = _{ named_tuple_pattern | tuple_pattern | struct_pattern | literal | static_path }
 
 export    =  { "public" }
 mutable   =  { "mut" }
@@ -64,7 +64,7 @@ mod_attribute = {
 }
 
 meta = {
-    static_path ~ ("=" ~ primary | "(" ~ meta_list? ~ ")")?
+    static_path ~ ("=" ~ literal | "(" ~ meta_list? ~ ")")?
 }
 
 meta_list = {
@@ -164,11 +164,15 @@ macro_inner_v = {
 
 tuple = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
 
-primary = {
+literal = {
     float
   | integer
   | boolean
   | string_lit
+}
+
+primary = {
+    literal
   | static_path
   | tuple
 }

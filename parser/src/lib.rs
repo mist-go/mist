@@ -400,6 +400,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Literal {
 
         match rule {
             Rule::primary => Self::from(inner.next().unwrap()),
+            Rule::literal => Self::from(inner.next().unwrap()),
             Rule::integer => Literal::Int(pair.as_str().parse::<i64>().unwrap()),
             Rule::float => Literal::Float(pair.as_str().parse::<f64>().unwrap()),
             Rule::boolean => Literal::Bool(pair.as_str().parse::<bool>().unwrap()),
@@ -436,9 +437,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
             }
             Rule::primary => Expression::from(inner.next().unwrap()),
             Rule::static_path => Expression::Path(Path::from(pair)),
-            Rule::integer | Rule::float | Rule::boolean | Rule::string_lit | Rule::tuple => {
-                Expression::Literal(Literal::from(pair))
-            }
+            Rule::literal => Expression::Literal(Literal::from(pair)),
             _ => unimplemented!("{rule:#?}"),
         }
     }
@@ -548,6 +547,8 @@ impl From<pest::iterators::Pair<'_, Rule>> for Pattern {
                 Path::from(inner.next().unwrap()),
                 inner.map(Identifier::from).collect(),
             ),
+
+            Rule::literal => Pattern::Literal(Literal::from(pair)),
 
             Rule::identifier => Pattern::Id(Identifier::from(pair)),
 
