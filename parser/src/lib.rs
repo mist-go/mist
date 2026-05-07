@@ -375,6 +375,19 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                 value: Expression::from(inner.next().unwrap()),
             }),
 
+            Rule::match_stmt => Statement::Match(
+                Expression::from(inner.next().unwrap()),
+                inner
+                    .map(|match_itms| {
+                        let mut match_inner = match_itms.into_inner();
+                        (
+                            Pattern::from(match_inner.next().unwrap()),
+                            Block::from(match_inner.next().unwrap()),
+                        )
+                    })
+                    .collect(),
+            ),
+
             _ => unimplemented!("{rule:#?}"),
         }
     }
