@@ -38,7 +38,7 @@ method = {
 }
 
 class_decl = {
-    "class" ~ identifier ~ "{" ~ class_fields ~ class_constructor ~ method* ~ "}"
+    export? ~ "class" ~ identifier ~ "{" ~ class_fields ~ class_constructor ~ method* ~ "}"
 }
 
 // ================= TOP LEVEL =================
