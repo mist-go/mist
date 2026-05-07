@@ -9,3 +9,9 @@ class MyClass {
         println!("{}", self.message);
     }
 }
+
+enum MyEnum {
+    Named,
+    Tuple(i32, String),
+    Struct { i32 x }
+}
