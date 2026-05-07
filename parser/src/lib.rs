@@ -259,7 +259,41 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
                 methods: inner.into_iter().map(FunctionDecl::from).collect(),
             },
 
+            Rule::enum_decl => TopLevelKind::EnumDecl {
+                visibility: Visibility::from(&mut inner),
+                name: Identifier::from(inner.next().unwrap()),
+                fields: inner.map(EnumItem::from).collect(),
+            },
+
             Rule::mod_package => TopLevelKind::Mod(Identifier::from(inner.next().unwrap())),
+
+            _ => unimplemented!("{rule:#?}"),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for EnumItem {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let rule = pair.as_rule();
+        let mut inner = pair.clone().into_inner();
+
+        match rule {
+            Rule::enum_named => EnumItem::Named(Identifier::from(inner.next().unwrap())),
+
+            Rule::enum_tuple => EnumItem::Tuple(
+                Identifier::from(inner.next().unwrap()),
+                inner
+                    .next()
+                    .unwrap()
+                    .into_inner()
+                    .map(TypeExpr::from)
+                    .collect(),
+            ),
+
+            Rule::enum_struct => EnumItem::Struct(
+                Identifier::from(inner.next().unwrap()),
+                FieldList::from(inner.next().unwrap()),
+            ),
 
             _ => unimplemented!("{rule:#?}"),
         }
