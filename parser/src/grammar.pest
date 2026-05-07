@@ -14,7 +14,6 @@ static_path =  { identifier ~ ("::" ~ identifier)* }
 
 export    =  { "public" }
 mutable   =  { "mut" }
-sharp     = _{ "#" }
 var       =  { "var" }
 var_decl  =  { (var | type_expr) ~ mutable? ~ identifier }
 semicolon = _{ ";" }
@@ -58,7 +57,7 @@ meta_list = {
 
 attributes = { attribute* }
 
-import = { sharp ~ "include" ~ "<" ~ static_path ~ ">" }
+import = { "use" ~ "<" ~ static_path ~ ">" ~ semicolon }
 
 field_list = { field ~ ("," ~ field)* ~ ","? }
 field      = { export? ~ type_expr ~ identifier }

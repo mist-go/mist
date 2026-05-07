@@ -229,7 +229,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
         let mut inner = pair.clone().into_inner();
 
         match rule {
-            Rule::import => TopLevelKind::Include(Path::from(inner.next().unwrap())),
+            Rule::import => TopLevelKind::Import(Path::from(inner.next().unwrap())),
 
             Rule::function_decl => TopLevelKind::FunctionDecl(FunctionDecl::from(pair)),
 

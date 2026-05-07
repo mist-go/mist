@@ -67,7 +67,7 @@ pub struct TopLevel(pub TopLevelKind, pub Vec<Attribute>);
 #[derive(Debug, Clone, Serialize)]
 pub enum TopLevelKind {
     ModAttribute,
-    Include(Path),
+    Import(Path),
     StructDecl {
         visibility: Visibility,
         name: String,
