@@ -176,7 +176,7 @@ pub enum Statement {
 #[derive(Debug, Clone, Serialize)]
 pub struct VarDecl {
     pub mutable: bool,
-    pub name: Identifier,
+    pub name: Pattern,
     pub type_: Option<TypeExpr>,
 }
 

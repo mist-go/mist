@@ -521,7 +521,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDeclStmt {
 impl From<pest::iterators::Pair<'_, Rule>> for Pattern {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let rule = pair.as_rule();
-        let mut inner = pair.into_inner();
+        let mut inner = pair.clone().into_inner();
 
         match rule {
             Rule::tuple_pattern => Pattern::Tuple(inner.map(Identifier::from).collect()),
@@ -536,9 +536,9 @@ impl From<pest::iterators::Pair<'_, Rule>> for Pattern {
                 inner.map(Identifier::from).collect(),
             ),
 
-            Rule::identifier => Pattern::Id(Identifier::from(inner.next().unwrap())),
+            Rule::identifier => Pattern::Id(Identifier::from(pair)),
 
-            Rule::static_path => Pattern::Path(Path::from(inner.next().unwrap())),
+            Rule::static_path => Pattern::Path(Path::from(pair)),
 
             _ => unimplemented!("{rule:?}"),
         }
@@ -560,7 +560,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
                 });
                 let mutable = listen_rule(&mut inner, Rule::mutable);
 
-                let name = Identifier::from(inner.next().unwrap());
+                let name = Pattern::from(inner.next().unwrap());
 
                 VarDecl {
                     mutable,
@@ -585,7 +585,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
         let name = Identifier::from(inner.next().unwrap());
         let self_param = consume_rule(&mut inner, Rule::self_param).map(|param| {
             let mut param_inner = param.into_inner();
-            let name = Identifier(String::from("self"));
+            let name = Pattern::Id(Identifier(String::from("self")));
 
             let mutable = listen_rule(&mut param_inner, Rule::mutable);
 
@@ -595,7 +595,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
                 mutable: mutable && !is_ref,
                 name: name.clone(),
                 type_: Some(TypeExpr(
-                    TypeExprKind::Path(Path(vec![name])),
+                    TypeExprKind::Path(Path(vec![Identifier("Self".to_string())])),
                     if is_ref {
                         vec![if mutable {
                             TypePostfix::RefMut

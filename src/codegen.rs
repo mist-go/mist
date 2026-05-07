@@ -1,7 +1,7 @@
 use parser::ast::{
     Attribute, BinaryOp, Block, EnumItem, Expression, FunctionDecl, Identifier, Literal, Path,
-    Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind,
-    TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
+    Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr,
+    TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -640,6 +640,40 @@ impl GetRust for EnumItem {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
+        }
+    }
+}
+
+impl GetRust for Pattern {
+    fn get_rust(&self) -> String {
+        match self {
+            Self::Id(id) => id.get_rust(),
+            Self::Path(path) => path.get_rust(),
+            Self::Struct(path, ids) => format!(
+                "{} {{{}}}",
+                path.get_rust(),
+                ids.iter()
+                    .map(Identifier::get_rust)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Self::Tuple(ids) => format!(
+                "({})",
+                ids.iter()
+                    .map(Identifier::get_rust)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Self::NamedTuple(path, ids) => {
+                format!(
+                    "{} ({})",
+                    path.get_rust(),
+                    ids.iter()
+                        .map(Identifier::get_rust)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
         }
     }
 }
