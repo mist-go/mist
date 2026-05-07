@@ -37,7 +37,7 @@ class_decl = {
 
 // ================= TOP LEVEL =================
 
-top_level = { (attributes ~ (import | function_decl | struct_decl | class_decl)) | mod_attribute }
+top_level = { (attributes ~ (import | function_decl | struct_decl | class_decl | mod_package)) | mod_attribute }
 
 attribute = {
     "#" ~ "[" ~ meta ~ "]"
@@ -58,6 +58,8 @@ meta_list = {
 attributes = { attribute* }
 
 import = { "use" ~ "<" ~ static_path ~ ">" ~ semicolon }
+
+mod_package = { "mod" ~ identifier ~ semicolon }
 
 field_list = { field ~ ("," ~ field)* ~ ","? }
 field      = { export? ~ type_expr ~ identifier }

@@ -259,6 +259,8 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
                 methods: inner.into_iter().map(FunctionDecl::from).collect(),
             },
 
+            Rule::mod_package => TopLevelKind::Mod(inner.next().unwrap().as_str().to_string()),
+
             _ => unimplemented!("{rule:#?}"),
         }
     }

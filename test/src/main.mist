@@ -1,14 +1,5 @@
-class MyClass {
-    String message;
-
-    public constructor(str* name) {
-        self.message = format!("Hello {}!", name);
-    }
-
-    public void greet(self*) {
-        println!("{}", self.message);
-    }
-}
+mod my_class;
+use <my_class::MyClass>;
 
 void main() {
     var my_class = new MyClass("World");
