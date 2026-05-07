@@ -93,6 +93,14 @@ pub enum TopLevelKind {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub enum Pattern {
+    Tuple(Path, Vec<Identifier>),
+    Struct(Path, Vec<Identifier>),
+    Path(Path),
+    Id(Identifier),
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum EnumItem {
     Named(Identifier),
     Tuple(Identifier, Vec<TypeExpr>),

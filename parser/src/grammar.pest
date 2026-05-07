@@ -12,10 +12,15 @@ string_lit  =  { "\"" ~ inner_str ~ "\"" }
 inner_str   = @{ (!"\"" ~ ("\\\"" | ANY))* }
 static_path =  { identifier ~ ("::" ~ identifier)* }
 
+// pattern
+tuple_pattern  =  { static_path ~ "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")" }
+struct_pattern =  { static_path ~ "{" ~ (identifier ~ ("," ~ identifier)*)? ~ "}" }
+pattern        = _{ tuple_pattern | struct_pattern | identifier }
+
 export    =  { "public" }
 mutable   =  { "mut" }
 var       =  { "var" }
-var_decl  =  { (var | type_expr) ~ mutable? ~ identifier }
+var_decl  =  { (var | type_expr) ~ mutable? ~ pattern }
 semicolon = _{ ";" }
 
 // ================= CLASS =================
