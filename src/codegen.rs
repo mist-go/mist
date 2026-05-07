@@ -311,25 +311,6 @@ impl ToRust for TopLevelKind {
             Self::Import(path) => cg.addln(&format!("use {};", path.get_rust())),
             Self::Mod(id) => cg.addln(&format!("mod {};", id.get_rust())),
             Self::FunctionDecl(decl) => decl.to_rust(cg),
-            Self::EnumDecl {
-                visibility,
-                name,
-                fields,
-            } => {
-                cg.addln(&format!(
-                    "{}struct {} {{",
-                    visibility.get_rust(),
-                    name.get_rust()
-                ));
-                cg.indent += 1;
-
-                for field in fields {
-                    cg.add_indentedln(&(format!("{}", field.get_rust()) + ","));
-                }
-
-                cg.indent -= 1;
-                cg.addln("}\n");
-            }
             Self::StructDecl {
                 visibility,
                 name,
@@ -345,6 +326,25 @@ impl ToRust for TopLevelKind {
                 for (field_name, _, ty) in &fields.0 {
                     let ty = ty.get_rust();
                     cg.add_indentedln(&format!("pub {}: {},", field_name.get_rust(), ty));
+                }
+
+                cg.indent -= 1;
+                cg.addln("}\n");
+            }
+            Self::EnumDecl {
+                visibility,
+                name,
+                fields,
+            } => {
+                cg.addln(&format!(
+                    "{}enum {} {{",
+                    visibility.get_rust(),
+                    name.get_rust()
+                ));
+                cg.indent += 1;
+
+                for field in fields {
+                    cg.add_indentedln(&(format!("{}", field.get_rust()) + ","));
                 }
 
                 cg.indent -= 1;
