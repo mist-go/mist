@@ -211,12 +211,17 @@ impl From<pest::iterators::Pair<'_, Rule>> for ClassConstructor {
 
         let visibility = Visibility::from(&mut inner);
 
+        let generics = consume_rule(&mut inner, Rule::generics)
+            .map(Generics::from)
+            .unwrap_or_default();
+
         let params = consume_rule(&mut inner, Rule::param_list)
             .map(ParamList::from)
             .unwrap_or_else(|| ParamList(Vec::new()));
 
         Self {
             visibility,
+            generics,
             params,
             body: Block::from(inner.next().unwrap()),
         }

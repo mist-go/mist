@@ -212,7 +212,7 @@ enum_decl = {
 // ======================================================
 
 class_constructor = {
-    export? ~ "constructor" ~ "(" ~ param_list? ~ ")" ~ block
+    export? ~ "constructor" ~ generics? ~ "(" ~ param_list? ~ ")" ~ block
 }
 
 class_fields = {

@@ -394,8 +394,9 @@ impl ToRust for TopLevelKind {
                     .join(", ");
 
                 cg.add_indentedln(&format!(
-                    "{}fn new({}) -> Self {{",
+                    "{}fn new{}({}) -> Self {{",
                     constructor.visibility.get_rust(),
+                    constructor.generics.get_rust(),
                     params_str
                 ));
                 cg.indent += 1;
@@ -430,8 +431,9 @@ impl ToRust for TopLevelKind {
 
                 // Constructor function
                 cg.add_indentedln(&format!(
-                    "{}fn construct_class(&mut self, {}) {{",
+                    "{}fn construct_class{}(&mut self, {}) {{",
                     constructor.visibility.get_rust(),
+                    constructor.generics.get_rust(),
                     params_str
                 ));
                 cg.indent += 1;

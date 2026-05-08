@@ -120,6 +120,7 @@ pub enum EnumItem {
 #[derive(Debug, Clone, Serialize)]
 pub struct ClassConstructor {
     pub visibility: Visibility,
+    pub generics: Generics,
     pub params: ParamList,
     pub body: Block,
 }
