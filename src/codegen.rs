@@ -1,6 +1,6 @@
 use parser::ast::{
-    Attribute, BinaryOp, Block, EnumItem, Expression, FunctionDecl, Identifier, Literal, Path,
-    Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr,
+    Attribute, BinaryOp, Block, EnumItem, Expression, FunctionDecl, Generics, Identifier, Literal,
+    Path, Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr,
     TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
 };
 
@@ -238,6 +238,8 @@ impl GetRust for Postfix {
                     BinaryOp::GreaterThan => ">",
                     BinaryOp::LessThanOrEqual => "<=",
                     BinaryOp::GreaterThanOrEqual => ">=",
+                    BinaryOp::And => "&&",
+                    BinaryOp::Or => "||",
                 };
                 format!(" {} {}", op_str, rhs.get_rust())
             }
@@ -314,12 +316,14 @@ impl ToRust for TopLevelKind {
             Self::StructDecl {
                 visibility,
                 name,
+                generics,
                 fields,
             } => {
                 cg.addln(&format!(
-                    "{}struct {} {{",
+                    "{}struct {}{} {{",
                     visibility.get_rust(),
-                    name.get_rust()
+                    name.get_rust(),
+                    generics.get_rust()
                 ));
                 cg.indent += 1;
 
@@ -334,12 +338,14 @@ impl ToRust for TopLevelKind {
             Self::EnumDecl {
                 visibility,
                 name,
+                generics,
                 fields,
             } => {
                 cg.addln(&format!(
-                    "{}enum {} {{",
+                    "{}enum {}{} {{",
                     visibility.get_rust(),
-                    name.get_rust()
+                    name.get_rust(),
+                    generics.get_rust()
                 ));
                 cg.indent += 1;
 
@@ -353,15 +359,17 @@ impl ToRust for TopLevelKind {
             Self::ClassDecl {
                 visibility,
                 name,
+                generics,
                 fields,
                 constructor,
                 methods,
             } => {
                 // Struct decl
                 cg.addln(&format!(
-                    "{}struct {} {{",
+                    "{}struct {}{} {{",
                     visibility.get_rust(),
-                    name.get_rust()
+                    name.get_rust(),
+                    generics.get_rust()
                 ));
                 cg.indent += 1;
 
@@ -386,8 +394,9 @@ impl ToRust for TopLevelKind {
                     .join(", ");
 
                 cg.add_indentedln(&format!(
-                    "{}fn new({}) -> Self {{",
+                    "{}fn new{}({}) -> Self {{",
                     constructor.visibility.get_rust(),
+                    constructor.generics.get_rust(),
                     params_str
                 ));
                 cg.indent += 1;
@@ -422,8 +431,9 @@ impl ToRust for TopLevelKind {
 
                 // Constructor function
                 cg.add_indentedln(&format!(
-                    "{}fn construct_class(&mut self, {}) {{",
+                    "{}fn construct_class{}(&mut self, {}) {{",
                     constructor.visibility.get_rust(),
+                    constructor.generics.get_rust(),
                     params_str
                 ));
                 cg.indent += 1;
@@ -577,9 +587,10 @@ impl ToRust for FunctionDecl {
             .join(", ");
 
         cg.add_indentedln(&format!(
-            "{}fn {}({}) -> {} {{",
+            "{}fn {}{}({}) -> {} {{",
             self.visibility.get_rust(),
             self.name.get_rust(),
+            self.generics.get_rust(),
             params_str,
             self.return_type.get_rust()
         ));
@@ -697,6 +708,36 @@ impl GetRust for Pattern {
                         .join(", ")
                 )
             }
+        }
+    }
+}
+
+impl GetRust for Generics {
+    fn get_rust(&self) -> String {
+        if self.0.len() == 0 {
+            String::new()
+        } else {
+            format!(
+                "<{}>",
+                self.0
+                    .iter()
+                    .map(|generic| generic.0.get_rust()
+                        + &(if generic.1.len() == 0 {
+                            String::new()
+                        } else {
+                            format!(
+                                ": {}",
+                                generic
+                                    .1
+                                    .iter()
+                                    .map(Path::get_rust)
+                                    .collect::<Vec<_>>()
+                                    .join("+")
+                            )
+                        }))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
         }
     }
 }

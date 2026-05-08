@@ -211,14 +211,41 @@ impl From<pest::iterators::Pair<'_, Rule>> for ClassConstructor {
 
         let visibility = Visibility::from(&mut inner);
 
+        let generics = consume_rule(&mut inner, Rule::generics)
+            .map(Generics::from)
+            .unwrap_or_default();
+
         let params = consume_rule(&mut inner, Rule::param_list)
             .map(ParamList::from)
             .unwrap_or_else(|| ParamList(Vec::new()));
 
         Self {
             visibility,
+            generics,
             params,
             body: Block::from(inner.next().unwrap()),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for Generics {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let rule = pair.as_rule();
+        let inner = pair.clone().into_inner();
+
+        match rule {
+            Rule::generics => Generics(
+                inner
+                    .map(|pair| {
+                        let mut inner = pair.into_inner();
+                        (
+                            Identifier::from(inner.next().unwrap()),
+                            inner.map(Path::from).collect(),
+                        )
+                    })
+                    .collect(),
+            ),
+            _ => unimplemented!("{rule:#?}"),
         }
     }
 }
@@ -233,22 +260,21 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
 
             Rule::function_decl => TopLevelKind::FunctionDecl(FunctionDecl::from(pair)),
 
-            Rule::struct_decl => {
-                let visibility = Visibility::from(&mut inner);
-                let name = Identifier::from(inner.next().unwrap());
-                let fields_pair = inner.next().unwrap();
-                let fields = FieldList::from(fields_pair);
-
-                TopLevelKind::StructDecl {
-                    visibility,
-                    name,
-                    fields,
-                }
-            }
+            Rule::struct_decl => TopLevelKind::StructDecl {
+                visibility: Visibility::from(&mut inner),
+                name: Identifier::from(inner.next().unwrap()),
+                generics: consume_rule(&mut inner, Rule::generics)
+                    .map(Generics::from)
+                    .unwrap_or_default(),
+                fields: inner.next().map(FieldList::from).unwrap_or_default(),
+            },
 
             Rule::class_decl => TopLevelKind::ClassDecl {
                 visibility: Visibility::from(&mut inner),
                 name: Identifier::from(inner.next().unwrap()),
+                generics: consume_rule(&mut inner, Rule::generics)
+                    .map(Generics::from)
+                    .unwrap_or_default(),
                 fields: inner
                     .next()
                     .unwrap()
@@ -262,6 +288,9 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
             Rule::enum_decl => TopLevelKind::EnumDecl {
                 visibility: Visibility::from(&mut inner),
                 name: Identifier::from(inner.next().unwrap()),
+                generics: consume_rule(&mut inner, Rule::generics)
+                    .map(Generics::from)
+                    .unwrap_or_default(),
                 fields: inner.map(EnumItem::from).collect(),
             },
 
@@ -498,6 +527,8 @@ impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
                     ">" => BinaryOp::GreaterThan,
                     "<=" => BinaryOp::LessThanOrEqual,
                     ">=" => BinaryOp::GreaterThanOrEqual,
+                    "&&" => BinaryOp::And,
+                    "||" => BinaryOp::Or,
 
                     _ => {
                         unimplemented!("Binary operator not implemented yet: {}", op_pair.as_str())
@@ -592,12 +623,13 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
 impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let mut inner = pair.into_inner();
-
         let visibility = Visibility::from(&mut inner);
-
         let return_type = TypeExpr::from(inner.next().unwrap());
-
         let name = Identifier::from(inner.next().unwrap());
+        let generics = consume_rule(&mut inner, Rule::generics)
+            .map(Generics::from)
+            .unwrap_or_default();
+
         let self_param = consume_rule(&mut inner, Rule::self_param).map(|param| {
             let mut param_inner = param.into_inner();
             let name = Pattern::Id(Identifier(String::from("self")));
@@ -642,6 +674,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
         Self {
             visibility,
             name,
+            generics,
             params,
             return_type,
             body,

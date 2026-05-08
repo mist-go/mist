@@ -3,13 +3,13 @@ use serde::Serialize;
 #[derive(Debug, Clone, Serialize)]
 pub struct Identifier(pub String);
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct FieldList(pub Vec<(Identifier, Visibility, TypeExpr)>);
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct ParamList(pub Vec<VarDecl>);
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct Block(pub Vec<Statement>);
 
 #[derive(Debug, Clone, Serialize)]
@@ -62,6 +62,8 @@ pub enum BinaryOp {
     GreaterThan,
     LessThanOrEqual,
     GreaterThanOrEqual,
+    And,
+    Or,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -75,10 +77,12 @@ pub enum TopLevelKind {
     EnumDecl {
         visibility: Visibility,
         name: Identifier,
+        generics: Generics,
         fields: Vec<EnumItem>,
     },
     StructDecl {
         visibility: Visibility,
+        generics: Generics,
         name: Identifier,
         fields: FieldList,
     },
@@ -86,11 +90,15 @@ pub enum TopLevelKind {
     ClassDecl {
         visibility: Visibility,
         name: Identifier,
+        generics: Generics,
         fields: Vec<VarDeclStmt>,
         constructor: ClassConstructor,
         methods: Vec<FunctionDecl>,
     },
 }
+
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct Generics(pub Vec<(Identifier, Vec<Path>)>);
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Pattern {
@@ -112,6 +120,7 @@ pub enum EnumItem {
 #[derive(Debug, Clone, Serialize)]
 pub struct ClassConstructor {
     pub visibility: Visibility,
+    pub generics: Generics,
     pub params: ParamList,
     pub body: Block,
 }
@@ -120,6 +129,7 @@ pub struct ClassConstructor {
 pub struct FunctionDecl {
     pub visibility: Visibility,
     pub name: Identifier,
+    pub generics: Generics,
     pub params: ParamList,
     pub return_type: TypeExpr,
     pub body: Block,
