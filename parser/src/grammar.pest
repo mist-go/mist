@@ -204,7 +204,7 @@ enum_fields = _{
 }
 
 enum_decl = {
-    export? ~ "enum" ~ identifier ~ "{" ~ enum_fields ~ "}"
+    export? ~ "enum" ~ identifier ~ generics? ~ "{" ~ enum_fields ~ "}"
 }
 
 // ======================================================
@@ -224,11 +224,11 @@ self_param = {
 }
 
 method = {
-    export? ~ type_expr ~ identifier ~ "(" ~ self_param? ~ param_list? ~ ")" ~ block
+    export? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ param_list? ~ ")" ~ block
 }
 
 class_decl = {
-    export? ~ "class" ~ identifier ~ "{" ~ class_fields ~ class_constructor ~ method* ~ "}"
+    export? ~ "class" ~ identifier ~ generics? ~ "{" ~ class_fields ~ class_constructor ~ method* ~ "}"
 }
 
 // ======================================================

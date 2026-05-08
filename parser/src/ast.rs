@@ -77,6 +77,7 @@ pub enum TopLevelKind {
     EnumDecl {
         visibility: Visibility,
         name: Identifier,
+        generics: Generics,
         fields: Vec<EnumItem>,
     },
     StructDecl {
@@ -89,6 +90,7 @@ pub enum TopLevelKind {
     ClassDecl {
         visibility: Visibility,
         name: Identifier,
+        generics: Generics,
         fields: Vec<VarDeclStmt>,
         constructor: ClassConstructor,
         methods: Vec<FunctionDecl>,
@@ -126,6 +128,7 @@ pub struct ClassConstructor {
 pub struct FunctionDecl {
     pub visibility: Visibility,
     pub name: Identifier,
+    pub generics: Generics,
     pub params: ParamList,
     pub return_type: TypeExpr,
     pub body: Block,

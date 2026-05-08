@@ -338,12 +338,14 @@ impl ToRust for TopLevelKind {
             Self::EnumDecl {
                 visibility,
                 name,
+                generics,
                 fields,
             } => {
                 cg.addln(&format!(
-                    "{}enum {} {{",
+                    "{}enum {}{} {{",
                     visibility.get_rust(),
-                    name.get_rust()
+                    name.get_rust(),
+                    generics.get_rust()
                 ));
                 cg.indent += 1;
 
@@ -357,15 +359,17 @@ impl ToRust for TopLevelKind {
             Self::ClassDecl {
                 visibility,
                 name,
+                generics,
                 fields,
                 constructor,
                 methods,
             } => {
                 // Struct decl
                 cg.addln(&format!(
-                    "{}struct {} {{",
+                    "{}struct {}{} {{",
                     visibility.get_rust(),
-                    name.get_rust()
+                    name.get_rust(),
+                    generics.get_rust()
                 ));
                 cg.indent += 1;
 
@@ -581,9 +585,10 @@ impl ToRust for FunctionDecl {
             .join(", ");
 
         cg.add_indentedln(&format!(
-            "{}fn {}({}) -> {} {{",
+            "{}fn {}{}({}) -> {} {{",
             self.visibility.get_rust(),
             self.name.get_rust(),
+            self.generics.get_rust(),
             params_str,
             self.return_type.get_rust()
         ));
