@@ -1,59 +1,115 @@
+// ======================================================
+// LEXICAL
+// ======================================================
+
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 COMMENT    = _{ "//" ~ (!"\n" ~ ANY)* }
 
-program = { SOI ~ top_level* ~ EOI }
+// ------------------------------------------------------
+// PRIMITIVES
+// ------------------------------------------------------
 
-// primitives
-identifier  = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
-integer     = @{ ASCII_DIGIT+ }
-float       = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+ }
-boolean     =  { "true" | "false" }
-string_lit  =  { "\"" ~ inner_str ~ "\"" }
-inner_str   = @{ (!"\"" ~ ("\\\"" | ANY))* }
-static_path =  { identifier ~ ("::" ~ identifier)* }
+identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
-// pattern
-tuple_pattern       =  { "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")" }
-named_tuple_pattern =  { static_path ~ "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")" }
-struct_pattern      =  { static_path ~ "{" ~ (identifier ~ ("," ~ identifier)*)? ~ "}" }
-pattern             = _{ named_tuple_pattern | tuple_pattern | struct_pattern | literal | static_path }
+integer = @{ ASCII_DIGIT+ }
 
-export    =  { "public" }
-mutable   =  { "mut" }
-var       =  { "var" }
-var_decl  =  { (var | type_expr) ~ mutable? ~ pattern }
+float = @{
+    ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT+
+}
+
+boolean = {
+    "true"
+  | "false"
+}
+
+string_lit = {
+    "\"" ~ inner_str ~ "\""
+}
+
+inner_str = @{
+    (!"\"" ~ ("\\\"" | ANY))*
+}
+
 semicolon = _{ ";" }
 
-// ================= CLASS =================
-class_constructor = {
-    export? ~ "constructor" ~ "(" ~ param_list? ~ ")" ~ block
+static_path = {
+    identifier ~ ("::" ~ identifier)*
 }
 
-class_fields = { var_decl_statement* }
+// ======================================================
+// PROGRAM
+// ======================================================
 
-self_param = { "self" ~ mutable? ~ deref_px? }
-
-method = {
-    export? ~ type_expr ~ identifier ~ "(" ~ self_param? ~ param_list? ~ ")" ~ block
+program = {
+    SOI ~ top_level* ~ EOI
 }
 
-class_decl = {
-    export? ~ "class" ~ identifier ~ "{" ~ class_fields ~ class_constructor ~ method* ~ "}"
+// ======================================================
+// MODIFIERS
+// ======================================================
+
+export  = { "public" }
+mutable = { "mut" }
+var     = { "var" }
+
+// ======================================================
+// TYPES
+// ======================================================
+
+tuple_type = {
+    "(" ~ (type_expr ~ ("," ~ type_expr)*)? ~ ")"
 }
 
-// ================= TOP LEVEL =================
+path_type = {
+    static_path ~ ("<" ~ (type_expr ~ ("," ~ type_expr)*)? ~ ">")?
+}
 
-enum_named  = { identifier }
-enum_tuple  = { identifier ~ tuple_type }
-enum_struct = { identifier ~ "{" ~ field_list ~ "}" }
+ref_type = {
+    mutable? ~ "*"
+}
 
-enum_field = _{ enum_tuple | enum_struct | enum_named }
+type_expr = {
+    (path_type | tuple_type) ~ ref_type*
+}
 
-enum_fields = _{ enum_field ~ ("," ~ enum_field)* ~ ","? }
+// ======================================================
+// LITERALS
+// ======================================================
 
-enum_decl = { export? ~ "enum" ~ identifier ~ "{" ~ enum_fields ~ "}" }
+literal = {
+    float
+  | integer
+  | boolean
+  | string_lit
+}
 
-top_level = { (attributes ~ (import | function_decl | struct_decl | enum_decl | class_decl | mod_package)) | mod_attribute }
+// ======================================================
+// PATTERNS
+// ======================================================
+
+tuple_pattern = {
+    "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")"
+}
+
+named_tuple_pattern = {
+    static_path ~ "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")"
+}
+
+struct_pattern = {
+    static_path ~ "{" ~ (identifier ~ ("," ~ identifier)*)? ~ "}"
+}
+
+pattern = _{
+    named_tuple_pattern
+  | tuple_pattern
+  | struct_pattern
+  | literal
+  | static_path
+}
+
+// ======================================================
+// ATTRIBUTES / META
+// ======================================================
 
 attribute = {
     "#" ~ "[" ~ meta ~ "]"
@@ -71,30 +127,132 @@ meta_list = {
     meta ~ ("," ~ meta)* ~ ","?
 }
 
-attributes = { attribute* }
+attributes = {
+    attribute*
+}
 
-import = { "use" ~ "<" ~ static_path ~ ">" ~ semicolon }
+// ======================================================
+// DECLARATION HELPERS
+// ======================================================
 
-mod_package = { "mod" ~ identifier ~ semicolon }
+var_decl = {
+    (var | type_expr) ~ mutable? ~ pattern
+}
 
-field_list = { field ~ ("," ~ field)* ~ ","? }
-field      = { export? ~ type_expr ~ identifier }
+field = {
+    export? ~ type_expr ~ identifier
+}
 
-param_list = { var_decl ~ ("," ~ var_decl)* ~ ","? }
+field_list = {
+    field ~ ("," ~ field)* ~ ","?
+}
+
+param_list = {
+    var_decl ~ ("," ~ var_decl)* ~ ","?
+}
+
+// ======================================================
+// IMPORTS / MODULES
+// ======================================================
+
+import = {
+    "use" ~ "<" ~ static_path ~ ">" ~ semicolon
+}
+
+mod_package = {
+    "mod" ~ identifier ~ semicolon
+}
+
+// ======================================================
+// STRUCTS
+// ======================================================
 
 struct_decl = {
     export? ~ "struct" ~ identifier ~ "{" ~ field_list? ~ "}"
 }
 
+// ======================================================
+// ENUMS
+// ======================================================
+
+enum_named = {
+    identifier
+}
+
+enum_tuple = {
+    identifier ~ tuple_type
+}
+
+enum_struct = {
+    identifier ~ "{" ~ field_list ~ "}"
+}
+
+enum_field = _{
+    enum_tuple
+  | enum_struct
+  | enum_named
+}
+
+enum_fields = _{
+    enum_field ~ ("," ~ enum_field)* ~ ","?
+}
+
+enum_decl = {
+    export? ~ "enum" ~ identifier ~ "{" ~ enum_fields ~ "}"
+}
+
+// ======================================================
+// CLASSES
+// ======================================================
+
+class_constructor = {
+    export? ~ "constructor" ~ "(" ~ param_list? ~ ")" ~ block
+}
+
+class_fields = {
+    var_decl_statement*
+}
+
+self_param = {
+    "self" ~ mutable? ~ deref_px?
+}
+
+method = {
+    export? ~ type_expr ~ identifier ~ "(" ~ self_param? ~ param_list? ~ ")" ~ block
+}
+
+class_decl = {
+    export? ~ "class" ~ identifier ~ "{" ~ class_fields ~ class_constructor ~ method* ~ "}"
+}
+
+// ======================================================
+// FUNCTIONS
+// ======================================================
+
 function_decl = {
     export? ~ type_expr ~ identifier ~ "(" ~ param_list? ~ ")" ~ block
 }
 
-// ================= STATEMENTS =================
+// ======================================================
+// TOP LEVEL
+// ======================================================
 
-block = { "{" ~ statement_list ~ "}" }
+top_level = {
+    (attributes ~ (import | function_decl | struct_decl | enum_decl | class_decl | mod_package))
+  | mod_attribute
+}
 
-statement_list = { statement* }
+// ======================================================
+// STATEMENTS
+// ======================================================
+
+block = {
+    "{" ~ statement_list ~ "}"
+}
+
+statement_list = {
+    statement*
+}
 
 statement = _{
     expr_stmt
@@ -111,27 +269,53 @@ statement = _{
   | block
 }
 
-// --- basic statements ---
+// ------------------------------------------------------
+// BASIC STATEMENTS
+// ------------------------------------------------------
 
-expr_stmt = { expr ~ semicolon }
+expr_stmt = {
+    expr ~ semicolon
+}
 
-return_stmt = { "return" ~ expr? ~ semicolon }
+return_stmt = {
+    "return" ~ expr? ~ semicolon
+}
 
-break_stmt = { "break" ~ semicolon }
+break_stmt = {
+    "break" ~ semicolon
+}
 
-continue_stmt = { "continue" ~ semicolon }
+continue_stmt = {
+    "continue" ~ semicolon
+}
 
-var_decl_statement = { var_decl ~ ("=" ~ expr)? ~ semicolon }
+var_decl_statement = {
+    var_decl ~ ("=" ~ expr)? ~ semicolon
+}
 
-assign_statement = { expr ~ "=" ~ expr ~ semicolon }
+assign_statement = {
+    expr ~ "=" ~ expr ~ semicolon
+}
 
-else_if = { "else" ~ "if" ~ "(" ~ expr ~ ")" ~ statement }
+// ------------------------------------------------------
+// CONDITIONALS
+// ------------------------------------------------------
 
-else_if_list = { else_if* }
+else_if = {
+    "else" ~ "if" ~ "(" ~ expr ~ ")" ~ statement
+}
+
+else_if_list = {
+    else_if*
+}
 
 if_stmt = {
     "if" ~ "(" ~ expr ~ ")" ~ statement ~ else_if_list ~ ("else" ~ statement)?
 }
+
+// ------------------------------------------------------
+// LOOPS
+// ------------------------------------------------------
 
 while_stmt = {
     "while" ~ "(" ~ expr ~ ")" ~ statement
@@ -145,36 +329,79 @@ for_stmt = {
     "for" ~ "(" ~ mutable? ~ pattern ~ "in" ~ expr ~ ")" ~ statement
 }
 
-match_item = { pattern ~ "=>" ~ block }
+// ------------------------------------------------------
+// MATCH
+// ------------------------------------------------------
+
+match_item = {
+    pattern ~ "=>" ~ block
+}
 
 match_stmt = {
     "match" ~ "(" ~ expr ~ ")" ~ "{" ~ match_item* ~ "}"
 }
 
-// ================= EXPRESSIONS =================
-tuple_type = { "(" ~ (type_expr ~ ("," ~ type_expr)*)? ~ ")" }
-path_type  = { static_path ~ ("<" ~ (type_expr ~ ("," ~ type_expr)*)? ~ ">")? }
-ref_type   = { mutable? ~ "*" }
-type_expr  = { (path_type | tuple_type) ~ ref_type* }
+// ======================================================
+// EXPRESSIONS
+// ======================================================
+
+// ------------------------------------------------------
+// TUPLES
+// ------------------------------------------------------
+
+tuple = {
+    "(" ~ (expr ~ ("," ~ expr)*)? ~ ")"
+}
+
+// ------------------------------------------------------
+// MACROS
+// ------------------------------------------------------
 
 macro_inner_v = {
     "(" ~ macro_inner_v* ~ ")"
   | (!("(" | ")") ~ ANY)
 }
 
-tuple = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
-
-literal = {
-    float
-  | integer
-  | boolean
-  | string_lit
-}
+// ------------------------------------------------------
+// PRIMARY EXPRESSIONS
+// ------------------------------------------------------
 
 primary = {
     literal
   | static_path
   | tuple
+}
+
+// ------------------------------------------------------
+// POSTFIX EXPRESSIONS
+// ------------------------------------------------------
+
+field_px = {
+    "." ~ identifier
+}
+
+call_px = {
+    "(" ~ (expr ~ ("," ~ expr)*)? ~ ")"
+}
+
+macro_call_px = {
+    "!" ~ "(" ~ macro_inner_v* ~ ")"
+}
+
+struct_field_decl = {
+    identifier ~ ":" ~ expr
+}
+
+struct_px = {
+    "{" ~ (struct_field_decl ~ ("," ~ struct_field_decl)*)? ~ ","? ~ "}"
+}
+
+index_px = {
+    "[" ~ expr ~ "]"
+}
+
+binary_px = {
+    bin_op ~ expr
 }
 
 postfix = {
@@ -186,14 +413,29 @@ postfix = {
   | binary_px
 }
 
-field_px          = { "." ~ identifier }
-call_px           = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ")" }
-macro_call_px     = { "!" ~ "(" ~ macro_inner_v* ~ ")" }
-struct_px         = { "{" ~ (struct_field_decl ~ ("," ~ struct_field_decl)*)? ~ ","? ~ "}" }
-index_px          = { "[" ~ expr ~ "]" }
-binary_px         = { bin_op ~ expr }
-bin_op            = { "<=" | ">=" | "==" | "!=" | "&&" | "||" | "+" | "-" | "*" | "/" | "%" | "<" | ">" }
-struct_field_decl = { identifier ~ ":" ~ expr }
+// ------------------------------------------------------
+// PREFIX EXPRESSIONS
+// ------------------------------------------------------
+
+deref_px = {
+    "*"
+}
+
+mut_ref_px = {
+    "&" ~ mutable
+}
+
+ref_px = {
+    "&"
+}
+
+new_px = {
+    "new"
+}
+
+not_px = {
+    "!"
+}
 
 prefix = {
     deref_px
@@ -203,13 +445,33 @@ prefix = {
   | not_px
 }
 
-deref_px   = { "*" }
-mut_ref_px = { "&" ~ mutable }
-ref_px     = { "&" }
-new_px     = { "new" }
-not_px     = { "!" }
+prefix_list = {
+    prefix*
+}
 
-prefix_list = { prefix* }
+// ------------------------------------------------------
+// OPERATORS
+// ------------------------------------------------------
+
+bin_op = {
+    "<="
+  | ">="
+  | "=="
+  | "!="
+  | "&&"
+  | "||"
+  | "+"
+  | "-"
+  | "*"
+  | "/"
+  | "%"
+  | "<"
+  | ">"
+}
+
+// ------------------------------------------------------
+// EXPRESSIONS
+// ------------------------------------------------------
 
 expr = {
     prefix_list ~ primary ~ postfix*
