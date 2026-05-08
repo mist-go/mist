@@ -721,20 +721,24 @@ impl GetRust for Generics {
                 "<{}>",
                 self.0
                     .iter()
-                    .map(|generic| generic.0.get_rust()
-                        + &(if generic.1.len() == 0 {
-                            String::new()
-                        } else {
-                            format!(
-                                ": {}",
-                                generic
-                                    .1
-                                    .iter()
-                                    .map(Path::get_rust)
-                                    .collect::<Vec<_>>()
-                                    .join("+")
-                            )
-                        }))
+                    .map(|generic| match generic {
+                        parser::ast::Generic::Lifetime(name) => format!("'{}", name.get_rust()),
+                        parser::ast::Generic::Type(name, requirements) => {
+                            name.get_rust()
+                                + &(if requirements.len() == 0 {
+                                    String::new()
+                                } else {
+                                    format!(
+                                        ": {}",
+                                        requirements
+                                            .iter()
+                                            .map(TypeExpr::get_rust)
+                                            .collect::<Vec<_>>()
+                                            .join("+")
+                                    )
+                                })
+                        }
+                    })
                     .collect::<Vec<_>>()
                     .join(", ")
             )

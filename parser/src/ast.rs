@@ -98,7 +98,13 @@ pub enum TopLevelKind {
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
-pub struct Generics(pub Vec<(Identifier, Vec<Path>)>);
+pub struct Generics(pub Vec<Generic>);
+
+#[derive(Debug, Clone, Serialize)]
+pub enum Generic {
+    Lifetime(Identifier),
+    Type(Identifier, Vec<TypeExpr>),
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Pattern {

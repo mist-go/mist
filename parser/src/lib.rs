@@ -238,10 +238,14 @@ impl From<pest::iterators::Pair<'_, Rule>> for Generics {
                 inner
                     .map(|pair| {
                         let mut inner = pair.into_inner();
-                        (
-                            Identifier::from(inner.next().unwrap()),
-                            inner.map(Path::from).collect(),
-                        )
+                        if let Some(pair) = consume_rule(&mut inner, Rule::lifetime) {
+                            Generic::Lifetime(Identifier::from(pair.into_inner().next().unwrap()))
+                        } else {
+                            Generic::Type(
+                                Identifier::from(inner.next().unwrap()),
+                                inner.map(TypeExpr::from).collect(),
+                            )
+                        }
                     })
                     .collect(),
             ),

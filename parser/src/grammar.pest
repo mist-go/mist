@@ -55,7 +55,7 @@ var     = { "var" }
 // ======================================================
 // GENERICS
 // ======================================================
-generic  = { identifier ~ (":" ~ static_path ~ ("+" ~ static_path)*)? }
+generic  = { lifetime | (identifier ~ (":" ~ type_expr_param ~ ("+" ~ type_expr_param)*)?) }
 generics = { "<" ~ (generic ~ ("," ~ generic)*)? ~ ">" }
 
 // ======================================================
@@ -67,7 +67,7 @@ tuple_type = {
 }
 
 path_type = {
-    static_path ~ ("<" ~ (type_expr ~ ("," ~ type_expr)*)? ~ ">")?
+    static_path ~ ("<" ~ (type_expr_param ~ ("," ~ type_expr_param)*)? ~ ">")?
 }
 
 ref_type = {
@@ -76,6 +76,15 @@ ref_type = {
 
 type_expr = {
     (path_type | tuple_type) ~ ref_type*
+}
+
+lifetime = {
+    "'" ~ identifier
+}
+
+type_expr_param = {
+    type_expr
+  | lifetime
 }
 
 // ======================================================
