@@ -36,6 +36,11 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExpr {
                 TypeExprKind::from(inner.next().unwrap()),
                 inner.map(TypePostfix::from).collect(),
             ),
+            Rule::type_expr_param => TypeExpr::from(inner.next().unwrap()),
+            Rule::lifetime => TypeExpr(
+                TypeExprKind::Lifetime(Identifier::from(inner.next().unwrap())),
+                Vec::new(),
+            ),
             _ => unimplemented!("{rule:#?}"),
         }
     }

@@ -96,6 +96,7 @@ impl GetRust for TypeExprKind {
     fn get_rust(&self) -> String {
         match self {
             TypeExprKind::Path(path) => get_static_type_path(path),
+            TypeExprKind::Lifetime(name) => format!("'{}", name.get_rust()),
             TypeExprKind::PathParams(path, params) => {
                 format!(
                     "{}<{}>",

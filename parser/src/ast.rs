@@ -41,6 +41,7 @@ pub enum TypeExprKind {
     Path(Path),
     PathParams(Path, Vec<TypeExpr>),
     Tuple(Vec<TypeExpr>),
+    Lifetime(Identifier),
 }
 
 #[derive(Debug, Clone, Serialize)]
