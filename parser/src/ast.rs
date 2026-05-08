@@ -62,6 +62,8 @@ pub enum BinaryOp {
     GreaterThan,
     LessThanOrEqual,
     GreaterThanOrEqual,
+    And,
+    Or,
 }
 
 #[derive(Debug, Clone, Serialize)]

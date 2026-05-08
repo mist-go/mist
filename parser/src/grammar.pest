@@ -192,7 +192,7 @@ macro_call_px     = { "!" ~ "(" ~ macro_inner_v* ~ ")" }
 struct_px         = { "{" ~ (struct_field_decl ~ ("," ~ struct_field_decl)*)? ~ ","? ~ "}" }
 index_px          = { "[" ~ expr ~ "]" }
 binary_px         = { bin_op ~ expr }
-bin_op            = { "<=" | ">=" | "==" | "!=" | "+" | "-" | "*" | "/" | "%" | "<" | ">" }
+bin_op            = { "<=" | ">=" | "==" | "!=" | "&&" | "||" | "+" | "-" | "*" | "/" | "%" | "<" | ">" }
 struct_field_decl = { identifier ~ ":" ~ expr }
 
 prefix = {

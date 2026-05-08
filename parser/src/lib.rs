@@ -498,6 +498,8 @@ impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
                     ">" => BinaryOp::GreaterThan,
                     "<=" => BinaryOp::LessThanOrEqual,
                     ">=" => BinaryOp::GreaterThanOrEqual,
+                    "&&" => BinaryOp::And,
+                    "||" => BinaryOp::Or,
 
                     _ => {
                         unimplemented!("Binary operator not implemented yet: {}", op_pair.as_str())

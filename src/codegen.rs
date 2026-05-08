@@ -238,6 +238,8 @@ impl GetRust for Postfix {
                     BinaryOp::GreaterThan => ">",
                     BinaryOp::LessThanOrEqual => "<=",
                     BinaryOp::GreaterThanOrEqual => ">=",
+                    BinaryOp::And => "&&",
+                    BinaryOp::Or => "||",
                 };
                 format!(" {} {}", op_str, rhs.get_rust())
             }
