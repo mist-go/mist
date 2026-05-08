@@ -81,6 +81,7 @@ pub enum TopLevelKind {
     },
     StructDecl {
         visibility: Visibility,
+        generics: Generics,
         name: Identifier,
         fields: FieldList,
     },
@@ -93,6 +94,9 @@ pub enum TopLevelKind {
         methods: Vec<FunctionDecl>,
     },
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Generics(pub Vec<(Identifier, Vec<Path>)>);
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Pattern {

@@ -223,6 +223,28 @@ impl From<pest::iterators::Pair<'_, Rule>> for ClassConstructor {
     }
 }
 
+impl From<pest::iterators::Pair<'_, Rule>> for Generics {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let rule = pair.as_rule();
+        let inner = pair.clone().into_inner();
+
+        match rule {
+            Rule::generics => Generics(
+                inner
+                    .map(|pair| {
+                        let mut inner = pair.into_inner();
+                        (
+                            Identifier::from(inner.next().unwrap()),
+                            inner.map(Path::from).collect(),
+                        )
+                    })
+                    .collect(),
+            ),
+            _ => unimplemented!("{rule:#?}"),
+        }
+    }
+}
+
 impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let rule = pair.as_rule();
@@ -233,18 +255,14 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
 
             Rule::function_decl => TopLevelKind::FunctionDecl(FunctionDecl::from(pair)),
 
-            Rule::struct_decl => {
-                let visibility = Visibility::from(&mut inner);
-                let name = Identifier::from(inner.next().unwrap());
-                let fields_pair = inner.next().unwrap();
-                let fields = FieldList::from(fields_pair);
-
-                TopLevelKind::StructDecl {
-                    visibility,
-                    name,
-                    fields,
-                }
-            }
+            Rule::struct_decl => TopLevelKind::StructDecl {
+                visibility: Visibility::from(&mut inner),
+                name: Identifier::from(inner.next().unwrap()),
+                generics: consume_rule(&mut inner, Rule::generics)
+                    .map(Generics::from)
+                    .unwrap_or(Generics(Vec::new())),
+                fields: FieldList::from(inner.next().unwrap()),
+            },
 
             Rule::class_decl => TopLevelKind::ClassDecl {
                 visibility: Visibility::from(&mut inner),
