@@ -260,8 +260,8 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
                 name: Identifier::from(inner.next().unwrap()),
                 generics: consume_rule(&mut inner, Rule::generics)
                     .map(Generics::from)
-                    .unwrap_or(Generics(Vec::new())),
-                fields: FieldList::from(inner.next().unwrap()),
+                    .unwrap_or_default(),
+                fields: inner.next().map(FieldList::from).unwrap_or_default(),
             },
 
             Rule::class_decl => TopLevelKind::ClassDecl {

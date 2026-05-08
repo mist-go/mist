@@ -3,13 +3,13 @@ use serde::Serialize;
 #[derive(Debug, Clone, Serialize)]
 pub struct Identifier(pub String);
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct FieldList(pub Vec<(Identifier, Visibility, TypeExpr)>);
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct ParamList(pub Vec<VarDecl>);
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct Block(pub Vec<Statement>);
 
 #[derive(Debug, Clone, Serialize)]
@@ -95,7 +95,7 @@ pub enum TopLevelKind {
     },
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct Generics(pub Vec<(Identifier, Vec<Path>)>);
 
 #[derive(Debug, Clone, Serialize)]
