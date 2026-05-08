@@ -2,6 +2,8 @@ mod my_class;
 use <my_class::MyClass>;
 use <my_class::MyEnum>;
 
+struct Test<T> {}
+
 void main() {
     var my_class = new MyClass("World");
     my_class.greet();
