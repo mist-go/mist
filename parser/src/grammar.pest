@@ -71,7 +71,7 @@ path_type = {
 }
 
 ref_type = {
-    mutable? ~ "*"
+    mutable? ~ lifetime? ~ "*"
 }
 
 type_expr = {

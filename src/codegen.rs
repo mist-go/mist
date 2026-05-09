@@ -634,6 +634,8 @@ impl GetRust for TypePostfix {
         match self {
             TypePostfix::Ref => format!("&"),
             TypePostfix::RefMut => format!("&mut "),
+            TypePostfix::RefLifetime(lifetime) => format!("&'{} ", lifetime.get_rust()),
+            TypePostfix::RefMutLifetime(lifetime) => format!("&'{} mut ", lifetime.get_rust()),
         }
     }
 }

@@ -16,6 +16,8 @@ pub struct Block(pub Vec<Statement>);
 pub enum TypePostfix {
     Ref,
     RefMut,
+    RefLifetime(Identifier),
+    RefMutLifetime(Identifier),
 }
 
 #[derive(Debug, Clone, Serialize)]
