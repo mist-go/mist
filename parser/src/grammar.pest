@@ -233,7 +233,7 @@ self_param = {
 }
 
 method = {
-    export? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ param_list? ~ ")" ~ block
+    export? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ block
 }
 
 class_decl = {
