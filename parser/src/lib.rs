@@ -61,13 +61,13 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypePostfix {
                     if let Some(lifetime) = lifetime {
                         TypePostfix::RefMutLifetime(lifetime)
                     } else {
-                        TypePostfix::Ref
+                        TypePostfix::RefMut
                     }
                 } else {
                     if let Some(lifetime) = lifetime {
                         TypePostfix::RefLifetime(lifetime)
                     } else {
-                        TypePostfix::RefMut
+                        TypePostfix::Ref
                     }
                 }
             }
