@@ -1,5 +1,5 @@
 [package]
-name = "mist"
+name = "mist-lang"
 version = "0.0.1-alpha2"
 edition = "2024"
 description = "The Mist programming language compiler"
