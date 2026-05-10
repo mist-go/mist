@@ -394,6 +394,7 @@ impl ToRust for TopLevelKind {
                     .collect::<Vec<_>>()
                     .join(", ");
 
+                cg.add_indentedln("#[allow(invalid_value)]");
                 cg.add_indentedln(&format!(
                     "{}fn new{}({}) -> Self {{",
                     constructor.visibility.get_rust(),
