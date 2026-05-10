@@ -4,9 +4,6 @@ use serde::Serialize;
 pub struct Identifier(pub String);
 
 #[derive(Debug, Clone, Serialize, Default)]
-pub struct FieldList(pub Vec<(Identifier, Visibility, TypeExpr)>);
-
-#[derive(Debug, Clone, Serialize, Default)]
 pub struct ParamList(pub Vec<VarDecl>);
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -87,7 +84,7 @@ pub enum TopLevelKind {
         visibility: Visibility,
         generics: Generics,
         name: Identifier,
-        fields: FieldList,
+        fields: Vec<FieldDecl>,
     },
     FunctionDecl(FunctionDecl),
     ClassDecl {
@@ -123,7 +120,7 @@ pub enum Pattern {
 pub enum EnumItem {
     Named(Identifier),
     Tuple(Identifier, Vec<TypeExpr>),
-    Struct(Identifier, FieldList),
+    Struct(Identifier, Vec<FieldDecl>),
 }
 
 #[derive(Debug, Clone, Serialize)]

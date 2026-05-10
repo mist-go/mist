@@ -1,7 +1,8 @@
 use parser::ast::{
-    Attribute, BinaryOp, Block, EnumItem, Expression, FunctionDecl, Generic, Generics, Identifier,
-    Literal, Path, Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind,
-    TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
+    Attribute, BinaryOp, Block, EnumItem, Expression, FieldDecl, FunctionDecl, Generic, Generics,
+    Identifier, Literal, Path, Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel,
+    TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt,
+    Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -328,9 +329,8 @@ impl ToRust for TopLevelKind {
                 ));
                 cg.indent += 1;
 
-                for (field_name, _, ty) in &fields.0 {
-                    let ty = ty.get_rust();
-                    cg.add_indentedln(&format!("pub {}: {},", field_name.get_rust(), ty));
+                for field in fields {
+                    cg.add_indentedln(&field.get_rust());
                 }
 
                 cg.indent -= 1;
@@ -375,8 +375,7 @@ impl ToRust for TopLevelKind {
                 cg.indent += 1;
 
                 for field in fields {
-                    let ty = field.decl.type_.clone().get_rust();
-                    cg.add_indentedln(&format!("pub {}: {},", field.decl.name.get_rust(), ty));
+                    cg.add_indentedln(&field.decl.get_rust());
                 }
 
                 cg.indent -= 1;
@@ -677,8 +676,8 @@ impl GetRust for EnumItem {
             Self::Struct(id, s) => format!(
                 "{} {{{}}}",
                 id.get_rust(),
-                s.0.iter()
-                    .map(|(id, _, ty)| format!("{}: {}", id.get_rust(), ty.get_rust()))
+                s.iter()
+                    .map(|field| format!("{}: {}", field.name.get_rust(), field.type_.get_rust()))
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
@@ -766,6 +765,17 @@ impl GetRust for (bool, &Generic) {
                     })
             }
         }
+    }
+}
+
+impl GetRust for FieldDecl {
+    fn get_rust(&self) -> String {
+        format!(
+            "{}{}: {},",
+            self.visibility.get_rust(),
+            self.name.get_rust(),
+            self.type_.get_rust()
+        )
     }
 }
 
