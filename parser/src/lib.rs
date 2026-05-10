@@ -305,6 +305,31 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
 
             Rule::impl_for_decl | Rule::impl_decl => TopLevelKind::ImplDecl(ImplDecl::from(pair)),
 
+            Rule::trait_decl => TopLevelKind::TraitDecl {
+                visibility: Visibility::from(&mut inner),
+                name: Identifier::from(inner.next().unwrap()),
+                generics: consume_rule(&mut inner, Rule::generics)
+                    .map(Generics::from)
+                    .unwrap_or_default(),
+                requirements: consume_rule(&mut inner, Rule::trait_requirements)
+                    .map(|pair| pair.into_inner().map(TypeExpr::from).collect())
+                    .unwrap_or_default(),
+                items: inner.map(TraitItem::from).collect(),
+            },
+
+            _ => unimplemented!("{rule:#?}"),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for TraitItem {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let rule = pair.as_rule();
+
+        match rule {
+            Rule::method => TraitItem::WithBody(FunctionDecl::from(pair)),
+            Rule::method_no_body => TraitItem::NoBody(FunctionDecl::from(pair)),
+
             _ => unimplemented!("{rule:#?}"),
         }
     }

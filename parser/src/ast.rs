@@ -75,6 +75,13 @@ pub enum TopLevelKind {
     Import(Path),
     Mod(Identifier),
     ImplDecl(ImplDecl),
+    TraitDecl {
+        visibility: Visibility,
+        name: Identifier,
+        generics: Generics,
+        requirements: Vec<TypeExpr>,
+        items: Vec<TraitItem>,
+    },
     EnumDecl {
         visibility: Visibility,
         name: Identifier,
@@ -83,8 +90,8 @@ pub enum TopLevelKind {
     },
     StructDecl {
         visibility: Visibility,
-        generics: Generics,
         name: Identifier,
+        generics: Generics,
         fields: Vec<FieldDecl>,
     },
     FunctionDecl(FunctionDecl),
@@ -96,6 +103,12 @@ pub enum TopLevelKind {
         constructor: ClassConstructor,
         items: Vec<ClassItem>,
     },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum TraitItem {
+    WithBody(FunctionDecl),
+    NoBody(FunctionDecl),
 }
 
 #[derive(Debug, Clone, Serialize)]

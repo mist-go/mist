@@ -1,5 +1,7 @@
 use <std::fmt>;
 
+public trait TestLogging: Display {}
+
 public enum LogLevel {
     Info,
     Warning,
