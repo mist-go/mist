@@ -289,7 +289,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
                     .map(FieldDeclStmt::from)
                     .collect(),
                 constructor: ClassConstructor::from(inner.next().unwrap()),
-                methods: inner.into_iter().map(FunctionDecl::from).collect(),
+                items: inner.into_iter().map(FunctionDecl::from).collect(),
             },
 
             Rule::enum_decl => TopLevelKind::EnumDecl {
@@ -303,14 +303,36 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
 
             Rule::mod_package => TopLevelKind::Mod(Identifier::from(inner.next().unwrap())),
 
-            Rule::impl_for_decl => TopLevelKind::ImplDecl(ImplDecl {
+            Rule::impl_for_decl | Rule::impl_decl => TopLevelKind::ImplDecl(ImplDecl::from(pair)),
+
+            _ => unimplemented!("{rule:#?}"),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for ImplDecl {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let rule = pair.as_rule();
+        let mut inner = pair.clone().into_inner();
+
+        match rule {
+            Rule::impl_for_decl => ImplDecl {
                 generics: consume_rule(&mut inner, Rule::generics)
                     .map(Generics::from)
                     .unwrap_or_default(),
                 trait_: Some(TypeExpr::from(inner.next().unwrap())),
                 target: TypeExpr::from(inner.next().unwrap()),
                 methods: inner.map(FunctionDecl::from).collect(),
-            }),
+            },
+
+            Rule::impl_decl => ImplDecl {
+                generics: consume_rule(&mut inner, Rule::generics)
+                    .map(Generics::from)
+                    .unwrap_or_default(),
+                trait_: None,
+                target: TypeExpr::from(inner.next().unwrap()),
+                methods: inner.map(FunctionDecl::from).collect(),
+            },
 
             _ => unimplemented!("{rule:#?}"),
         }

@@ -94,7 +94,7 @@ pub enum TopLevelKind {
         generics: Generics,
         fields: Vec<FieldDeclStmt>,
         constructor: ClassConstructor,
-        methods: Vec<FunctionDecl>,
+        items: Vec<FunctionDecl>,
     },
 }
 

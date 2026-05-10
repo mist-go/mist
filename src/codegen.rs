@@ -364,7 +364,7 @@ impl ToRust for TopLevelKind {
                 generics,
                 fields,
                 constructor,
-                methods,
+                items: methods,
             } => {
                 // Struct decl
                 cg.addln(&format!(
