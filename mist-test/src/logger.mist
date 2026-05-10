@@ -58,4 +58,10 @@ public class Logger {
             }
         }
     }
+
+    impl fmt::Display {
+        std::fmt::Result fmt(self*, std::fmt::Formatter<'_> mut* f) {
+            return write!(f, "logger ({})", self.prefix);
+        }
+    }
 }

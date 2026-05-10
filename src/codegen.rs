@@ -1,8 +1,8 @@
 use parser::ast::{
-    Attribute, BinaryOp, Block, EnumItem, Expression, FieldDecl, FunctionDecl, Generic, Generics,
-    Identifier, ImplDecl, Literal, Path, Pattern, Postfix, Prefix, Statement, StatementBranch,
-    TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl,
-    VarDeclStmt, Visibility,
+    Attribute, BinaryOp, Block, ClassItem, EnumItem, Expression, FieldDecl, FunctionDecl, Generic,
+    Generics, Identifier, ImplDecl, Literal, Path, Pattern, Postfix, Prefix, Statement,
+    StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt,
+    VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -364,7 +364,7 @@ impl ToRust for TopLevelKind {
                 generics,
                 fields,
                 constructor,
-                items: methods,
+                items,
             } => {
                 // Struct decl
                 cg.addln(&format!(
@@ -458,12 +458,30 @@ impl ToRust for TopLevelKind {
                 cg.indent -= 1;
                 cg.add_indentedln("}\n");
 
-                for method in methods {
-                    method.to_rust(cg);
+                for item in items {
+                    match item {
+                        ClassItem::ImplDecl(_) => {}
+                        ClassItem::Method(method) => method.to_rust(cg),
+                    }
                 }
 
                 cg.indent -= 1;
                 cg.addln("}\n");
+
+                for item in items {
+                    match item {
+                        ClassItem::ImplDecl(impl_) => {
+                            let mut impl_ = impl_.clone();
+
+                            impl_.trait_ = Some(impl_.target);
+                            impl_.target =
+                                TypeExpr(TypeExprKind::Path(Path(vec![name.clone()])), Vec::new());
+
+                            impl_.to_rust(cg);
+                        }
+                        ClassItem::Method(_) => {}
+                    }
+                }
             }
         }
     }

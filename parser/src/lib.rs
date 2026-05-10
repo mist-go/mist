@@ -289,7 +289,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
                     .map(FieldDeclStmt::from)
                     .collect(),
                 constructor: ClassConstructor::from(inner.next().unwrap()),
-                items: inner.into_iter().map(FunctionDecl::from).collect(),
+                items: inner.into_iter().map(ClassItem::from).collect(),
             },
 
             Rule::enum_decl => TopLevelKind::EnumDecl {
@@ -304,6 +304,20 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
             Rule::mod_package => TopLevelKind::Mod(Identifier::from(inner.next().unwrap())),
 
             Rule::impl_for_decl | Rule::impl_decl => TopLevelKind::ImplDecl(ImplDecl::from(pair)),
+
+            _ => unimplemented!("{rule:#?}"),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for ClassItem {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        let rule = pair.as_rule();
+
+        match rule {
+            Rule::impl_decl | Rule::impl_for_decl => ClassItem::ImplDecl(ImplDecl::from(pair)),
+
+            Rule::method => ClassItem::Method(FunctionDecl::from(pair)),
 
             _ => unimplemented!("{rule:#?}"),
         }

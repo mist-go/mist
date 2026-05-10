@@ -94,8 +94,14 @@ pub enum TopLevelKind {
         generics: Generics,
         fields: Vec<FieldDeclStmt>,
         constructor: ClassConstructor,
-        items: Vec<FunctionDecl>,
+        items: Vec<ClassItem>,
     },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum ClassItem {
+    Method(FunctionDecl),
+    ImplDecl(ImplDecl),
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
