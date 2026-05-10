@@ -1,4 +1,10 @@
 use <collections::list>;
+use <core::task>;
+use <core::logger>;
+use <core::event>;
+
+public class Application {
+    String name;
 
     list::List<task::Task> tasks;
     list::List<String> plugins;
@@ -11,8 +17,8 @@ use <collections::list>;
     public constructor(String name) {
         self.name = name;
 
-        self.tasks = new list::List<task::Task>();
-        self.plugins = new list::List<String>();
+        self.tasks = new list::List();
+        self.plugins = new list::List();
 
         self.logger = new logger::Logger("app");
 
