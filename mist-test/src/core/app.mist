@@ -1,0 +1,90 @@
+use <collections::list>;
+
+    list::List<task::Task> tasks;
+    list::List<String> plugins;
+
+    logger::Logger logger;
+
+    bool running;
+    i32 ticks;
+
+    public constructor(String name) {
+        self.name = name;
+
+        self.tasks = new list::List<task::Task>();
+        self.plugins = new list::List<String>();
+
+        self.logger = new logger::Logger("app");
+
+        self.running = false;
+        self.ticks = 0;
+    }
+
+    public void boot(self mut*) {
+        self.logger.info("booting application");
+
+        self.running = true;
+
+        self.emit(event::Event::Startup);
+    }
+
+    public void run(self mut*) {
+        while(self.running) {
+            self.tick();
+
+            if(self.ticks >= 5) {
+                self.shutdown();
+            }
+        }
+    }
+
+    void tick(self mut*) {
+        self.logger.info("tick");
+
+        self.ticks = self.ticks + 1;
+
+        var task = task::create_task("background-job");
+
+        self.tasks.push(task);
+
+        println!("tasks: {}", self.tasks.len());
+    }
+
+    public void shutdown(self mut*) {
+        self.emit(event::Event::Shutdown);
+
+        self.logger.warning("shutdown");
+
+        self.running = false;
+    }
+
+    public void register_plugin(self mut*, String name) {
+        self.plugins.push(name);
+
+        self.emit(event::Event::PluginLoaded(name));
+    }
+
+    void emit(self*, event::Event event) {
+        match(event) {
+            event::Event::Startup => {
+                self.logger.info("startup event");
+            }
+
+            event::Event::Shutdown => {
+                self.logger.info("shutdown event");
+            }
+
+            event::Event::PluginLoaded(name) => {
+                println!("plugin loaded: {}", name);
+            }
+
+            event::Event::TaskExecuted(name) => {
+                println!("task executed: {}", name);
+            }
+
+            event::Event::Error(message) => {
+                self.logger.error(message);
+            }
+        }
+    }
+}

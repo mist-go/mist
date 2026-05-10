@@ -1,0 +1,16 @@
+public struct PluginInfo {
+    public String name,
+    public String version,
+}
+
+public class PluginRegistry<T> {
+    T plugins;
+
+    public constructor(T plugins) {
+        self.plugins = plugins;
+    }
+
+    public T plugins(self) {
+        return self.plugins;
+    }
+}

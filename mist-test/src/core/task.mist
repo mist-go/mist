@@ -1,0 +1,20 @@
+public enum TaskState {
+    Pending,
+    Running,
+    Finished,
+    Failed,
+}
+
+public struct Task {
+    public String name,
+    public TaskState state,
+    public i32 executions,
+}
+
+public Task create_task(String name) {
+    return Task {
+        name: name,
+        state: TaskState::Pending,
+        executions: 0,
+    };
+}

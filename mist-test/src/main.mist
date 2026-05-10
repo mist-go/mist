@@ -1,18 +1,17 @@
-mod my_class;
-use <my_class::MyClass>;
-use <my_class::MyEnum>;
+mod core;
 
-void main() {
-    var my_class = new MyClass("World");
-    my_class.greet();
+use <core::app>;
+use <plugins::greeting>;
+use <plugins::statistics>;
 
-    match (MyEnum::Tuple(10, String::new())) {
-        MyEnum::Tuple(i, _) => {
-            println!("{i}");
-        }
-        MyEnum::Named => {
+i32 main() {
+    var app = new app::Application("mist-app");
 
-        }
-        _ => {}
-    }
+    greeting::register(&mut app);
+    statistics::register(&mut app);
+
+    app.boot();
+    app.run();
+
+    return 0;
 }

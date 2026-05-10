@@ -1,0 +1,7 @@
+public enum Event {
+    Startup,
+    Shutdown,
+    TaskExecuted(String),
+    PluginLoaded(String),
+    Error(String),
+}
