@@ -1,6 +1,6 @@
 use <std::fmt>;
 
-public trait TestLogging: Display {}
+public trait TestLogging<T: fmt::Display>: fmt::Display {}
 
 public enum LogLevel {
     Info,

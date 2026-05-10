@@ -80,7 +80,7 @@ pub enum TopLevelKind {
         name: Identifier,
         generics: Generics,
         requirements: Vec<TypeExpr>,
-        items: Vec<TraitItem>,
+        items: Vec<FunctionDecl>,
     },
     EnumDecl {
         visibility: Visibility,
@@ -103,12 +103,6 @@ pub enum TopLevelKind {
         constructor: ClassConstructor,
         items: Vec<ClassItem>,
     },
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub enum TraitItem {
-    WithBody(FunctionDecl),
-    NoBody(FunctionDecl),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -158,7 +152,7 @@ pub struct FunctionDecl {
     pub generics: Generics,
     pub params: ParamList,
     pub return_type: TypeExpr,
-    pub body: Block,
+    pub body: Option<Block>,
 }
 
 #[derive(Debug, Clone, Serialize)]

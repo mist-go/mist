@@ -358,6 +358,38 @@ impl ToRust for TopLevelKind {
                 cg.indent -= 1;
                 cg.addln("}\n");
             }
+            Self::TraitDecl {
+                visibility,
+                name,
+                generics,
+                requirements,
+                items,
+            } => {
+                cg.addln(&format!(
+                    "{}trait {}{}{} {{",
+                    visibility.get_rust(),
+                    name.get_rust(),
+                    generics.get_rust(),
+                    if requirements.len() != 0 {
+                        String::from(": ")
+                            + &requirements
+                                .iter()
+                                .map(TypeExpr::get_rust)
+                                .collect::<Vec<_>>()
+                                .join("+")
+                    } else {
+                        String::new()
+                    },
+                ));
+                cg.indent += 1;
+
+                for item in items {
+                    item.to_rust(cg);
+                }
+
+                cg.indent -= 1;
+                cg.addln("}\n");
+            }
             Self::ClassDecl {
                 visibility,
                 name,
@@ -627,9 +659,13 @@ impl ToRust for FunctionDecl {
             params_str,
             self.return_type.get_rust()
         ));
-        cg.indent += 1;
-        self.body.to_rust(cg);
-        cg.indent -= 1;
+        if let Some(body) = &self.body {
+            cg.indent += 1;
+            body.to_rust(cg);
+            cg.indent -= 1;
+        } else {
+            cg.add(";");
+        }
         cg.add_indentedln("}\n");
     }
 }

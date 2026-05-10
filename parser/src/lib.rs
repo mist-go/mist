@@ -314,21 +314,8 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
                 requirements: consume_rule(&mut inner, Rule::trait_requirements)
                     .map(|pair| pair.into_inner().map(TypeExpr::from).collect())
                     .unwrap_or_default(),
-                items: inner.map(TraitItem::from).collect(),
+                items: inner.map(FunctionDecl::from).collect(),
             },
-
-            _ => unimplemented!("{rule:#?}"),
-        }
-    }
-}
-
-impl From<pest::iterators::Pair<'_, Rule>> for TraitItem {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
-        let rule = pair.as_rule();
-
-        match rule {
-            Rule::method => TraitItem::WithBody(FunctionDecl::from(pair)),
-            Rule::method_no_body => TraitItem::NoBody(FunctionDecl::from(pair)),
 
             _ => unimplemented!("{rule:#?}"),
         }
@@ -789,7 +776,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
             })
             .unwrap_or_else(|| ParamList(self_param.into_iter().collect()));
 
-        let body = Block::from(inner.next().unwrap());
+        let body = inner.next().map(Block::from);
 
         Self {
             visibility,
