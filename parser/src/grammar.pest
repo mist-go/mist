@@ -265,7 +265,7 @@ impl_decl = {
 trait_requirements = { ":" ~ type_expr_param ~ ("+" ~ type_expr_param)* }
 
 method_no_body = {
-    export? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")"
+    export? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ semicolon
 }
 
 trait_item = _{
