@@ -1,7 +1,27 @@
+use <std::fmt>;
+
 public enum LogLevel {
     Info,
     Warning,
     Error,
+}
+
+impl fmt::Display for LogLevel {
+    std::fmt::Result fmt(self*, std::fmt::Formatter<'_> mut* f) {
+        match (self) {
+            LogLevel::Info => {
+                write!(f, "[INFO]");
+            }
+
+            LogLevel::Warning => {
+                write!(f, "[WARN]");
+            }
+
+            LogLevel::Error => {
+                write!(f, "[ERROR]");
+            }
+        }
+    }
 }
 
 public class Logger {
