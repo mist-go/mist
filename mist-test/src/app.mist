@@ -13,8 +13,8 @@ public class Application {
     bool running;
     i32 ticks;
 
-    public constructor(String name) {
-        self.name = name;
+    public constructor(str* name) {
+        self.name = name.to_string();
 
         self.tasks = new Vec();
         self.plugins = new Vec();

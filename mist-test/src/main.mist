@@ -4,16 +4,12 @@ mod plugin;
 mod logger;
 mod event;
 
-use <app>;
-// use <plugins::greeting>;
-// use <plugins::statistics>;
-
 void main() {
-    var app = new app::Application("mist-app");
+    var mut app_instance = new app::Application("mist-app");
 
-    // greeting::register(&mut app);
-    // statistics::register(&mut app);
+    // greeting::register(&mut app_instance);
+    // statistics::register(&mut app_instance);
 
-    app.boot();
-    app.run();
+    app_instance.boot();
+    app_instance.run();
 }
