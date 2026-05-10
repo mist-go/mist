@@ -1,4 +1,4 @@
-use parser::ast::{
+use mist_parser::ast::{
     Attribute, BinaryOp, Block, ClassItem, EnumItem, Expression, FieldDecl, FunctionDecl, Generic,
     Generics, Identifier, ImplDecl, Literal, Path, Pattern, Postfix, Prefix, Statement,
     StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt,

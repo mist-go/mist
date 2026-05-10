@@ -78,13 +78,13 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 name = "mist-lang"
 version = "0.0.1-alpha2"
 dependencies = [
- "parser",
+ "mist-parser",
  "serde",
  "serde_json",
 ]
 
 [[package]]
-name = "parser"
+name = "mist-parser"
 version = "0.1.0"
 dependencies = [
  "pest",

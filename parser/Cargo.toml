@@ -1,7 +1,13 @@
 [package]
-name = "parser"
+name = "mist-parser"
 version = "0.1.0"
 edition = "2024"
+description = "The Mist programming language parser"
+license = "Apache-2.0"
+repository = "https://github.com/mist-go/mist"
+readme = "README.md"
+keywords = ["compiler", "language", "mist"]
+categories = ["compilers"]
 
 [dependencies]
 pest = "2.8.6"
