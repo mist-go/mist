@@ -375,7 +375,7 @@ impl ToRust for TopLevelKind {
                 cg.indent += 1;
 
                 for field in fields {
-                    let ty = field.decl.type_.clone().unwrap().get_rust();
+                    let ty = field.decl.type_.clone().get_rust();
                     cg.add_indentedln(&format!("pub {}: {},", field.decl.name.get_rust(), ty));
                 }
 

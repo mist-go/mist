@@ -149,7 +149,6 @@ attributes = {
 // ======================================================
 // DECLARATION HELPERS
 // ======================================================
-
 var_decl = {
     (var | type_expr) ~ mutable? ~ pattern
 }
@@ -225,7 +224,11 @@ class_constructor = {
 }
 
 class_fields = {
-    var_decl_statement*
+    class_field*
+}
+
+class_field = {
+    field ~ ("=" ~ expr)? ~ semicolon
 }
 
 self_param = {

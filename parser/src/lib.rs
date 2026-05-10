@@ -300,7 +300,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
                     .next()
                     .unwrap()
                     .into_inner()
-                    .map(VarDeclStmt::from)
+                    .map(FieldDeclStmt::from)
                     .collect(),
                 constructor: ClassConstructor::from(inner.next().unwrap()),
                 methods: inner.into_iter().map(FunctionDecl::from).collect(),
@@ -583,6 +583,24 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDeclStmt {
     }
 }
 
+impl From<pest::iterators::Pair<'_, Rule>> for FieldDeclStmt {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::class_field => {
+                let mut inner = pair.into_inner();
+
+                let decl = FieldDecl::from(inner.next().unwrap());
+
+                let init = inner.next().map(Expression::from);
+
+                FieldDeclStmt { decl, init }
+            }
+
+            _ => unimplemented!(),
+        }
+    }
+}
+
 impl From<pest::iterators::Pair<'_, Rule>> for Pattern {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let rule = pair.as_rule();
@@ -633,6 +651,28 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
                     mutable,
                     name,
                     type_,
+                }
+            }
+
+            _ => unimplemented!("{:?}", pair.as_rule()),
+        }
+    }
+}
+
+impl From<pest::iterators::Pair<'_, Rule>> for FieldDecl {
+    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+        match pair.as_rule() {
+            Rule::field => {
+                let mut inner = pair.into_inner();
+
+                let visibility = Visibility::from(&mut inner);
+                let type_ = TypeExpr::from(inner.next().unwrap());
+                let name = Identifier::from(inner.next().unwrap());
+
+                FieldDecl {
+                    visibility,
+                    type_,
+                    name,
                 }
             }
 

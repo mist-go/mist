@@ -94,7 +94,7 @@ pub enum TopLevelKind {
         visibility: Visibility,
         name: Identifier,
         generics: Generics,
-        fields: Vec<VarDeclStmt>,
+        fields: Vec<FieldDeclStmt>,
         constructor: ClassConstructor,
         methods: Vec<FunctionDecl>,
     },
@@ -205,6 +205,19 @@ pub struct VarDecl {
 #[derive(Debug, Clone, Serialize)]
 pub struct VarDeclStmt {
     pub decl: VarDecl,
+    pub init: Option<Expression>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FieldDecl {
+    pub visibility: Visibility,
+    pub type_: TypeExpr,
+    pub name: Identifier,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FieldDeclStmt {
+    pub decl: FieldDecl,
     pub init: Option<Expression>,
 }
 
