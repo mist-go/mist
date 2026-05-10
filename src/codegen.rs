@@ -652,7 +652,7 @@ impl ToRust for FunctionDecl {
             .join(", ");
 
         cg.add_indentedln(&format!(
-            "{}fn {}{}({}) -> {} {{",
+            "{}fn {}{}({}) -> {}",
             self.visibility.get_rust(),
             self.name.get_rust(),
             self.generics.get_rust(),
@@ -660,13 +660,14 @@ impl ToRust for FunctionDecl {
             self.return_type.get_rust()
         ));
         if let Some(body) = &self.body {
+            cg.add_indentedln("{\n");
             cg.indent += 1;
             body.to_rust(cg);
             cg.indent -= 1;
+            cg.add_indentedln("}\n");
         } else {
             cg.add(";");
         }
-        cg.add_indentedln("}\n");
     }
 }
 
