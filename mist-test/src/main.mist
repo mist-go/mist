@@ -1,17 +1,15 @@
 mod core;
 
 use <core::app>;
-use <plugins::greeting>;
-use <plugins::statistics>;
+// use <plugins::greeting>;
+// use <plugins::statistics>;
 
-i32 main() {
+void main() {
     var app = new app::Application("mist-app");
 
-    greeting::register(&mut app);
-    statistics::register(&mut app);
+    // greeting::register(&mut app);
+    // statistics::register(&mut app);
 
     app.boot();
     app.run();
-
-    return 0;
 }

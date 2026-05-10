@@ -272,7 +272,6 @@ statement_list = {
 statement = _{
     expr_stmt
   | match_stmt
-  | var_decl_statement
   | assign_statement
   | if_stmt
   | while_stmt
@@ -282,6 +281,7 @@ statement = _{
   | break_stmt
   | continue_stmt
   | block
+  | var_decl_statement
 }
 
 // ------------------------------------------------------

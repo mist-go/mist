@@ -1,13 +1,12 @@
-use <collections::list>;
-use <core::task>;
-use <core::logger>;
-use <core::event>;
+use <super::task>;
+use <super::logger>;
+use <super::event>;
 
 public class Application {
     String name;
 
-    list::List<task::Task> tasks;
-    list::List<String> plugins;
+    Vec<task::Task> tasks;
+    Vec<String> plugins;
 
     logger::Logger logger;
 
@@ -17,8 +16,8 @@ public class Application {
     public constructor(String name) {
         self.name = name;
 
-        self.tasks = new list::List();
-        self.plugins = new list::List();
+        self.tasks = new Vec();
+        self.plugins = new Vec();
 
         self.logger = new logger::Logger("app");
 
@@ -65,7 +64,7 @@ public class Application {
     }
 
     public void register_plugin(self mut*, String name) {
-        self.plugins.push(name);
+        self.plugins.push(name.clone());
 
         self.emit(event::Event::PluginLoaded(name));
     }
@@ -89,7 +88,7 @@ public class Application {
             }
 
             event::Event::Error(message) => {
-                self.logger.error(message);
+                self.logger.error(&message);
             }
         }
     }
