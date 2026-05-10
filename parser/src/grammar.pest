@@ -149,7 +149,6 @@ attributes = {
 // ======================================================
 // DECLARATION HELPERS
 // ======================================================
-
 var_decl = {
     (var | type_expr) ~ mutable? ~ pattern
 }
@@ -225,7 +224,11 @@ class_constructor = {
 }
 
 class_fields = {
-    var_decl_statement*
+    class_field*
+}
+
+class_field = {
+    field ~ ("=" ~ expr)? ~ semicolon
 }
 
 self_param = {
@@ -236,8 +239,42 @@ method = {
     export? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ block
 }
 
+class_item = _{
+    impl_decl
+  | method
+}
+
 class_decl = {
-    export? ~ "class" ~ identifier ~ generics? ~ "{" ~ class_fields ~ class_constructor ~ method* ~ "}"
+    export? ~ "class" ~ identifier ~ generics? ~ "{" ~ class_fields ~ class_constructor ~ class_item* ~ "}"
+}
+
+// ======================================================
+// IMPL
+// ======================================================
+impl_for_decl = {
+    "impl" ~ generics? ~ type_expr ~ "for" ~ type_expr ~ "{" ~ method* ~ "}"
+}
+
+impl_decl = {
+    "impl" ~ generics? ~ type_expr ~ "{" ~ method* ~ "}"
+}
+
+// ======================================================
+// Traits
+// ======================================================
+trait_requirements = { ":" ~ type_expr_param ~ ("+" ~ type_expr_param)* }
+
+method_no_body = {
+    export? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ semicolon
+}
+
+trait_item = _{
+    method
+  | method_no_body
+}
+
+trait_decl = {
+    export? ~ "trait" ~ identifier ~ generics? ~ trait_requirements? ~ "{" ~ trait_item* ~ "}"
 }
 
 // ======================================================
@@ -253,7 +290,7 @@ function_decl = {
 // ======================================================
 
 top_level = {
-    (attributes ~ (import | function_decl | struct_decl | enum_decl | class_decl | mod_package))
+    (attributes ~ (import | impl_for_decl | impl_decl | trait_decl | struct_decl | enum_decl | class_decl | mod_package | function_decl))
   | mod_attribute
 }
 

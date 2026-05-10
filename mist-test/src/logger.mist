@@ -1,7 +1,31 @@
+use <std::fmt>;
+
+public trait TestLogging<T: fmt::Display>: fmt::Display {
+    String get();
+}
+
 public enum LogLevel {
     Info,
     Warning,
     Error,
+}
+
+impl fmt::Display for LogLevel {
+    std::fmt::Result fmt(self*, std::fmt::Formatter<'_> mut* f) {
+        match (self) {
+            LogLevel::Info => {
+                return write!(f, "[INFO]");
+            }
+
+            LogLevel::Warning => {
+                return write!(f, "[WARN]");
+            }
+
+            LogLevel::Error => {
+                return write!(f, "[ERROR]");
+            }
+        }
+    }
 }
 
 public class Logger {
@@ -26,16 +50,22 @@ public class Logger {
     void log(self*, LogLevel level, str* message) {
         match(level) {
             LogLevel::Info => {
-                println!("[INFO] {} {}", self.prefix, message);
+                println!("{level} {} {}", self.prefix, message);
             }
 
             LogLevel::Warning => {
-                println!("[WARN] {} {}", self.prefix, message);
+                println!("{level} {} {}", self.prefix, message);
             }
 
             LogLevel::Error => {
-                println!("[ERROR] {} {}", self.prefix, message);
+                println!("{level} {} {}", self.prefix, message);
             }
+        }
+    }
+
+    impl fmt::Display {
+        std::fmt::Result fmt(self*, std::fmt::Formatter<'_> mut* f) {
+            return write!(f, "logger ({})", self.prefix);
         }
     }
 }

@@ -4,9 +4,6 @@ use serde::Serialize;
 pub struct Identifier(pub String);
 
 #[derive(Debug, Clone, Serialize, Default)]
-pub struct FieldList(pub Vec<(Identifier, Visibility, TypeExpr)>);
-
-#[derive(Debug, Clone, Serialize, Default)]
 pub struct ParamList(pub Vec<VarDecl>);
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -77,6 +74,14 @@ pub enum TopLevelKind {
     ModAttribute,
     Import(Path),
     Mod(Identifier),
+    ImplDecl(ImplDecl),
+    TraitDecl {
+        visibility: Visibility,
+        name: Identifier,
+        generics: Generics,
+        requirements: Vec<TypeExpr>,
+        items: Vec<FunctionDecl>,
+    },
     EnumDecl {
         visibility: Visibility,
         name: Identifier,
@@ -85,19 +90,25 @@ pub enum TopLevelKind {
     },
     StructDecl {
         visibility: Visibility,
-        generics: Generics,
         name: Identifier,
-        fields: FieldList,
+        generics: Generics,
+        fields: Vec<FieldDecl>,
     },
     FunctionDecl(FunctionDecl),
     ClassDecl {
         visibility: Visibility,
         name: Identifier,
         generics: Generics,
-        fields: Vec<VarDeclStmt>,
+        fields: Vec<FieldDeclStmt>,
         constructor: ClassConstructor,
-        methods: Vec<FunctionDecl>,
+        items: Vec<ClassItem>,
     },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum ClassItem {
+    Method(FunctionDecl),
+    ImplDecl(ImplDecl),
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -123,7 +134,7 @@ pub enum Pattern {
 pub enum EnumItem {
     Named(Identifier),
     Tuple(Identifier, Vec<TypeExpr>),
-    Struct(Identifier, FieldList),
+    Struct(Identifier, Vec<FieldDecl>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -141,7 +152,7 @@ pub struct FunctionDecl {
     pub generics: Generics,
     pub params: ParamList,
     pub return_type: TypeExpr,
-    pub body: Block,
+    pub body: Option<Block>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -196,6 +207,14 @@ pub enum Statement {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct ImplDecl {
+    pub generics: Generics,
+    pub target: TypeExpr,
+    pub trait_: Option<TypeExpr>,
+    pub methods: Vec<FunctionDecl>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct VarDecl {
     pub mutable: bool,
     pub name: Pattern,
@@ -205,6 +224,19 @@ pub struct VarDecl {
 #[derive(Debug, Clone, Serialize)]
 pub struct VarDeclStmt {
     pub decl: VarDecl,
+    pub init: Option<Expression>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FieldDecl {
+    pub visibility: Visibility,
+    pub type_: TypeExpr,
+    pub name: Identifier,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FieldDeclStmt {
+    pub decl: FieldDecl,
     pub init: Option<Expression>,
 }
 

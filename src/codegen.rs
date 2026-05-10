@@ -1,7 +1,8 @@
 use parser::ast::{
-    Attribute, BinaryOp, Block, EnumItem, Expression, FunctionDecl, Generic, Generics, Identifier,
-    Literal, Path, Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind,
-    TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
+    Attribute, BinaryOp, Block, ClassItem, EnumItem, Expression, FieldDecl, FunctionDecl, Generic,
+    Generics, Identifier, ImplDecl, Literal, Path, Pattern, Postfix, Prefix, Statement,
+    StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt,
+    VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -314,6 +315,7 @@ impl ToRust for TopLevelKind {
             Self::Import(path) => cg.addln(&format!("use {};", path.get_rust())),
             Self::Mod(id) => cg.addln(&format!("mod {};", id.get_rust())),
             Self::FunctionDecl(decl) => decl.to_rust(cg),
+            Self::ImplDecl(impl_) => impl_.to_rust(cg),
             Self::StructDecl {
                 visibility,
                 name,
@@ -328,9 +330,8 @@ impl ToRust for TopLevelKind {
                 ));
                 cg.indent += 1;
 
-                for (field_name, _, ty) in &fields.0 {
-                    let ty = ty.get_rust();
-                    cg.add_indentedln(&format!("pub {}: {},", field_name.get_rust(), ty));
+                for field in fields {
+                    cg.add_indentedln(&field.get_rust());
                 }
 
                 cg.indent -= 1;
@@ -357,13 +358,45 @@ impl ToRust for TopLevelKind {
                 cg.indent -= 1;
                 cg.addln("}\n");
             }
+            Self::TraitDecl {
+                visibility,
+                name,
+                generics,
+                requirements,
+                items,
+            } => {
+                cg.addln(&format!(
+                    "{}trait {}{}{} {{",
+                    visibility.get_rust(),
+                    name.get_rust(),
+                    generics.get_rust(),
+                    if requirements.len() != 0 {
+                        String::from(": ")
+                            + &requirements
+                                .iter()
+                                .map(TypeExpr::get_rust)
+                                .collect::<Vec<_>>()
+                                .join("+")
+                    } else {
+                        String::new()
+                    },
+                ));
+                cg.indent += 1;
+
+                for item in items {
+                    item.to_rust(cg);
+                }
+
+                cg.indent -= 1;
+                cg.addln("}\n");
+            }
             Self::ClassDecl {
                 visibility,
                 name,
                 generics,
                 fields,
                 constructor,
-                methods,
+                items,
             } => {
                 // Struct decl
                 cg.addln(&format!(
@@ -375,8 +408,7 @@ impl ToRust for TopLevelKind {
                 cg.indent += 1;
 
                 for field in fields {
-                    let ty = field.decl.type_.clone().unwrap().get_rust();
-                    cg.add_indentedln(&format!("pub {}: {},", field.decl.name.get_rust(), ty));
+                    cg.add_indentedln(&field.decl.get_rust());
                 }
 
                 cg.indent -= 1;
@@ -458,12 +490,30 @@ impl ToRust for TopLevelKind {
                 cg.indent -= 1;
                 cg.add_indentedln("}\n");
 
-                for method in methods {
-                    method.to_rust(cg);
+                for item in items {
+                    match item {
+                        ClassItem::ImplDecl(_) => {}
+                        ClassItem::Method(method) => method.to_rust(cg),
+                    }
                 }
 
                 cg.indent -= 1;
                 cg.addln("}\n");
+
+                for item in items {
+                    match item {
+                        ClassItem::ImplDecl(impl_) => {
+                            let mut impl_ = impl_.clone();
+
+                            impl_.trait_ = Some(impl_.target);
+                            impl_.target =
+                                TypeExpr(TypeExprKind::Path(Path(vec![name.clone()])), Vec::new());
+
+                            impl_.to_rust(cg);
+                        }
+                        ClassItem::Method(_) => {}
+                    }
+                }
             }
         }
     }
@@ -602,17 +652,49 @@ impl ToRust for FunctionDecl {
             .join(", ");
 
         cg.add_indentedln(&format!(
-            "{}fn {}{}({}) -> {} {{",
+            "{}fn {}{}({}) -> {}",
             self.visibility.get_rust(),
             self.name.get_rust(),
             self.generics.get_rust(),
             params_str,
             self.return_type.get_rust()
         ));
+        if let Some(body) = &self.body {
+            cg.add_indentedln("{\n");
+            cg.indent += 1;
+            body.to_rust(cg);
+            cg.indent -= 1;
+            cg.add_indentedln("}\n");
+        } else {
+            cg.add(";");
+        }
+    }
+}
+
+impl ToRust for ImplDecl {
+    fn to_rust(&self, cg: &mut RustCodegen) {
+        if let Some(trait_) = &self.trait_ {
+            cg.add_indentedln(&format!(
+                "impl{} {} for {} {{",
+                self.generics.get_rust(),
+                trait_.get_rust(),
+                self.target.get_rust()
+            ));
+        } else {
+            cg.add_indentedln(&format!(
+                "impl{} {} {{",
+                self.generics.get_rust(),
+                self.target.get_rust()
+            ));
+        }
         cg.indent += 1;
-        self.body.to_rust(cg);
+
+        for method in &self.methods {
+            method.to_rust(cg);
+        }
+
         cg.indent -= 1;
-        cg.add_indentedln("}\n");
+        cg.add_indentedln("}");
     }
 }
 
@@ -677,8 +759,8 @@ impl GetRust for EnumItem {
             Self::Struct(id, s) => format!(
                 "{} {{{}}}",
                 id.get_rust(),
-                s.0.iter()
-                    .map(|(id, _, ty)| format!("{}: {}", id.get_rust(), ty.get_rust()))
+                s.iter()
+                    .map(|field| format!("{}: {}", field.name.get_rust(), field.type_.get_rust()))
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
@@ -766,6 +848,17 @@ impl GetRust for (bool, &Generic) {
                     })
             }
         }
+    }
+}
+
+impl GetRust for FieldDecl {
+    fn get_rust(&self) -> String {
+        format!(
+            "{}{}: {},",
+            self.visibility.get_rust(),
+            self.name.get_rust(),
+            self.type_.get_rust()
+        )
     }
 }
 
