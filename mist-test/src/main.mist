@@ -1,6 +1,10 @@
-mod core;
+mod app;
+mod task;
+mod plugin;
+mod logger;
+mod event;
 
-use <core::app>;
+use <app>;
 // use <plugins::greeting>;
 // use <plugins::statistics>;
 

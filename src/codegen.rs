@@ -1,7 +1,7 @@
 use parser::ast::{
-    Attribute, BinaryOp, Block, EnumItem, Expression, FunctionDecl, Generics, Identifier, Literal,
-    Path, Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr,
-    TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
+    Attribute, BinaryOp, Block, EnumItem, Expression, FunctionDecl, Generic, Generics, Identifier,
+    Literal, Path, Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind,
+    TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -383,7 +383,20 @@ impl ToRust for TopLevelKind {
                 cg.addln("}\n");
 
                 // Constructor
-                cg.addln(&format!("impl {} {{", name.get_rust()));
+                cg.addln(&format!(
+                    "impl{} {}{} {{",
+                    generics.get_rust(),
+                    name.get_rust(),
+                    format!(
+                        "<{}>",
+                        generics
+                            .0
+                            .iter()
+                            .map(|v| (false, v).get_rust())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                ));
                 cg.indent += 1;
 
                 let params_str = constructor
@@ -725,27 +738,33 @@ impl GetRust for Generics {
                 "<{}>",
                 self.0
                     .iter()
-                    .map(|generic| match generic {
-                        parser::ast::Generic::Lifetime(name) => format!("'{}", name.get_rust()),
-                        parser::ast::Generic::Type(name, requirements) => {
-                            name.get_rust()
-                                + &(if requirements.len() == 0 {
-                                    String::new()
-                                } else {
-                                    format!(
-                                        ": {}",
-                                        requirements
-                                            .iter()
-                                            .map(TypeExpr::get_rust)
-                                            .collect::<Vec<_>>()
-                                            .join("+")
-                                    )
-                                })
-                        }
-                    })
+                    .map(|v| (true, v).get_rust())
                     .collect::<Vec<_>>()
                     .join(", ")
             )
+        }
+    }
+}
+
+impl GetRust for (bool, &Generic) {
+    fn get_rust(&self) -> String {
+        match &self.1 {
+            Generic::Lifetime(name) => format!("'{}", name.get_rust()),
+            Generic::Type(name, requirements) => {
+                name.get_rust()
+                    + &(if !self.0 && requirements.len() == 0 {
+                        String::new()
+                    } else {
+                        format!(
+                            ": {}",
+                            requirements
+                                .iter()
+                                .map(TypeExpr::get_rust)
+                                .collect::<Vec<_>>()
+                                .join("+")
+                        )
+                    })
+            }
         }
     }
 }
