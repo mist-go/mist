@@ -36,6 +36,11 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExpr {
                 TypeExprKind::from(inner.next().unwrap()),
                 inner.map(TypePostfix::from).collect(),
             ),
+            Rule::type_expr_param => TypeExpr::from(inner.next().unwrap()),
+            Rule::lifetime => TypeExpr(
+                TypeExprKind::Lifetime(Identifier::from(inner.next().unwrap())),
+                Vec::new(),
+            ),
             _ => unimplemented!("{rule:#?}"),
         }
     }
@@ -44,14 +49,26 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExpr {
 impl From<pest::iterators::Pair<'_, Rule>> for TypePostfix {
     fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
         let rule = pair.as_rule();
-        let inner = pair.into_inner();
+        let mut inner = pair.into_inner();
 
         match rule {
             Rule::ref_type => {
-                if inner.peek().is_some() {
-                    TypePostfix::RefMut
+                let mutable = listen_rule(&mut inner, Rule::mutable);
+                let lifetime = consume_rule(&mut inner, Rule::lifetime)
+                    .map(|pair| Identifier::from(pair.into_inner().next().unwrap()));
+
+                if mutable {
+                    if let Some(lifetime) = lifetime {
+                        TypePostfix::RefMutLifetime(lifetime)
+                    } else {
+                        TypePostfix::RefMut
+                    }
                 } else {
-                    TypePostfix::Ref
+                    if let Some(lifetime) = lifetime {
+                        TypePostfix::RefLifetime(lifetime)
+                    } else {
+                        TypePostfix::Ref
+                    }
                 }
             }
             _ => unimplemented!("{rule:#?}"),
@@ -238,10 +255,14 @@ impl From<pest::iterators::Pair<'_, Rule>> for Generics {
                 inner
                     .map(|pair| {
                         let mut inner = pair.into_inner();
-                        (
-                            Identifier::from(inner.next().unwrap()),
-                            inner.map(Path::from).collect(),
-                        )
+                        if let Some(pair) = consume_rule(&mut inner, Rule::lifetime) {
+                            Generic::Lifetime(Identifier::from(pair.into_inner().next().unwrap()))
+                        } else {
+                            Generic::Type(
+                                Identifier::from(inner.next().unwrap()),
+                                inner.map(TypeExpr::from).collect(),
+                            )
+                        }
                     })
                     .collect(),
             ),

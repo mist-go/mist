@@ -16,6 +16,8 @@ pub struct Block(pub Vec<Statement>);
 pub enum TypePostfix {
     Ref,
     RefMut,
+    RefLifetime(Identifier),
+    RefMutLifetime(Identifier),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -41,6 +43,7 @@ pub enum TypeExprKind {
     Path(Path),
     PathParams(Path, Vec<TypeExpr>),
     Tuple(Vec<TypeExpr>),
+    Lifetime(Identifier),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -98,7 +101,13 @@ pub enum TopLevelKind {
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
-pub struct Generics(pub Vec<(Identifier, Vec<Path>)>);
+pub struct Generics(pub Vec<Generic>);
+
+#[derive(Debug, Clone, Serialize)]
+pub enum Generic {
+    Lifetime(Identifier),
+    Type(Identifier, Vec<TypeExpr>),
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Pattern {

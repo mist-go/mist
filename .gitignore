@@ -26,5 +26,5 @@ target
 
 /target
 
-/test/build
-/test/output.json
+/mist-test/build
+/mist-test/output.json

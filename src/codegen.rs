@@ -1,7 +1,7 @@
 use parser::ast::{
-    Attribute, BinaryOp, Block, EnumItem, Expression, FunctionDecl, Generics, Identifier, Literal,
-    Path, Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr,
-    TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
+    Attribute, BinaryOp, Block, EnumItem, Expression, FunctionDecl, Generic, Generics, Identifier,
+    Literal, Path, Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind,
+    TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -96,6 +96,7 @@ impl GetRust for TypeExprKind {
     fn get_rust(&self) -> String {
         match self {
             TypeExprKind::Path(path) => get_static_type_path(path),
+            TypeExprKind::Lifetime(name) => format!("'{}", name.get_rust()),
             TypeExprKind::PathParams(path, params) => {
                 format!(
                     "{}<{}>",
@@ -382,7 +383,20 @@ impl ToRust for TopLevelKind {
                 cg.addln("}\n");
 
                 // Constructor
-                cg.addln(&format!("impl {} {{", name.get_rust()));
+                cg.addln(&format!(
+                    "impl{} {}{} {{",
+                    generics.get_rust(),
+                    name.get_rust(),
+                    format!(
+                        "<{}>",
+                        generics
+                            .0
+                            .iter()
+                            .map(|v| (false, v).get_rust())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                ));
                 cg.indent += 1;
 
                 let params_str = constructor
@@ -393,6 +407,7 @@ impl ToRust for TopLevelKind {
                     .collect::<Vec<_>>()
                     .join(", ");
 
+                cg.add_indentedln("#[allow(invalid_value)]");
                 cg.add_indentedln(&format!(
                     "{}fn new{}({}) -> Self {{",
                     constructor.visibility.get_rust(),
@@ -633,6 +648,8 @@ impl GetRust for TypePostfix {
         match self {
             TypePostfix::Ref => format!("&"),
             TypePostfix::RefMut => format!("&mut "),
+            TypePostfix::RefLifetime(lifetime) => format!("&'{} ", lifetime.get_rust()),
+            TypePostfix::RefMutLifetime(lifetime) => format!("&'{} mut ", lifetime.get_rust()),
         }
     }
 }
@@ -721,23 +738,33 @@ impl GetRust for Generics {
                 "<{}>",
                 self.0
                     .iter()
-                    .map(|generic| generic.0.get_rust()
-                        + &(if generic.1.len() == 0 {
-                            String::new()
-                        } else {
-                            format!(
-                                ": {}",
-                                generic
-                                    .1
-                                    .iter()
-                                    .map(Path::get_rust)
-                                    .collect::<Vec<_>>()
-                                    .join("+")
-                            )
-                        }))
+                    .map(|v| (true, v).get_rust())
                     .collect::<Vec<_>>()
                     .join(", ")
             )
+        }
+    }
+}
+
+impl GetRust for (bool, &Generic) {
+    fn get_rust(&self) -> String {
+        match &self.1 {
+            Generic::Lifetime(name) => format!("'{}", name.get_rust()),
+            Generic::Type(name, requirements) => {
+                name.get_rust()
+                    + &(if !self.0 && requirements.len() == 0 {
+                        String::new()
+                    } else {
+                        format!(
+                            ": {}",
+                            requirements
+                                .iter()
+                                .map(TypeExpr::get_rust)
+                                .collect::<Vec<_>>()
+                                .join("+")
+                        )
+                    })
+            }
         }
     }
 }

@@ -1,4 +1,9 @@
-use std::{fs, path::PathBuf, process, time::Instant};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process,
+    time::Instant,
+};
 
 use serde::Deserialize;
 
@@ -21,56 +26,106 @@ pub fn build() {
     // 2. load config
     let config = load_config(&root);
 
-    let src = root.join(&config.src);
+    let src_dir = root.join(&config.src);
+    let out_dir = root.join(&config.output);
 
-    for entry in fs::read_dir(src).unwrap() {
-        if let Ok(entry) = entry {
-            let entry_path = root.join(&entry.path());
-            let out_dir = root.join(&config.output);
-            let file_name = entry.file_name();
-            let file_name = file_name.to_string_lossy();
-
-            // 3. read entry file
-            let source = match fs::read_to_string(&entry_path) {
-                Ok(s) => s,
-                Err(e) => {
-                    eprintln!("error: failed to read entry file\n  {}", e);
-                    process::exit(1);
-                }
-            };
-
-            let parser_result = parser::parse(&source).map_err(|e| e.to_string());
-
-            let ast = match parser_result {
-                Ok(ast) => ast,
-                Err(e) => {
-                    eprintln!("error: parse failed\n{}", e);
-                    process::exit(1);
-                }
-            };
-
-            // semantic::walk_ast(semantic::scope::Scope::from_top(&root, &ast), &mut ast);
-
-            let mut gc = crate::codegen::RustCodegen::new();
-            let output = gc.generate(&ast);
-
-            if let Err(e) = fs::create_dir_all(&out_dir) {
-                eprintln!("error: failed to create build dir\n  {}", e);
-                process::exit(1);
-            }
-
-            let out_file = out_dir.join(file_name.replace(".mist", ".rs"));
-
-            if let Err(e) = fs::write(&out_file, output) {
-                eprintln!("error: failed to write output\n  {}", e);
-                process::exit(1);
-            }
-        }
-    }
+    build_dir(&root, &src_dir, &src_dir, &out_dir);
 
     let elapsed = start.elapsed();
 
     println!("build finished in {:.2?}", elapsed);
+}
+
+fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
+    let entries = match fs::read_dir(current_dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            eprintln!(
+                "error: failed to read directory {}\n  {}",
+                current_dir.display(),
+                e
+            );
+
+            process::exit(1);
+        }
+    };
+
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(e) => {
+                eprintln!("error: failed to read directory entry\n  {}", e);
+
+                process::exit(1);
+            }
+        };
+
+        let path = entry.path();
+
+        // recurse into nested directories
+        if path.is_dir() {
+            build_dir(root, base_src, &path, out_dir);
+            continue;
+        }
+
+        // skip non-mist files
+        if path.extension().and_then(|e| e.to_str()) != Some("mist") {
+            continue;
+        }
+
+        let relative = path.strip_prefix(base_src).unwrap();
+
+        let output_path = out_dir.join(relative).with_extension("rs");
+
+        // create parent directories
+        if let Some(parent) = output_path.parent() {
+            if let Err(e) = fs::create_dir_all(parent) {
+                eprintln!(
+                    "error: failed to create output directory {}\n  {}",
+                    parent.display(),
+                    e
+                );
+
+                process::exit(1);
+            }
+        }
+
+        // read source
+        let source = match fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("error: failed to read file {}\n  {}", path.display(), e);
+
+                process::exit(1);
+            }
+        };
+
+        let parser_result = parser::parse(&source).map_err(|e| e.to_string());
+
+        let ast = match parser_result {
+            Ok(ast) => ast,
+            Err(e) => {
+                eprintln!("error: parse failed in {}\n{}", path.display(), e);
+
+                process::exit(1);
+            }
+        };
+
+        // semantic::walk_ast(semantic::scope::Scope::from_top(root, &ast), &mut ast);
+
+        let mut gc = crate::codegen::RustCodegen::new();
+        let output = gc.generate(&ast);
+
+        if let Err(e) = fs::write(&output_path, output) {
+            eprintln!(
+                "error: failed to write output {}\n  {}",
+                output_path.display(),
+                e
+            );
+
+            process::exit(1);
+        }
+    }
 }
 
 pub fn find_project_root() -> Option<PathBuf> {
@@ -87,9 +142,8 @@ pub fn find_project_root() -> Option<PathBuf> {
     }
 }
 
-fn load_config(root: &std::path::Path) -> Config {
-    let content =
-        std::fs::read_to_string(root.join("mist.json")).expect("failed to read mist.json");
+fn load_config(root: &Path) -> Config {
+    let content = fs::read_to_string(root.join("mist.json")).expect("failed to read mist.json");
 
     serde_json::from_str(&content).expect("invalid mist.json format")
 }

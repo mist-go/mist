@@ -55,7 +55,7 @@ var     = { "var" }
 // ======================================================
 // GENERICS
 // ======================================================
-generic  = { identifier ~ (":" ~ static_path ~ ("+" ~ static_path)*)? }
+generic  = { lifetime | (identifier ~ (":" ~ type_expr_param ~ ("+" ~ type_expr_param)*)?) }
 generics = { "<" ~ (generic ~ ("," ~ generic)*)? ~ ">" }
 
 // ======================================================
@@ -67,15 +67,24 @@ tuple_type = {
 }
 
 path_type = {
-    static_path ~ ("<" ~ (type_expr ~ ("," ~ type_expr)*)? ~ ">")?
+    static_path ~ ("<" ~ (type_expr_param ~ ("," ~ type_expr_param)*)? ~ ">")?
 }
 
 ref_type = {
-    mutable? ~ "*"
+    mutable? ~ lifetime? ~ "*"
 }
 
 type_expr = {
     (path_type | tuple_type) ~ ref_type*
+}
+
+lifetime = {
+    "'" ~ identifier
+}
+
+type_expr_param = {
+    type_expr
+  | lifetime
 }
 
 // ======================================================
@@ -224,7 +233,7 @@ self_param = {
 }
 
 method = {
-    export? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ param_list? ~ ")" ~ block
+    export? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ block
 }
 
 class_decl = {
@@ -263,7 +272,6 @@ statement_list = {
 statement = _{
     expr_stmt
   | match_stmt
-  | var_decl_statement
   | assign_statement
   | if_stmt
   | while_stmt
@@ -273,6 +281,7 @@ statement = _{
   | break_stmt
   | continue_stmt
   | block
+  | var_decl_statement
 }
 
 // ------------------------------------------------------
