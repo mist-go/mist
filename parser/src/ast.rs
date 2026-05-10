@@ -74,6 +74,7 @@ pub enum TopLevelKind {
     ModAttribute,
     Import(Path),
     Mod(Identifier),
+    ImplDecl(ImplDecl),
     EnumDecl {
         visibility: Visibility,
         name: Identifier,
@@ -190,6 +191,14 @@ pub enum Statement {
     Return(Option<Expression>),
     Break,
     Continue,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ImplDecl {
+    pub generics: Generics,
+    pub target: TypeExpr,
+    pub trait_: Option<TypeExpr>,
+    pub methods: Vec<FunctionDecl>,
 }
 
 #[derive(Debug, Clone, Serialize)]

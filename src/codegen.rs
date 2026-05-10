@@ -1,8 +1,8 @@
 use parser::ast::{
     Attribute, BinaryOp, Block, EnumItem, Expression, FieldDecl, FunctionDecl, Generic, Generics,
-    Identifier, Literal, Path, Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel,
-    TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl, VarDeclStmt,
-    Visibility,
+    Identifier, ImplDecl, Literal, Path, Pattern, Postfix, Prefix, Statement, StatementBranch,
+    TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt, VarDecl,
+    VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -315,6 +315,7 @@ impl ToRust for TopLevelKind {
             Self::Import(path) => cg.addln(&format!("use {};", path.get_rust())),
             Self::Mod(id) => cg.addln(&format!("mod {};", id.get_rust())),
             Self::FunctionDecl(decl) => decl.to_rust(cg),
+            Self::ImplDecl(impl_) => impl_.to_rust(cg),
             Self::StructDecl {
                 visibility,
                 name,
@@ -612,6 +613,33 @@ impl ToRust for FunctionDecl {
         self.body.to_rust(cg);
         cg.indent -= 1;
         cg.add_indentedln("}\n");
+    }
+}
+
+impl ToRust for ImplDecl {
+    fn to_rust(&self, cg: &mut RustCodegen) {
+        if let Some(trait_) = &self.trait_ {
+            cg.add_indentedln(&format!(
+                "impl{} {} for {} {{",
+                self.generics.get_rust(),
+                trait_.get_rust(),
+                self.target.get_rust()
+            ));
+        } else {
+            cg.add_indentedln(&format!(
+                "impl{} {} {{",
+                self.generics.get_rust(),
+                self.target.get_rust()
+            ));
+        }
+        cg.indent += 1;
+
+        for method in &self.methods {
+            method.to_rust(cg);
+        }
+
+        cg.indent -= 1;
+        cg.add_indentedln("}");
     }
 }
 
