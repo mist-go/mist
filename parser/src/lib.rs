@@ -260,7 +260,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
         let mut inner = pair.clone().into_inner();
 
         match rule {
-            Rule::import => TopLevelKind::Import(Path::from(inner.next().unwrap())),
+            Rule::import => TopLevelKind::Import(
+                Visibility::from(&mut inner),
+                Path::from(inner.next().unwrap()),
+            ),
 
             Rule::function_decl => TopLevelKind::FunctionDecl(FunctionDecl::from(pair)),
 
@@ -301,7 +304,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
                 fields: inner.map(EnumItem::from).collect(),
             },
 
-            Rule::mod_package => TopLevelKind::Mod(Identifier::from(inner.next().unwrap())),
+            Rule::mod_package => TopLevelKind::Mod(
+                Visibility::from(&mut inner),
+                Identifier::from(inner.next().unwrap()),
+            ),
 
             Rule::impl_for_decl | Rule::impl_decl => TopLevelKind::ImplDecl(ImplDecl::from(pair)),
 
@@ -791,11 +797,15 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
 
 impl From<&mut pest::iterators::Pairs<'_, Rule>> for Visibility {
     fn from(pairs: &mut pest::iterators::Pairs<'_, Rule>) -> Self {
-        if listen_rule(pairs, Rule::export) {
-            Visibility::Public
-        } else {
-            Visibility::Private
-        }
+        consume_rule(pairs, Rule::visibility)
+            .map(|pair| {
+                if let Some(path) = pair.into_inner().next() {
+                    Visibility::PublicTarget(Path::from(path))
+                } else {
+                    Visibility::Public
+                }
+            })
+            .unwrap_or_else(|| Visibility::Private)
     }
 }
 

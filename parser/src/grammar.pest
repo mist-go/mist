@@ -48,9 +48,9 @@ program = {
 // MODIFIERS
 // ======================================================
 
-export  = { "public" }
-mutable = { "mut" }
-var     = { "var" }
+visibility = { "pub" ~ ("(" ~ static_path ~ ")")? }
+mutable    = { "mut" }
+var        = { "var" }
 
 // ======================================================
 // GENERICS
@@ -154,7 +154,7 @@ var_decl = {
 }
 
 field = {
-    export? ~ type_expr ~ identifier
+    visibility? ~ type_expr ~ identifier
 }
 
 field_list = {
@@ -170,11 +170,11 @@ param_list = {
 // ======================================================
 
 import = {
-    "use" ~ "<" ~ static_path ~ ">" ~ semicolon
+    visibility? ~ "use" ~ "<" ~ static_path ~ ">" ~ semicolon
 }
 
 mod_package = {
-    "mod" ~ identifier ~ semicolon
+    visibility? ~ "mod" ~ identifier ~ semicolon
 }
 
 // ======================================================
@@ -182,7 +182,7 @@ mod_package = {
 // ======================================================
 
 struct_decl = {
-    export? ~ "struct" ~ identifier ~ generics? ~ "{" ~ field_list? ~ "}"
+    visibility? ~ "struct" ~ identifier ~ generics? ~ "{" ~ field_list? ~ "}"
 }
 
 // ======================================================
@@ -212,7 +212,7 @@ enum_fields = _{
 }
 
 enum_decl = {
-    export? ~ "enum" ~ identifier ~ generics? ~ "{" ~ enum_fields ~ "}"
+    visibility? ~ "enum" ~ identifier ~ generics? ~ "{" ~ enum_fields ~ "}"
 }
 
 // ======================================================
@@ -220,7 +220,7 @@ enum_decl = {
 // ======================================================
 
 class_constructor = {
-    export? ~ "constructor" ~ generics? ~ "(" ~ param_list? ~ ")" ~ block
+    visibility? ~ "constructor" ~ generics? ~ "(" ~ param_list? ~ ")" ~ block
 }
 
 class_fields = {
@@ -236,7 +236,7 @@ self_param = {
 }
 
 method = {
-    export? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ block
+    visibility? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ block
 }
 
 class_item = _{
@@ -245,7 +245,7 @@ class_item = _{
 }
 
 class_decl = {
-    export? ~ "class" ~ identifier ~ generics? ~ "{" ~ class_fields ~ class_constructor ~ class_item* ~ "}"
+    visibility? ~ "class" ~ identifier ~ generics? ~ "{" ~ class_fields ~ class_constructor ~ class_item* ~ "}"
 }
 
 // ======================================================
@@ -265,7 +265,7 @@ impl_decl = {
 trait_requirements = { ":" ~ type_expr_param ~ ("+" ~ type_expr_param)* }
 
 method_no_body = {
-    export? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ semicolon
+    visibility? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ semicolon
 }
 
 trait_item = _{
@@ -274,7 +274,7 @@ trait_item = _{
 }
 
 trait_decl = {
-    export? ~ "trait" ~ identifier ~ generics? ~ trait_requirements? ~ "{" ~ trait_item* ~ "}"
+    visibility? ~ "trait" ~ identifier ~ generics? ~ trait_requirements? ~ "{" ~ trait_item* ~ "}"
 }
 
 // ======================================================
@@ -282,7 +282,7 @@ trait_decl = {
 // ======================================================
 
 function_decl = {
-    export? ~ type_expr ~ identifier ~ "(" ~ param_list? ~ ")" ~ block
+    visibility? ~ type_expr ~ identifier ~ "(" ~ param_list? ~ ")" ~ block
 }
 
 // ======================================================

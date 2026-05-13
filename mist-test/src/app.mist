@@ -2,7 +2,7 @@ use <super::task>;
 use <super::logger>;
 use <super::event>;
 
-public class Application {
+pub class Application {
     String name;
 
     Vec<task::Task> tasks;
@@ -13,7 +13,7 @@ public class Application {
     bool running;
     i32 ticks;
 
-    public constructor(str* name) {
+    pub constructor(str* name) {
         self.name = name.to_string();
 
         self.tasks = new Vec();
@@ -25,7 +25,7 @@ public class Application {
         self.ticks = 0;
     }
 
-    public void boot(self mut*) {
+    pub void boot(self mut*) {
         self.logger.info("booting application");
 
         self.running = true;
@@ -33,7 +33,7 @@ public class Application {
         self.emit(event::Event::Startup);
     }
 
-    public void run(self mut*) {
+    pub void run(self mut*) {
         while(self.running) {
             self.tick();
 
@@ -55,7 +55,7 @@ public class Application {
         println!("tasks: {}", self.tasks.len());
     }
 
-    public void shutdown(self mut*) {
+    pub void shutdown(self mut*) {
         self.emit(event::Event::Shutdown);
 
         self.logger.warning("shutdown");
@@ -63,7 +63,7 @@ public class Application {
         self.running = false;
     }
 
-    public void register_plugin(self mut*, String name) {
+    pub void register_plugin(self mut*, String name) {
         self.plugins.push(name.clone());
 
         self.emit(event::Event::PluginLoaded(name));
