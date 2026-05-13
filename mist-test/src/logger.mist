@@ -5,7 +5,7 @@ pub trait TestLogging<T: fmt::Display>: fmt::Display {
     String get();
 }
 
-pub enum LogLevel<T> {
+pub enum LogLevel {
     Info,
     Warning,
     Error,
