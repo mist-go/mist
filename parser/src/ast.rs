@@ -20,6 +20,7 @@ pub enum TypePostfix {
 #[derive(Debug, Clone, Serialize)]
 pub enum Visibility {
     Public,
+    PublicTarget(Path),
     Private,
 }
 

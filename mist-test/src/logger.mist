@@ -1,10 +1,10 @@
 use <std::fmt>;
 
-public trait TestLogging<T: fmt::Display>: fmt::Display {
+pub trait TestLogging<T: fmt::Display>: fmt::Display {
     String get();
 }
 
-public enum LogLevel {
+pub enum LogLevel {
     Info,
     Warning,
     Error,
@@ -28,22 +28,22 @@ impl fmt::Display for LogLevel {
     }
 }
 
-public class Logger {
+pub class Logger {
     String prefix;
 
-    public constructor(str* prefix) {
+    pub constructor(str* prefix) {
         self.prefix = prefix.to_string();
     }
 
-    public void info(self*, str* message) {
+    pub void info(self*, str* message) {
         self.log(LogLevel::Info, message);
     }
 
-    public void warning(self*, str* message) {
+    pub void warning(self*, str* message) {
         self.log(LogLevel::Warning, message);
     }
 
-    public void error(self*, str* message) {
+    pub void error(self*, str* message) {
         self.log(LogLevel::Error, message);
     }
 

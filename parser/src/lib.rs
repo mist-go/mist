@@ -791,11 +791,15 @@ impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
 
 impl From<&mut pest::iterators::Pairs<'_, Rule>> for Visibility {
     fn from(pairs: &mut pest::iterators::Pairs<'_, Rule>) -> Self {
-        if listen_rule(pairs, Rule::export) {
-            Visibility::Public
-        } else {
-            Visibility::Private
-        }
+        consume_rule(pairs, Rule::visibility)
+            .map(|pair| {
+                if let Some(path) = pair.into_inner().next() {
+                    Visibility::PublicTarget(Path::from(path))
+                } else {
+                    Visibility::Public
+                }
+            })
+            .unwrap_or_else(|| Visibility::Private)
     }
 }
 

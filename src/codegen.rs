@@ -739,10 +739,10 @@ impl GetRust for TypePostfix {
 impl GetRust for Visibility {
     fn get_rust(&self) -> String {
         match self {
-            Visibility::Public => "pub ",
-            Visibility::Private => "",
+            Visibility::Public => "pub ".to_string(),
+            Visibility::PublicTarget(path) => format!("pub({}) ", path.get_rust()),
+            Visibility::Private => "".to_string(),
         }
-        .to_string()
     }
 }
 
