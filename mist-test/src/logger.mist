@@ -1,17 +1,18 @@
+use <std::fmt::Formatter>;
 use <std::fmt>;
 
 pub trait TestLogging<T: fmt::Display>: fmt::Display {
     String get();
 }
 
-pub enum LogLevel {
+pub enum LogLevel<T> {
     Info,
     Warning,
     Error,
 }
 
 impl fmt::Display for LogLevel {
-    std::fmt::Result fmt(self*, std::fmt::Formatter<'_> mut* f) {
+    fmt::Result fmt(self*, Formatter<'_> mut* f) {
         match (self) {
             LogLevel::Info => {
                 return write!(f, "[INFO]");
@@ -64,7 +65,7 @@ pub class Logger {
     }
 
     impl fmt::Display {
-        std::fmt::Result fmt(self*, std::fmt::Formatter<'_> mut* f) {
+        fmt::Result fmt(self*, Formatter<'_> mut* f) {
             return write!(f, "logger ({})", self.prefix);
         }
     }
