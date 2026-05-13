@@ -48,9 +48,9 @@ program = {
 // MODIFIERS
 // ======================================================
 
-visibility  = { "pub" ~ ("(" ~ static_path ~ ")")? }
-mutable = { "mut" }
-var     = { "var" }
+visibility = { "pub" ~ ("(" ~ static_path ~ ")")? }
+mutable    = { "mut" }
+var        = { "var" }
 
 // ======================================================
 // GENERICS
@@ -170,11 +170,11 @@ param_list = {
 // ======================================================
 
 import = {
-    "use" ~ "<" ~ static_path ~ ">" ~ semicolon
+    visibility? ~ "use" ~ "<" ~ static_path ~ ">" ~ semicolon
 }
 
 mod_package = {
-    "mod" ~ identifier ~ semicolon
+    visibility? ~ "mod" ~ identifier ~ semicolon
 }
 
 // ======================================================

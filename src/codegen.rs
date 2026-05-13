@@ -312,8 +312,10 @@ impl ToRust for TopLevelKind {
     fn to_rust(&self, cg: &mut RustCodegen) {
         match self {
             Self::ModAttribute => {}
-            Self::Import(path) => cg.addln(&format!("use {};", path.get_rust())),
-            Self::Mod(id) => cg.addln(&format!("mod {};", id.get_rust())),
+            Self::Import(vis, path) => {
+                cg.addln(&format!("{} use {};", vis.get_rust(), path.get_rust()))
+            }
+            Self::Mod(vis, id) => cg.addln(&format!("{} mod {};", vis.get_rust(), id.get_rust())),
             Self::FunctionDecl(decl) => decl.to_rust(cg),
             Self::ImplDecl(impl_) => impl_.to_rust(cg),
             Self::StructDecl {
