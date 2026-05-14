@@ -66,6 +66,10 @@ macro_rules! _ast_ti {
         $val::try_from($inner.next().unwrap())
     };
 
+    ($inner:ident, ? $val:ident) => {
+        $inner.next().map($val::try_from).transpose()
+    };
+
     ($inner:ident, ? ($rule:path)) => {
         $crate::parser::listen_rule(&mut $inner, $rule)
     };
