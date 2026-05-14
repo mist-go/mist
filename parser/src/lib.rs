@@ -14,12 +14,17 @@ pub enum ParseError<'a> {
     PreAst(pest::error::Error<Rule>),
     Ast {
         span: pest::Span<'a>,
-        error_code: i32,
+        error_code: ErrorCode,
         error_message: String,
     },
 }
 
 type ParseResult<'a, T> = Result<T, ParseError<'a>>;
+
+#[derive(Debug, Clone)]
+pub enum ErrorCode {
+    InvalidStatement = 200,
+}
 
 pub fn parse<'a>(source: &'a str) -> ParseResult<'a, Vec<TopLevel>> {
     let mut pairs = MistParser::parse(Rule::program, source)?;
@@ -611,9 +616,11 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
             ),
 
             Rule::unexpected_statement => {
-                let pos = pair.as_span().start_pos().line_col();
-
-                panic!("({}:{}) Invalid Statement: {}", pos.0, pos.1, pair.as_str())
+                return Err(ParseError::Ast {
+                    span: pair.as_span(),
+                    error_code: ErrorCode::InvalidStatement,
+                    error_message: "Invalid Statement".to_string(),
+                });
             }
 
             _ => unimplemented!("{rule:#?}"),
