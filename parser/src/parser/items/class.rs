@@ -1,7 +1,7 @@
-use crate::{Rule, ast::*, error::ParseError, parser::consume_rule};
+use crate::{Rule, ast::*, error::AstError, parser::consume_rule};
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ClassConstructor {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
@@ -28,7 +28,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ClassConstructor {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ClassItem {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();

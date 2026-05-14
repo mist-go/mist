@@ -1,12 +1,12 @@
 use crate::{
     Rule,
     ast::*,
-    error::{ErrorCode, ParseError, ParseResult},
+    error::{ErrorCode, AstError, AstResult},
     parser::listen_rule,
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let statements = pair
@@ -18,14 +18,14 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
                     vec![Statement::try_from(pair)]
                 }
             })
-            .collect::<ParseResult<'a, Vec<_>>>()?;
+            .collect::<AstResult<'a, Vec<_>>>()?;
 
         Ok(Block(statements))
     }
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -58,7 +58,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                         .unwrap()
                         .into_inner()
                         .map(StatementBranch::try_from)
-                        .collect::<ParseResult<'a, Vec<_>>>()?,
+                        .collect::<AstResult<'a, Vec<_>>>()?,
                     else_branch: inner
                         .next()
                         .map(Statement::try_from)
@@ -98,11 +98,11 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                             Block::try_from(match_inner.next().unwrap())?,
                         ))
                     })
-                    .collect::<ParseResult<'a, Vec<_>>>()?,
+                    .collect::<AstResult<'a, Vec<_>>>()?,
             ),
 
             Rule::unexpected_statement => {
-                return Err(ParseError::Ast {
+                return Err(AstError::Ast {
                     span: pair.as_span(),
                     error_code: ErrorCode::InvalidStatement,
                     error_message: "Invalid Statement".to_string(),
@@ -115,7 +115,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for StatementBranch {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();

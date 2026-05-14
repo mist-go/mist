@@ -1,12 +1,12 @@
 use crate::{
     Rule,
     ast::*,
-    error::{GetParseError, ParseError},
+    error::{AstError, GetParseError},
     parser::listen_rule,
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDeclStmt {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
@@ -26,7 +26,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDeclStmt {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDeclStmt {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
@@ -46,7 +46,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDeclStmt {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDecl {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
@@ -82,7 +82,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDecl {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDecl {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {

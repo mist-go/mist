@@ -1,11 +1,11 @@
 use crate::{
     Rule,
     ast::*,
-    error::{ParseError, ParseResult},
+    error::{AstError, AstResult},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -19,7 +19,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                         p.into_inner()
                             .into_iter()
                             .map(Prefix::try_from)
-                            .collect::<ParseResult<'a, Vec<_>, _>>()
+                            .collect::<AstResult<'a, Vec<_>, _>>()
                     })
                     .transpose()?
                     .unwrap_or_default();
@@ -32,7 +32,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                         prefixes,
                         postfixes: inner
                             .map(|p| Postfix::try_from(p))
-                            .collect::<ParseResult<'a, Vec<_>>>()?,
+                            .collect::<AstResult<'a, Vec<_>>>()?,
                     })
                 } else {
                     Ok(exp)
@@ -47,7 +47,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Prefix {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         Ok(match pair.as_rule() {
@@ -63,7 +63,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Prefix {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -74,7 +74,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
 
             Rule::field_px => Postfix::FieldAccess(Identifier::try_from(inner.next().unwrap())?),
 
-            Rule::call_px => Postfix::Call(inner.map(Expression::try_from).collect::<ParseResult<
+            Rule::call_px => Postfix::Call(inner.map(Expression::try_from).collect::<AstResult<
                 'a,
                 Vec<_>,
                 _,
@@ -89,7 +89,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
                             Expression::try_from(pi.next().unwrap())?,
                         ))
                     })
-                    .collect::<ParseResult<'a, Vec<_>>>()?,
+                    .collect::<AstResult<'a, Vec<_>>>()?,
             ),
 
             Rule::index_px => Postfix::Index(Expression::try_from(inner.next().unwrap())?),

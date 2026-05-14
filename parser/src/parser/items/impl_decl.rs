@@ -1,12 +1,12 @@
 use crate::{
     Rule,
     ast::*,
-    error::{ParseError, ParseResult},
+    error::{AstError, AstResult},
     parser::consume_rule,
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ImplDecl {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -22,7 +22,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ImplDecl {
                 target: TypeExpr::try_from(inner.next().unwrap())?,
                 methods: inner
                     .map(FunctionDecl::try_from)
-                    .collect::<ParseResult<'a, Vec<_>>>()?,
+                    .collect::<AstResult<'a, Vec<_>>>()?,
             }),
 
             Rule::impl_decl => Ok(ImplDecl {
@@ -34,7 +34,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ImplDecl {
                 target: TypeExpr::try_from(inner.next().unwrap())?,
                 methods: inner
                     .map(FunctionDecl::try_from)
-                    .collect::<ParseResult<'a, Vec<_>>>()?,
+                    .collect::<AstResult<'a, Vec<_>>>()?,
             }),
 
             _ => unimplemented!("{rule:#?}"),

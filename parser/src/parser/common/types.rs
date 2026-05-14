@@ -1,12 +1,12 @@
 use crate::{
     Rule,
     ast::*,
-    error::{ParseError, ParseResult},
+    error::{AstError, AstResult},
     parser::{consume_rule, listen_rule},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypePostfix {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -39,7 +39,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypePostfix {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExprKind {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -49,13 +49,13 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExprKind {
             Rule::tuple_type => Ok(TypeExprKind::Tuple(
                 inner
                     .map(TypeExpr::try_from)
-                    .collect::<ParseResult<'a, _>>()?,
+                    .collect::<AstResult<'a, _>>()?,
             )),
             Rule::path_type => {
                 let path = Path::try_from(inner.next().unwrap())?;
                 let params = inner
                     .map(TypeExpr::try_from)
-                    .collect::<ParseResult<'a, Vec<_>>>()?;
+                    .collect::<AstResult<'a, Vec<_>>>()?;
 
                 if params.len() == 0 {
                     Ok(TypeExprKind::Path(path))
@@ -69,7 +69,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExprKind {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -80,7 +80,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
                 TypeExprKind::try_from(inner.next().unwrap())?,
                 inner
                     .map(TypePostfix::try_from)
-                    .collect::<ParseResult<'a, _>>()?,
+                    .collect::<AstResult<'a, _>>()?,
             )),
             Rule::type_expr_param => Self::try_from(inner.next().unwrap()),
             Rule::lifetime => Ok(TypeExpr(
@@ -93,7 +93,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Generics {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -102,7 +102,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Generics {
         match rule {
             Rule::generics => Ok(Generics(
                 inner
-                    .map(|pair| -> ParseResult<'a, Generic> {
+                    .map(|pair| -> AstResult<'a, Generic> {
                         let mut inner = pair.into_inner();
                         Ok(
                             if let Some(pair) = consume_rule(&mut inner, Rule::lifetime) {
@@ -114,12 +114,12 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Generics {
                                     Identifier::try_from(inner.next().unwrap())?,
                                     inner
                                         .map(TypeExpr::try_from)
-                                        .collect::<ParseResult<'a, Vec<_>>>()?,
+                                        .collect::<AstResult<'a, Vec<_>>>()?,
                                 )
                             },
                         )
                     })
-                    .collect::<ParseResult<'a, Vec<_>>>()?,
+                    .collect::<AstResult<'a, Vec<_>>>()?,
             )),
             _ => unimplemented!("{rule:#?}"),
         }

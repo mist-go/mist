@@ -7,12 +7,12 @@ pub mod impl_decl;
 use crate::{
     Rule,
     ast::*,
-    error::{ParseError, ParseResult},
+    error::{AstError, AstResult},
     parser::consume_rule,
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevel {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
@@ -22,7 +22,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevel {
             .unwrap()
             .into_inner()
             .map(Attribute::try_from)
-            .collect::<ParseResult<'a, Vec<_>>>()?;
+            .collect::<AstResult<'a, Vec<_>>>()?;
 
         Ok(TopLevel(
             inner
@@ -35,7 +35,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevel {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -61,7 +61,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                     .map(|pair| {
                         pair.into_inner()
                             .map(FieldDecl::try_from)
-                            .collect::<ParseResult<'a, Vec<_>>>()
+                            .collect::<AstResult<'a, Vec<_>>>()
                     })
                     .transpose()?
                     .unwrap_or_default(),
@@ -79,12 +79,12 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                     .unwrap()
                     .into_inner()
                     .map(FieldDeclStmt::try_from)
-                    .collect::<ParseResult<'a, Vec<_>>>()?,
+                    .collect::<AstResult<'a, Vec<_>>>()?,
                 constructor: ClassConstructor::try_from(inner.next().unwrap())?,
                 items: inner
                     .into_iter()
                     .map(ClassItem::try_from)
-                    .collect::<ParseResult<'a, Vec<_>>>()?,
+                    .collect::<AstResult<'a, Vec<_>>>()?,
             },
 
             Rule::enum_decl => TopLevelKind::EnumDecl {
@@ -96,7 +96,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                     .unwrap_or_default(),
                 fields: inner
                     .map(EnumItem::try_from)
-                    .collect::<ParseResult<'a, Vec<_>>>()?,
+                    .collect::<AstResult<'a, Vec<_>>>()?,
             },
 
             Rule::mod_package => TopLevelKind::Mod(
@@ -119,13 +119,13 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                     .map(|pair| {
                         pair.into_inner()
                             .map(TypeExpr::try_from)
-                            .collect::<ParseResult<'a, Vec<_>>>()
+                            .collect::<AstResult<'a, Vec<_>>>()
                     })
                     .transpose()?
                     .unwrap_or_default(),
                 items: inner
                     .map(FunctionDecl::try_from)
-                    .collect::<ParseResult<'a, Vec<_>>>()?,
+                    .collect::<AstResult<'a, Vec<_>>>()?,
             },
 
             _ => unimplemented!("{rule:#?}"),

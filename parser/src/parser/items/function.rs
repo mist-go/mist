@@ -1,12 +1,12 @@
 use crate::{
     Rule,
     ast::*,
-    error::{ParseError, ParseResult},
+    error::{AstError, AstResult},
     parser::{consume_rule, listen_rule},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
@@ -47,7 +47,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
         let params = consume_rule(&mut inner, Rule::param_list)
             .map({
                 let self_param = self_param.clone();
-                |params_pair| -> ParseResult<'a, ParamList> {
+                |params_pair| -> AstResult<'a, ParamList> {
                     let mut params = ParamList::try_from(params_pair)?;
                     if let Some(x) = self_param {
                         params.0.insert(0, x);
@@ -72,13 +72,13 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ParamList {
-    type Error = ParseError<'a, Self>;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         Ok(ParamList(
             pair.into_inner()
                 .map(VarDecl::try_from)
-                .collect::<ParseResult<'a, Vec<_>>>()?,
+                .collect::<AstResult<'a, Vec<_>>>()?,
         ))
     }
 }

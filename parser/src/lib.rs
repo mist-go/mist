@@ -7,13 +7,13 @@ pub mod parser;
 
 use ast::*;
 
-use crate::error::{GetParseError, ParseResult};
+use crate::error::{GetParseError, ParseError};
 
 #[derive(Parser)]
 #[grammar = "./src/grammar.pest"]
 pub struct MistParser;
 
-pub fn parse<'a>(source: &'a str) -> ParseResult<'a, Vec<TopLevel>> {
+pub fn parse<'a>(source: &'a str) -> Result<Vec<TopLevel>, ParseError<'a, Vec<TopLevel>>> {
     let mut pairs = MistParser::parse(Rule::program, source)?;
 
     let mut statements = vec![];
