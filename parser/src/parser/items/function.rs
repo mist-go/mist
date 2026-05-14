@@ -70,3 +70,15 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
         })
     }
 }
+
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ParamList {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        Ok(ParamList(
+            pair.into_inner()
+                .map(VarDecl::try_from)
+                .collect::<ParseResult<'a, Vec<_>>>()?,
+        ))
+    }
+}

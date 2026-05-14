@@ -91,3 +91,37 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
         }
     }
 }
+
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Generics {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        let rule = pair.as_rule();
+        let inner = pair.clone().into_inner();
+
+        match rule {
+            Rule::generics => Ok(Generics(
+                inner
+                    .map(|pair| -> ParseResult<'a, Generic> {
+                        let mut inner = pair.into_inner();
+                        Ok(
+                            if let Some(pair) = consume_rule(&mut inner, Rule::lifetime) {
+                                Generic::Lifetime(Identifier::try_from(
+                                    pair.into_inner().next().unwrap(),
+                                )?)
+                            } else {
+                                Generic::Type(
+                                    Identifier::try_from(inner.next().unwrap())?,
+                                    inner
+                                        .map(TypeExpr::try_from)
+                                        .collect::<ParseResult<'a, Vec<_>>>()?,
+                                )
+                            },
+                        )
+                    })
+                    .collect::<ParseResult<'a, Vec<_>>>()?,
+            )),
+            _ => unimplemented!("{rule:#?}"),
+        }
+    }
+}
