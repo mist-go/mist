@@ -6,7 +6,7 @@ use crate::{
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypePostfix {
-    type Error = ParseError<'a>;
+    type Error = ParseError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -39,7 +39,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypePostfix {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExprKind {
-    type Error = ParseError<'a>;
+    type Error = ParseError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -69,7 +69,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExprKind {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
-    type Error = ParseError<'a>;
+    type Error = ParseError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -93,7 +93,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Generics {
-    type Error = ParseError<'a>;
+    type Error = ParseError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();

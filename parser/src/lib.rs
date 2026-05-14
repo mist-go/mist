@@ -7,7 +7,7 @@ pub mod parser;
 
 use ast::*;
 
-use crate::error::ParseResult;
+use crate::error::{GetParseError, ParseResult};
 
 #[derive(Parser)]
 #[grammar = "./src/grammar.pest"]
@@ -20,7 +20,7 @@ pub fn parse<'a>(source: &'a str) -> ParseResult<'a, Vec<TopLevel>> {
 
     for pair in pairs.next().unwrap().into_inner() {
         if pair.as_rule() != Rule::EOI {
-            statements.push(TopLevel::try_from(pair)?);
+            statements.push(TopLevel::try_from(pair).get()?);
         }
     }
 

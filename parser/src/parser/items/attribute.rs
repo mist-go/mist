@@ -5,7 +5,7 @@ use crate::{
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Attribute {
-    type Error = ParseError<'a>;
+    type Error = ParseError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
@@ -41,7 +41,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Attribute {
                             let items = next
                                 .into_inner()
                                 .map(Attribute::try_from)
-                                .collect::<ParseResult<'a, Vec<_>>>()?;
+                                .collect::<ParseResult<'a, Vec<_>, _>>()?;
 
                             Ok(Attribute::List { path, items })
                         }

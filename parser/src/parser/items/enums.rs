@@ -5,7 +5,7 @@ use crate::{
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for EnumItem {
-    type Error = ParseError<'a>;
+    type Error = ParseError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
