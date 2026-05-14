@@ -2,29 +2,15 @@ use pest::Parser;
 use pest_derive::Parser;
 
 pub mod ast;
+pub mod error;
 
 use ast::*;
+
+use crate::error::{ErrorCode, ParseError, ParseResult};
 
 #[derive(Parser)]
 #[grammar = "./src/grammar.pest"]
 pub struct MistParser;
-
-#[derive(Debug, Clone)]
-pub enum ParseError<'a> {
-    PreAst(pest::error::Error<Rule>),
-    Ast {
-        span: pest::Span<'a>,
-        error_code: ErrorCode,
-        error_message: String,
-    },
-}
-
-type ParseResult<'a, T> = Result<T, ParseError<'a>>;
-
-#[derive(Debug, Clone)]
-pub enum ErrorCode {
-    InvalidStatement = 200,
-}
 
 pub fn parse<'a>(source: &'a str) -> ParseResult<'a, Vec<TopLevel>> {
     let mut pairs = MistParser::parse(Rule::program, source)?;
