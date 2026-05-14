@@ -337,17 +337,19 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
 
             Rule::struct_decl => TopLevelKind::StructDecl {
                 visibility: Visibility::from(&mut inner),
-                name: Identifier::try_from(inner.next().unwrap()),
+                name: Identifier::try_from(inner.next().unwrap())?,
                 generics: consume_rule(&mut inner, Rule::generics)
                     .map(Generics::try_from)
+                    .transpose()?
                     .unwrap_or_default(),
                 fields: inner
                     .next()
                     .map(|pair| {
                         pair.into_inner()
                             .map(FieldDecl::try_from)
-                            .collect::<ParseResult<'a, Vec<_>>>()?
+                            .collect::<ParseResult<'a, Vec<_>>>()
                     })
+                    .transpose()?
                     .unwrap_or_default(),
             },
 
@@ -373,7 +375,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
 
             Rule::enum_decl => TopLevelKind::EnumDecl {
                 visibility: Visibility::from(&mut inner),
-                name: Identifier::try_from(inner.next().unwrap()),
+                name: Identifier::try_from(inner.next().unwrap())?,
                 generics: consume_rule(&mut inner, Rule::generics)
                     .map(Generics::try_from)
                     .transpose()?
@@ -772,11 +774,11 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDeclStmt {
             Rule::var_decl_statement => {
                 let mut inner = pair.into_inner();
 
-                let decl = VarDecl::try_from(inner.next().unwrap());
+                let decl = VarDecl::try_from(inner.next().unwrap())?;
 
-                let init = inner.next().map(Expression::try_from);
+                let init = inner.next().map(Expression::try_from).transpose()?;
 
-                VarDeclStmt { decl, init }
+                Ok(VarDeclStmt { decl, init })
             }
 
             _ => unimplemented!(),
@@ -944,7 +946,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
         let params = consume_rule(&mut inner, Rule::param_list)
             .map({
                 let self_param = self_param.clone();
-                |params_pair| {
+                |params_pair| -> ParseResult<'a, ParamList> {
                     let mut params = ParamList::try_from(params_pair)?;
                     if let Some(x) = self_param {
                         params.0.insert(0, x);
@@ -1013,6 +1015,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Identifier {
     type Error = ParseError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        Identifier(pair.as_str().to_string())
+        Ok(Identifier(pair.as_str().to_string()))
     }
 }
