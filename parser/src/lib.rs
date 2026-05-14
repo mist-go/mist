@@ -265,7 +265,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ClassConstructor {
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
 
-        let visibility = Visibility::from(&mut inner);
+        let visibility = Visibility::try_from(&mut inner)?;
 
         let generics = consume_rule(&mut inner, Rule::generics)
             .map(Generics::try_from)
@@ -329,14 +329,14 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
 
         Ok(match rule {
             Rule::import => TopLevelKind::Import(
-                Visibility::from(&mut inner),
+                Visibility::try_from(&mut inner)?,
                 Path::try_from(inner.next().unwrap())?,
             ),
 
             Rule::function_decl => TopLevelKind::FunctionDecl(FunctionDecl::try_from(pair)?),
 
             Rule::struct_decl => TopLevelKind::StructDecl {
-                visibility: Visibility::from(&mut inner),
+                visibility: Visibility::try_from(&mut inner)?,
                 name: Identifier::try_from(inner.next().unwrap())?,
                 generics: consume_rule(&mut inner, Rule::generics)
                     .map(Generics::try_from)
@@ -354,7 +354,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
             },
 
             Rule::class_decl => TopLevelKind::ClassDecl {
-                visibility: Visibility::from(&mut inner),
+                visibility: Visibility::try_from(&mut inner)?,
                 name: Identifier::try_from(inner.next().unwrap())?,
                 generics: consume_rule(&mut inner, Rule::generics)
                     .map(Generics::try_from)
@@ -374,7 +374,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
             },
 
             Rule::enum_decl => TopLevelKind::EnumDecl {
-                visibility: Visibility::from(&mut inner),
+                visibility: Visibility::try_from(&mut inner)?,
                 name: Identifier::try_from(inner.next().unwrap())?,
                 generics: consume_rule(&mut inner, Rule::generics)
                     .map(Generics::try_from)
@@ -386,7 +386,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
             },
 
             Rule::mod_package => TopLevelKind::Mod(
-                Visibility::from(&mut inner),
+                Visibility::try_from(&mut inner)?,
                 Identifier::try_from(inner.next().unwrap())?,
             ),
 
@@ -395,7 +395,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
             }
 
             Rule::trait_decl => TopLevelKind::TraitDecl {
-                visibility: Visibility::from(&mut inner),
+                visibility: Visibility::try_from(&mut inner)?,
                 name: Identifier::try_from(inner.next().unwrap())?,
                 generics: consume_rule(&mut inner, Rule::generics)
                     .map(Generics::try_from)
@@ -888,7 +888,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDecl {
             Rule::field => {
                 let mut inner = pair.into_inner();
 
-                let visibility = Visibility::from(&mut inner);
+                let visibility = Visibility::try_from(&mut inner)?;
                 let type_ = TypeExpr::try_from(inner.next().unwrap())?;
                 let name = Identifier::try_from(inner.next().unwrap())?;
 
@@ -909,7 +909,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
-        let visibility = Visibility::from(&mut inner);
+        let visibility = Visibility::try_from(&mut inner)?;
         let return_type = TypeExpr::try_from(inner.next().unwrap())?;
         let name = Identifier::try_from(inner.next().unwrap())?;
         let generics = consume_rule(&mut inner, Rule::generics)
@@ -969,20 +969,20 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
         })
     }
 }
+impl<'a> TryFrom<&mut pest::iterators::Pairs<'a, Rule>> for Visibility {
+    type Error = ParseError<'a>;
 
-impl From<&mut pest::iterators::Pairs<'_, Rule>> for Visibility {
-    fn from(pairs: &mut pest::iterators::Pairs<'_, Rule>) -> Self {
-        consume_rule(pairs, Rule::visibility)
-            .map(|pair| {
+    fn try_from(pairs: &mut pest::iterators::Pairs<'a, Rule>) -> Result<Self, Self::Error> {
+        Ok(consume_rule(pairs, Rule::visibility)
+            .map(|pair| -> Result<Visibility, ParseError<'a>> {
                 if let Some(path) = pair.into_inner().next() {
                     Ok(Visibility::PublicTarget(Path::try_from(path)?))
                 } else {
                     Ok(Visibility::Public)
                 }
             })
-            .transpose()
-            .unwrap()
-            .unwrap_or_else(|| Visibility::Private)
+            .transpose()?
+            .unwrap_or_else(|| Visibility::Private))
     }
 }
 
