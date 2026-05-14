@@ -41,28 +41,32 @@ impl From<pest::error::Error<Rule>> for ParseError<'_> {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for TypeExpr {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
         let mut inner = pair.into_inner();
 
         match rule {
-            Rule::type_expr => TypeExpr(
+            Rule::type_expr => Ok(TypeExpr(
                 TypeExprKind::from(inner.next().unwrap()),
                 inner.map(TypePostfix::from).collect(),
-            ),
-            Rule::type_expr_param => TypeExpr::from(inner.next().unwrap()),
-            Rule::lifetime => TypeExpr(
+            )),
+            Rule::type_expr_param => Self::try_from(inner.next().unwrap()),
+            Rule::lifetime => Ok(TypeExpr(
                 TypeExprKind::Lifetime(Identifier::from(inner.next().unwrap())),
                 Vec::new(),
-            ),
+            )),
             _ => unimplemented!("{rule:#?}"),
         }
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for TypePostfix {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypePostfix {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
         let mut inner = pair.into_inner();
 
@@ -91,8 +95,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypePostfix {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for TypeExprKind {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExprKind {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
         let mut inner = pair.into_inner();
 
@@ -113,8 +119,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for TypeExprKind {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for Path {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Path {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
             Rule::static_path => Path(pair.into_inner().map(Identifier::from).collect()),
             _ => unimplemented!("{pair:#?}"),
@@ -122,14 +130,16 @@ impl From<pest::iterators::Pair<'_, Rule>> for Path {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for ParamList {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ParamList {
     fn from(pair: pest::iterators::Pair<Rule>) -> Self {
         ParamList(pair.into_inner().map(VarDecl::from).collect())
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for Attribute {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Attribute {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
             Rule::attribute => {
                 // unwrap #[ ... ]
@@ -185,8 +195,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for Attribute {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for TopLevel {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevel {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
 
         let attributes = inner
@@ -206,8 +218,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevel {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for StatementBranch {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for StatementBranch {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
 
         let condition = Expression::from(inner.next().unwrap());
@@ -220,8 +234,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for StatementBranch {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for ClassConstructor {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ClassConstructor {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
 
         let visibility = Visibility::from(&mut inner);
@@ -243,8 +259,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for ClassConstructor {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for Generics {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Generics {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
         let inner = pair.clone().into_inner();
 
@@ -269,8 +287,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for Generics {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
         let mut inner = pair.clone().into_inner();
 
@@ -343,8 +363,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for TopLevelKind {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for ClassItem {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ClassItem {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
 
         match rule {
@@ -357,8 +379,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for ClassItem {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for ImplDecl {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ImplDecl {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
         let mut inner = pair.clone().into_inner();
 
@@ -386,8 +410,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for ImplDecl {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for EnumItem {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for EnumItem {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
         let mut inner = pair.clone().into_inner();
 
@@ -417,7 +443,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for EnumItem {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for Block {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
     fn from(pair: pest::iterators::Pair<Rule>) -> Self {
         let statements = pair
             .into_inner()
@@ -433,7 +459,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Block {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for Statement {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
     fn from(pair: pest::iterators::Pair<Rule>) -> Self {
         let rule = pair.as_rule();
         let mut inner = pair.clone().into_inner();
@@ -517,8 +543,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for Literal {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Literal {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
         let mut inner = pair.clone().into_inner();
 
@@ -535,7 +563,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Literal {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for Expression {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
     fn from(pair: pest::iterators::Pair<Rule>) -> Self {
         let rule = pair.as_rule();
         let mut inner = pair.clone().into_inner();
@@ -567,7 +595,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Expression {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for Prefix {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Prefix {
     fn from(pair: pest::iterators::Pair<Rule>) -> Self {
         match pair.as_rule() {
             Rule::prefix => Self::from(pair.into_inner().next().unwrap()),
@@ -581,7 +609,7 @@ impl From<pest::iterators::Pair<'_, Rule>> for Prefix {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
     fn from(pair: pest::iterators::Pair<Rule>) -> Self {
         let rule = pair.as_rule();
         let mut inner = pair.into_inner();
@@ -638,8 +666,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for Postfix {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for VarDeclStmt {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDeclStmt {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
             Rule::var_decl_statement => {
                 let mut inner = pair.into_inner();
@@ -656,8 +686,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDeclStmt {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for FieldDeclStmt {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDeclStmt {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
             Rule::class_field => {
                 let mut inner = pair.into_inner();
@@ -674,8 +706,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for FieldDeclStmt {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for Pattern {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
         let mut inner = pair.clone().into_inner();
 
@@ -703,8 +737,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for Pattern {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDecl {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
             Rule::var_decl => {
                 let mut inner = pair.into_inner();
@@ -732,8 +768,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for VarDecl {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for FieldDecl {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDecl {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
             Rule::field => {
                 let mut inner = pair.into_inner();
@@ -754,8 +792,10 @@ impl From<pest::iterators::Pair<'_, Rule>> for FieldDecl {
     }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for FunctionDecl {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
         let visibility = Visibility::from(&mut inner);
         let return_type = TypeExpr::from(inner.next().unwrap());
@@ -855,8 +895,10 @@ pub fn consume_rule<'a>(
     if consumed { pairs.next() } else { None }
 }
 
-impl From<pest::iterators::Pair<'_, Rule>> for Identifier {
-    fn from(pair: pest::iterators::Pair<'_, Rule>) -> Self {
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Identifier {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         Identifier(pair.as_str().to_string())
     }
 }
