@@ -16,3 +16,9 @@ pub enum ParseError<'a> {
 pub enum ErrorCode {
     InvalidStatement = 200,
 }
+
+impl From<pest::error::Error<Rule>> for ParseError<'_> {
+    fn from(value: pest::error::Error<Rule>) -> Self {
+        Self::PreAst(value)
+    }
+}

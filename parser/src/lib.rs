@@ -3,10 +3,13 @@ use pest_derive::Parser;
 
 pub mod ast;
 pub mod error;
+pub mod parser;
 
 use ast::*;
 
 use crate::error::{ErrorCode, ParseError, ParseResult};
+
+use crate::parser::{consume_rule, listen_rule};
 
 #[derive(Parser)]
 #[grammar = "./src/grammar.pest"]
@@ -24,36 +27,6 @@ pub fn parse<'a>(source: &'a str) -> ParseResult<'a, Vec<TopLevel>> {
     }
 
     Ok(statements)
-}
-
-impl From<pest::error::Error<Rule>> for ParseError<'_> {
-    fn from(value: pest::error::Error<Rule>) -> Self {
-        Self::PreAst(value)
-    }
-}
-
-impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
-    type Error = ParseError<'a>;
-
-    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        let rule = pair.as_rule();
-        let mut inner = pair.into_inner();
-
-        match rule {
-            Rule::type_expr => Ok(TypeExpr(
-                TypeExprKind::try_from(inner.next().unwrap())?,
-                inner
-                    .map(TypePostfix::try_from)
-                    .collect::<ParseResult<'a, _>>()?,
-            )),
-            Rule::type_expr_param => Self::try_from(inner.next().unwrap()),
-            Rule::lifetime => Ok(TypeExpr(
-                TypeExprKind::Lifetime(Identifier::try_from(inner.next().unwrap())?),
-                Vec::new(),
-            )),
-            _ => unimplemented!("{rule:#?}"),
-        }
-    }
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypePostfix {
@@ -115,21 +88,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExprKind {
                 }
             }
             _ => unimplemented!("{rule:#?}"),
-        }
-    }
-}
-
-impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Path {
-    type Error = ParseError<'a>;
-
-    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        match pair.as_rule() {
-            Rule::static_path => Ok(Path(
-                pair.into_inner()
-                    .map(Identifier::try_from)
-                    .collect::<ParseResult<'a, Vec<_>>>()?,
-            )),
-            _ => unimplemented!("{pair:#?}"),
         }
     }
 }
@@ -614,30 +572,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
     }
 }
 
-impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Literal {
-    type Error = ParseError<'a>;
-
-    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        let rule = pair.as_rule();
-        let mut inner = pair.clone().into_inner();
-
-        Ok(match rule {
-            Rule::primary => Self::try_from(inner.next().unwrap())?,
-            Rule::literal => Self::try_from(inner.next().unwrap())?,
-            Rule::integer => Literal::Int(pair.as_str().parse::<i64>().unwrap()),
-            Rule::float => Literal::Float(pair.as_str().parse::<f64>().unwrap()),
-            Rule::boolean => Literal::Bool(pair.as_str().parse::<bool>().unwrap()),
-            Rule::string_lit => Literal::String(inner.as_str().to_string()),
-            Rule::tuple => Literal::Tuple(
-                inner
-                    .map(Expression::try_from)
-                    .collect::<ParseResult<'a, Vec<_>>>()?,
-            ),
-            _ => unimplemented!("{rule:#?}"),
-        })
-    }
-}
-
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
     type Error = ParseError<'a>;
 
@@ -894,120 +828,5 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDecl {
 
             _ => unimplemented!("{:?}", pair.as_rule()),
         }
-    }
-}
-
-impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
-    type Error = ParseError<'a>;
-
-    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        let mut inner = pair.into_inner();
-        let visibility = Visibility::try_from(&mut inner)?;
-        let return_type = TypeExpr::try_from(inner.next().unwrap())?;
-        let name = Identifier::try_from(inner.next().unwrap())?;
-        let generics = consume_rule(&mut inner, Rule::generics)
-            .map(Generics::try_from)
-            .transpose()?
-            .unwrap_or_default();
-
-        let self_param = consume_rule(&mut inner, Rule::self_param).map(|param| {
-            let mut param_inner = param.into_inner();
-            let name = Pattern::Id(Identifier(String::from("self")));
-
-            let mutable = listen_rule(&mut param_inner, Rule::mutable);
-
-            let is_ref = listen_rule(&mut param_inner, Rule::deref_px);
-
-            VarDecl {
-                mutable: mutable && !is_ref,
-                name: name.clone(),
-                type_: Some(TypeExpr(
-                    TypeExprKind::Path(Path(vec![Identifier("Self".to_string())])),
-                    if is_ref {
-                        vec![if mutable {
-                            TypePostfix::RefMut
-                        } else {
-                            TypePostfix::Ref
-                        }]
-                    } else {
-                        Vec::new()
-                    },
-                )),
-            }
-        });
-
-        let params = consume_rule(&mut inner, Rule::param_list)
-            .map({
-                let self_param = self_param.clone();
-                |params_pair| -> ParseResult<'a, ParamList> {
-                    let mut params = ParamList::try_from(params_pair)?;
-                    if let Some(x) = self_param {
-                        params.0.insert(0, x);
-                    }
-                    Ok(params)
-                }
-            })
-            .transpose()?
-            .unwrap_or_else(|| ParamList(self_param.into_iter().collect()));
-
-        let body = inner.next().map(Block::try_from).transpose()?;
-
-        Ok(Self {
-            visibility,
-            name,
-            generics,
-            params,
-            return_type,
-            body,
-        })
-    }
-}
-impl<'a> TryFrom<&mut pest::iterators::Pairs<'a, Rule>> for Visibility {
-    type Error = ParseError<'a>;
-
-    fn try_from(pairs: &mut pest::iterators::Pairs<'a, Rule>) -> Result<Self, Self::Error> {
-        Ok(consume_rule(pairs, Rule::visibility)
-            .map(|pair| -> Result<Visibility, ParseError<'a>> {
-                if let Some(path) = pair.into_inner().next() {
-                    Ok(Visibility::PublicTarget(Path::try_from(path)?))
-                } else {
-                    Ok(Visibility::Public)
-                }
-            })
-            .transpose()?
-            .unwrap_or_else(|| Visibility::Private))
-    }
-}
-
-pub fn listen_rule(pairs: &mut pest::iterators::Pairs<'_, Rule>, rule: Rule) -> bool {
-    let consumed = pairs
-        .peek()
-        .map(|p| p.as_rule() == rule)
-        .unwrap_or_default();
-
-    if consumed {
-        pairs.next();
-    }
-
-    consumed
-}
-
-pub fn consume_rule<'a>(
-    pairs: &mut pest::iterators::Pairs<'a, Rule>,
-    rule: Rule,
-) -> Option<pest::iterators::Pair<'a, Rule>> {
-    let consumed = pairs
-        .peek()
-        .map(|p| p.as_rule() == rule)
-        .unwrap_or_default();
-
-    if consumed { pairs.next() } else { None }
-}
-
-impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Identifier {
-    type Error = ParseError<'a>;
-
-    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        Ok(Identifier(pair.as_str().to_string()))
     }
 }
