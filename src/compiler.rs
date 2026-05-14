@@ -100,7 +100,7 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
             }
         };
 
-        let parser_result = mist_parser::parse(&source).map_err(|e| e.to_string());
+        let parser_result = mist_parser::parse(&source).map_err(|e| format!("{e:?}"));
 
         let ast = match parser_result {
             Ok(ast) => ast,

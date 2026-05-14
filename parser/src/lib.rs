@@ -9,10 +9,19 @@ use ast::*;
 #[grammar = "./src/grammar.pest"]
 pub struct MistParser;
 
-// convenience alias for pest errors
-pub type ParseError = pest::error::Error<Rule>;
+#[derive(Debug, Clone)]
+pub enum ParseError<'a> {
+    PreAst(pest::error::Error<Rule>),
+    Ast {
+        span: pest::Span<'a>,
+        error_code: i32,
+        error_message: String,
+    },
+}
 
-pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
+type ParseResult<'a, T> = Result<T, ParseError<'a>>;
+
+pub fn parse<'a>(source: &str) -> ParseResult<'a, Vec<TopLevel>> {
     let mut pairs = MistParser::parse(Rule::program, source)?;
 
     let mut statements = vec![];
@@ -24,6 +33,12 @@ pub fn parse(source: &str) -> Result<Vec<TopLevel>, ParseError> {
     }
 
     Ok(statements)
+}
+
+impl From<pest::error::Error<Rule>> for ParseError<'_> {
+    fn from(value: pest::error::Error<Rule>) -> Self {
+        Self::PreAst(value)
+    }
 }
 
 impl From<pest::iterators::Pair<'_, Rule>> for TypeExpr {
