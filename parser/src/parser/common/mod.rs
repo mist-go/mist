@@ -57,6 +57,45 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Literal {
     }
 }
 
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
+    type Error = ParseError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        let rule = pair.as_rule();
+        let mut inner = pair.clone().into_inner();
+
+        Ok(match rule {
+            Rule::tuple_pattern => Pattern::Tuple(
+                inner
+                    .map(Identifier::try_from)
+                    .collect::<ParseResult<'a, Vec<_>>>()?,
+            ),
+
+            Rule::named_tuple_pattern => Pattern::NamedTuple(
+                Path::try_from(inner.next().unwrap())?,
+                inner
+                    .map(Identifier::try_from)
+                    .collect::<ParseResult<'a, Vec<_>>>()?,
+            ),
+
+            Rule::struct_pattern => Pattern::Struct(
+                Path::try_from(inner.next().unwrap())?,
+                inner
+                    .map(Identifier::try_from)
+                    .collect::<ParseResult<'a, Vec<_>>>()?,
+            ),
+
+            Rule::literal => Pattern::Literal(Literal::try_from(pair)?),
+
+            Rule::identifier => Pattern::Id(Identifier::try_from(pair)?),
+
+            Rule::static_path => Pattern::Path(Path::try_from(pair)?),
+
+            _ => unimplemented!("{rule:?}"),
+        })
+    }
+}
+
 impl<'a> TryFrom<&mut pest::iterators::Pairs<'a, Rule>> for Visibility {
     type Error = ParseError<'a>;
 
