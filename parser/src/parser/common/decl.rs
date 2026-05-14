@@ -1,8 +1,8 @@
 use crate::{
     Rule,
     ast::*,
+    ast_expr,
     error::{AstError, GetParseError},
-    parser::listen_rule,
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDeclStmt {
@@ -53,27 +53,22 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDecl {
             Rule::var_decl => {
                 let mut inner = pair.into_inner();
 
-                let type_ = inner
-                    .next()
-                    .and_then(|pair| {
-                        if pair.as_str().trim() == "var" {
-                            None
-                        } else {
-                            Some(TypeExpr::try_from(pair))
-                        }
-                    })
-                    .transpose()
-                    .get()?;
+                Ok(ast_expr!(inner@VarDecl {
+                    type_: & (inner
+                        .next()
+                        .and_then(|pair| {
+                            if pair.as_str().trim() == "var" {
+                                None
+                            } else {
+                                Some(TypeExpr::try_from(pair))
+                            }
+                        })
+                        .transpose()),
 
-                let mutable = listen_rule(&mut inner, Rule::mutable);
+                    mutable: ?(Rule::mutable),
 
-                let name = Pattern::try_from(inner.next().unwrap()).get()?;
-
-                Ok(VarDecl {
-                    mutable,
-                    name,
-                    type_,
-                })
+                    name: @Pattern
+                }))
             }
 
             _ => unimplemented!("{:?}", pair.as_rule()),
@@ -89,15 +84,11 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDecl {
             Rule::field => {
                 let mut inner = pair.into_inner();
 
-                let visibility = Visibility::try_from(&mut inner).get()?;
-                let type_ = TypeExpr::try_from(inner.next().unwrap()).get()?;
-                let name = Identifier::try_from(inner.next().unwrap()).get()?;
-
-                Ok(FieldDecl {
-                    visibility,
-                    type_,
-                    name,
-                })
+                Ok(ast_expr!(inner@FieldDecl {
+                    visibility: !Visibility,
+                    type_: @TypeExpr,
+                    name: @Identifier
+                }))
             }
 
             _ => unimplemented!("{:?}", pair.as_rule()),

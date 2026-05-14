@@ -10,10 +10,10 @@ pub enum ParseError<'a, T> {
 
 #[derive(Debug, Clone)]
 pub struct AstError<'a, T> {
-    span: pest::Span<'a>,
-    error_code: ErrorCode,
-    error_message: String,
-    recovered: Option<T>,
+    pub span: pest::Span<'a>,
+    pub error_code: ErrorCode,
+    pub error_message: String,
+    pub recovered: Option<T>,
 }
 
 #[derive(Debug, Clone)]
@@ -89,7 +89,7 @@ where
             span: ast_err.span,
             error_code: ast_err.error_code,
             error_message: ast_err.error_message,
-            recovered: None,
+            recovered: Some(items),
         }),
         None => Ok(items),
     }

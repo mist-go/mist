@@ -1,9 +1,12 @@
 pub mod common;
 pub mod items;
 
-use crate::Rule;
+use crate::{Rule, error::AstResult};
 
-pub fn listen_rule(pairs: &mut pest::iterators::Pairs<'_, Rule>, rule: Rule) -> bool {
+pub fn listen_rule<'a>(
+    pairs: &mut pest::iterators::Pairs<'_, Rule>,
+    rule: Rule,
+) -> AstResult<'a, bool> {
     let consumed = pairs
         .peek()
         .map(|p| p.as_rule() == rule)
@@ -13,7 +16,7 @@ pub fn listen_rule(pairs: &mut pest::iterators::Pairs<'_, Rule>, rule: Rule) -> 
         pairs.next();
     }
 
-    consumed
+    Ok(consumed)
 }
 
 pub fn consume_rule<'a>(

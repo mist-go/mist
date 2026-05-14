@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    error::{AstError, AstResult},
+    error::{AstError, AstResult, GetParseError},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
@@ -72,7 +72,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
         Ok(match rule {
             Rule::postfix => Postfix::try_from(inner.next().unwrap())?,
 
-            Rule::field_px => Postfix::FieldAccess(Identifier::try_from(inner.next().unwrap())?),
+            Rule::field_px => Postfix::FieldAccess(Identifier::try_from(inner.next().unwrap()).get()?),
 
             Rule::call_px => Postfix::Call(inner.map(Expression::try_from).collect::<AstResult<
                 'a,
