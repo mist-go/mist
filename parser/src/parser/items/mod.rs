@@ -1,6 +1,8 @@
 pub mod attribute;
 pub mod class;
+pub mod enums;
 pub mod function;
+pub mod impl_decl;
 
 use crate::{
     Rule,
