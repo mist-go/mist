@@ -53,6 +53,14 @@ mutable    = { "mut" }
 var        = { "var" }
 
 // ======================================================
+// ERROR RECOVERY
+// ======================================================
+
+unexpected_statement = {
+    (!(semicolon | "}" | statement) ~ ANY)+
+}
+
+// ======================================================
 // GENERICS
 // ======================================================
 generic  = { lifetime | (identifier ~ (":" ~ type_expr_param ~ ("+" ~ type_expr_param)*)?) }
@@ -303,7 +311,7 @@ block = {
 }
 
 statement_list = {
-    statement*
+    (statement | unexpected_statement)*
 }
 
 statement = _{

@@ -491,6 +491,12 @@ impl From<pest::iterators::Pair<'_, Rule>> for Statement {
                     .collect(),
             ),
 
+            Rule::unexpected_statement => {
+                let pos = pair.as_span().start_pos().line_col();
+
+                panic!("({}:{}) Invalid Statement: {}", pos.0, pos.1, pair.as_str())
+            }
+
             _ => unimplemented!("{rule:#?}"),
         }
     }
