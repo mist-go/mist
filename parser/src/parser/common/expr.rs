@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    error::{GetParseError, ParseError, ParseResult},
+    error::{ParseError, ParseResult},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
@@ -78,7 +78,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
                 'a,
                 Vec<_>,
                 _,
-            >>()),
+            >>()?),
 
             Rule::struct_px => Postfix::StructCall(
                 inner
@@ -92,7 +92,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
                     .collect::<ParseResult<'a, Vec<_>>>()?,
             ),
 
-            Rule::index_px => Postfix::Index(Expression::try_from(inner.next().unwrap()).get()?),
+            Rule::index_px => Postfix::Index(Expression::try_from(inner.next().unwrap())?),
 
             Rule::binary_px => {
                 let op_pair = inner.next().unwrap();

@@ -55,3 +55,12 @@ impl<'a, F> GetParseError<'a, F> for ParseResult<'a, F> {
         }
     }
 }
+
+impl<'a, F> GetParseError<'a, Option<F>> for Result<Option<F>, ParseError<'a, F>> {
+    fn get<T>(self) -> ParseResult<'a, Option<F>, T> {
+        match self {
+            Ok(v) => Ok(v),
+            Err(e) => Err(e.get()),
+        }
+    }
+}

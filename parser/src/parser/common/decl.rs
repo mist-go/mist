@@ -1,4 +1,9 @@
-use crate::{Rule, ast::*, error::ParseError, parser::listen_rule};
+use crate::{
+    Rule,
+    ast::*,
+    error::{GetParseError, ParseError},
+    parser::listen_rule,
+};
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDeclStmt {
     type Error = ParseError<'a, Self>;
@@ -8,9 +13,9 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDeclStmt {
             Rule::var_decl_statement => {
                 let mut inner = pair.into_inner();
 
-                let decl = VarDecl::try_from(inner.next().unwrap())?;
+                let decl = VarDecl::try_from(inner.next().unwrap()).get()?;
 
-                let init = inner.next().map(Expression::try_from).transpose()?;
+                let init = inner.next().map(Expression::try_from).transpose().get()?;
 
                 Ok(VarDeclStmt { decl, init })
             }
@@ -28,9 +33,9 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDeclStmt {
             Rule::class_field => {
                 let mut inner = pair.into_inner();
 
-                let decl = FieldDecl::try_from(inner.next().unwrap())?;
+                let decl = FieldDecl::try_from(inner.next().unwrap()).get()?;
 
-                let init = inner.next().map(Expression::try_from).transpose()?;
+                let init = inner.next().map(Expression::try_from).transpose().get()?;
 
                 Ok(FieldDeclStmt { decl, init })
             }
@@ -57,11 +62,12 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDecl {
                             Some(TypeExpr::try_from(pair))
                         }
                     })
-                    .transpose()?;
+                    .transpose()
+                    .get()?;
 
                 let mutable = listen_rule(&mut inner, Rule::mutable);
 
-                let name = Pattern::try_from(inner.next().unwrap())?;
+                let name = Pattern::try_from(inner.next().unwrap()).get()?;
 
                 Ok(VarDecl {
                     mutable,
@@ -83,9 +89,9 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDecl {
             Rule::field => {
                 let mut inner = pair.into_inner();
 
-                let visibility = Visibility::try_from(&mut inner)?;
-                let type_ = TypeExpr::try_from(inner.next().unwrap())?;
-                let name = Identifier::try_from(inner.next().unwrap())?;
+                let visibility = Visibility::try_from(&mut inner).get()?;
+                let type_ = TypeExpr::try_from(inner.next().unwrap()).get()?;
+                let name = Identifier::try_from(inner.next().unwrap()).get()?;
 
                 Ok(FieldDecl {
                     visibility,
