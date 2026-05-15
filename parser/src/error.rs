@@ -119,12 +119,15 @@ where
 pub struct AstErrorAnalyzer<'a, T>(pub Option<AstError<'a, T>>);
 
 impl<'a, T> AstErrorAnalyzer<'a, T> {
-    pub fn get<V: Clone>(&mut self, r: AstResult<'a, V>) -> AstResult<'a, V> {
+    pub fn get<V: Clone, V2: Clone + Into<V>>(
+        &mut self,
+        r: AstResult<'a, V, V2>,
+    ) -> AstResult<'a, V, V2> {
         if let Err(e) = r {
             self.0 = Some(e.clone().get());
 
             if let Some(recovered) = e.recovered {
-                Ok(recovered)
+                Ok(recovered.into())
             } else {
                 Err(e)
             }

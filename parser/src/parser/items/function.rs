@@ -1,6 +1,7 @@
 use crate::{
     Rule,
     ast::*,
+    ast_expr,
     error::{AstError, AstResult, GetParseError, collect_recovered},
     parser::{consume_rule, listen_rule},
 };
@@ -10,14 +11,14 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
-        let visibility = Visibility::try_from(&mut inner).get()?;
-        let return_type = TypeExpr::try_from(inner.next().unwrap()).get()?;
-        let name = Identifier::try_from(inner.next().unwrap()).get()?;
+        let visibility = Visibility::try_from(&mut inner);
+        let return_type = TypeExpr::try_from(inner.next().unwrap());
+        let name = Identifier::try_from(inner.next().unwrap());
+
         let generics = consume_rule(&mut inner, Rule::generics)
             .map(Generics::try_from)
             .transpose()
-            .get()?
-            .unwrap_or_default();
+            .map(|v| v.unwrap_or_default());
 
         let self_param = consume_rule(&mut inner, Rule::self_param).map(|param| {
             let mut param_inner = param.into_inner();
@@ -56,19 +57,17 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
                     Ok(params)
                 }
             })
-            .transpose()
-            .get()?
-            .unwrap_or_else(|| ParamList(self_param.into_iter().collect()));
+            .unwrap_or_else(|| Ok(ParamList(self_param.into_iter().collect())));
 
-        let body = inner.next().map(Block::try_from).transpose().get()?;
+        let body = inner.next().map(Block::try_from).transpose();
 
-        Ok(Self {
-            visibility,
-            name,
-            generics,
-            params,
-            return_type,
-            body,
+        ast_expr!(Self {
+            visibility: visibility,
+            return_type: return_type,
+            name: name,
+            generics: generics,
+            params: params,
+            body: body,
         })
     }
 }
