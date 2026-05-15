@@ -307,11 +307,7 @@ top_level = {
 // ======================================================
 
 block = {
-    "{" ~ statement_list ~ "}"
-}
-
-statement_list = {
-    (statement | unexpected_statement)*
+    "{" ~ (statement | unexpected_statement)* ~ "}"
 }
 
 statement = _{

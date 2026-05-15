@@ -9,9 +9,19 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
     type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        Ok(Block(
-            collect_recovered(pair.into_inner().next().unwrap().into_inner()).get()?,
-        ))
+        if pair.as_rule() == Rule::block {
+            Ok(Block(collect_recovered(pair.into_inner()).get()?))
+        } else {
+            Err(AstError {
+                span: pair.as_span(),
+                error_code: ErrorCode::InvalidStatement,
+                error_message: format!(
+                    "BUG: AST requires a block, this isn't a block, it's a {:?}",
+                    pair.as_rule()
+                ),
+                recovered: None,
+            })
+        }
     }
 }
 
@@ -29,7 +39,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                 Statement::Expression(Expression::try_from(inner.next().unwrap()).get()?)
             }
 
-            Rule::block => Statement::Block(Block::try_from(inner.next().unwrap()).get()?),
+            Rule::block => Statement::Block(pair.try_into().get()?),
 
             Rule::var_decl_statement => Statement::VarDecl(VarDeclStmt::try_from(pair).get()?),
 
