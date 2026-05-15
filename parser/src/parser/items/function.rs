@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    error::{AstError, AstResult},
+    error::{AstError, AstResult, GetParseError, collect_recovered},
     parser::{consume_rule, listen_rule},
 };
 
@@ -10,12 +10,13 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
-        let visibility = Visibility::try_from(&mut inner)?;
-        let return_type = TypeExpr::try_from(inner.next().unwrap())?;
-        let name = Identifier::try_from(inner.next().unwrap())?;
+        let visibility = Visibility::try_from(&mut inner).get()?;
+        let return_type = TypeExpr::try_from(inner.next().unwrap()).get()?;
+        let name = Identifier::try_from(inner.next().unwrap()).get()?;
         let generics = consume_rule(&mut inner, Rule::generics)
             .map(Generics::try_from)
-            .transpose()?
+            .transpose()
+            .get()?
             .unwrap_or_default();
 
         let self_param = consume_rule(&mut inner, Rule::self_param).map(|param| {
@@ -55,10 +56,11 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
                     Ok(params)
                 }
             })
-            .transpose()?
+            .transpose()
+            .get()?
             .unwrap_or_else(|| ParamList(self_param.into_iter().collect()));
 
-        let body = inner.next().map(Block::try_from).transpose()?;
+        let body = inner.next().map(Block::try_from).transpose().get()?;
 
         Ok(Self {
             visibility,
@@ -75,10 +77,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ParamList {
     type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        Ok(ParamList(
-            pair.into_inner()
-                .map(VarDecl::try_from)
-                .collect::<AstResult<'a, Vec<_>>>()?,
-        ))
+        Ok(ParamList(collect_recovered(pair.into_inner()).get()?))
     }
 }

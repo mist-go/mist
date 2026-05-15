@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    error::{AstError, AstResult},
+    error::{AstError, GetParseError, collect_recovered},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for EnumItem {
@@ -12,30 +12,20 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for EnumItem {
         let mut inner = pair.clone().into_inner();
 
         match rule {
-            Rule::enum_named => Ok(EnumItem::Named(Identifier::try_from(
-                inner.next().unwrap(),
-            )?)),
+            Rule::enum_named => Ok(EnumItem::Named(inner.next().unwrap().try_into().get()?)),
 
             Rule::enum_tuple => Ok(EnumItem::Tuple(
-                Identifier::try_from(inner.next().unwrap())?,
-                inner
-                    .next()
-                    .unwrap()
-                    .into_inner()
-                    .map(TypeExpr::try_from)
-                    .collect::<AstResult<'a, Vec<_>>>()?,
+                inner.next().unwrap().try_into().get()?,
+                collect_recovered(inner.next().unwrap().into_inner()).get()?,
             )),
 
             Rule::enum_struct => Ok(EnumItem::Struct(
-                Identifier::try_from(inner.next().unwrap())?,
+                inner.next().unwrap().try_into().get()?,
                 inner
                     .next()
-                    .map(|pair| {
-                        pair.into_inner()
-                            .map(FieldDecl::try_from)
-                            .collect::<AstResult<'a, Vec<_>>>()
-                    })
-                    .transpose()?
+                    .map(|pair| collect_recovered::<FieldDecl, FieldDecl>(pair.into_inner()))
+                    .transpose()
+                    .get::<Self>()?
                     .unwrap_or_default(),
             )),
 
