@@ -30,61 +30,19 @@ pub fn parse<'a>(source: &'a str) -> Result<Vec<TopLevel>, ParseError<'a, Vec<To
 #[macro_export]
 macro_rules! ast_expr {
     ($($item:ident)::+ { $($k:ident: $v:expr),* $(,)? }) => {{
-        let mut err = None;
+        let mut analyzer = $crate::error::AstErrorAnalyzer(None);
 
-        let v = $($item)::+ {
-            $(
-                $k: {
-                    let r = $v.get();
+        let v = $($item)::+ { $($k: analyzer.get($v).get()?),* };
 
-                    if let Err(e) = r {
-                        err = Some(e.clone().get());
-
-                        if let Some(recovered) = e.recovered {
-                            Ok(recovered)
-                        } else {
-                            Err(e)
-                        }
-                    } else {
-                        r
-                    }
-                }.get()?
-            ),*
-        };
-
-        if let Some(mut e) = err {
-            e.recovered = Some(v);
-            Err(e)
-        } else {
-            Ok(v)
-        }
+        analyzer.build(v)
     }};
 
     ($($item:ident)::+ ( $($v:expr),* $(,)? )) => {{
-        let mut err = None;
+        let mut analyzer = $crate::error::AstErrorAnalyzer(None);
 
-        let v = $($item)::+ ( $({
-            let r = $v.get();
+        let v = $($item)::+ ( $(analyzer.get($v).get()?),* );
 
-            if let Err(e) = r {
-                err = Some(e.clone().get());
-
-                if let Some(recovered) = e.recovered {
-                    Ok(recovered)
-                } else {
-                    Err(e)
-                }
-            } else {
-                r
-            }
-        }.get()?),* );
-
-        if let Some(mut e) = err {
-            e.recovered = Some(v);
-            Err(e)
-        } else {
-            Ok(v)
-        }
+        analyzer.build(v)
     }};
 
     ($($item:ident)::+) => {

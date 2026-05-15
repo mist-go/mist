@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::Rule;
 
 pub type AstResult<'a, T, ET = T> = Result<T, AstError<'a, ET>>;
@@ -75,7 +77,7 @@ impl<'a, F> GetParseError<'a, Option<Vec<F>>> for Result<Option<Vec<F>>, AstErro
     }
 }
 
-pub fn collect_recovered<'a, T, ET>(
+pub fn collect_recovered<'a, T: Debug, ET>(
     pairs: impl Iterator<Item = pest::iterators::Pair<'a, Rule>>,
 ) -> AstResult<'a, Vec<T>, Vec<T>>
 where
@@ -84,7 +86,7 @@ where
     collect_recovered_map(pairs, T::try_from)
 }
 
-pub fn collect_recovered_map<'a, T, F, ET>(
+pub fn collect_recovered_map<'a, T: Debug, F, ET>(
     pairs: impl Iterator<Item = pest::iterators::Pair<'a, Rule>>,
     f: F,
 ) -> AstResult<'a, Vec<T>, Vec<T>>
@@ -111,5 +113,33 @@ where
             recovered: Some(items),
         }),
         None => Ok(items),
+    }
+}
+
+pub struct AstErrorAnalyzer<'a, T>(pub Option<AstError<'a, T>>);
+
+impl<'a, T> AstErrorAnalyzer<'a, T> {
+    pub fn get<V: Clone>(&mut self, r: AstResult<'a, V>) -> AstResult<'a, V> {
+        if let Err(e) = r {
+            self.0 = Some(e.clone().get());
+
+            if let Some(recovered) = e.recovered {
+                Ok(recovered)
+            } else {
+                Err(e)
+            }
+        } else {
+            r
+        }
+    }
+
+    pub fn build(self, v: T) -> AstResult<'a, T> {
+        if let Some(mut e) = self.0 {
+            e.recovered = Some(v);
+
+            Err(e)
+        } else {
+            Ok(v)
+        }
     }
 }
