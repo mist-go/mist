@@ -29,12 +29,16 @@ pub fn parse<'a>(source: &'a str) -> Result<Vec<TopLevel>, ParseError<'a, Vec<To
 
 #[macro_export]
 macro_rules! ast_expr {
-    ($inner:tt@$item:path { $($name:ident $t:tt $val:tt $($val2:tt)?),*}) => {{
+    ($inner:tt @ $($item:ident)::+ ( $($t:tt $val:tt $val2:tt),* )) => {{
+        $($item)::+ ( $( $crate::_ast_t!($t $crate::_ast_ti!($inner, $val $val2)) )* )
+    }};
+
+    ($inner:tt @ $($item:ident)::+ { $($name:ident $t:tt $val:tt $val2:tt),*}) => {{
         $(
-            let $name = $crate::_ast_t!($t $crate::_ast_ti!($inner, $val $($val2)?));
+            let $name = $crate::_ast_t!($t $crate::_ast_ti!($inner, $val $val2));
         )*
 
-        $item { $($name,)* }
+        $($item)::+ { $($name,)* }
     }};
 }
 
@@ -58,6 +62,18 @@ macro_rules! _ast_t {
 
 #[macro_export]
 macro_rules! _ast_ti {
+    ($inner:ident, !*) => {
+        $crate::error::collect_recovered($inner)
+    };
+
+    ($inner:ident, @*) => {
+        $crate::error::collect_recovered($inner.next.unwrap().into_inner())
+    };
+
+    ($inner:ident, @ @) => {
+        $inner.next().unwrap().try_into()
+    };
+
     ($inner:ident, ! $val:ident) => {
         $val::try_from(&mut $inner)
     };
