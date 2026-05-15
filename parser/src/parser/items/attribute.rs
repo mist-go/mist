@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    error::{AstError, AstResult},
+    error::{AstError, GetParseError, collect_recovered},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Attribute {
@@ -18,7 +18,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Attribute {
                 let mut inner = pair.into_inner();
 
                 // first item is always the path
-                let path = Path::try_from(inner.next().unwrap())?;
+                let path = inner.next().unwrap().try_into().get()?;
 
                 // check what comes next
                 match inner.next() {
@@ -32,18 +32,16 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Attribute {
                             // #[path = literal]
                             Ok(Attribute::NameValue {
                                 path,
-                                value: Literal::try_from(next)?,
+                                value: inner.next().unwrap().try_into().get()?,
                             })
                         }
 
                         Rule::meta_list => {
                             // #[path(...)]
-                            let items = next
-                                .into_inner()
-                                .map(Attribute::try_from)
-                                .collect::<AstResult<'a, Vec<_>, _>>()?;
-
-                            Ok(Attribute::List { path, items })
+                            Ok(Attribute::List {
+                                path,
+                                items: collect_recovered(next.into_inner()).get()?,
+                            })
                         }
 
                         _ => unreachable!("unexpected rule in meta: {:?}", next.as_rule()),
