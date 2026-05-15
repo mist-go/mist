@@ -61,12 +61,12 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
 
             Rule::named_tuple_pattern => Pattern::NamedTuple(
                 Path::try_from(inner.next().unwrap()).get()?,
-                collect_recovered(pair.into_inner()).get()?,
+                collect_recovered(inner).get()?,
             ),
 
             Rule::struct_pattern => Pattern::Struct(
                 Path::try_from(inner.next().unwrap()).get()?,
-                collect_recovered(pair.into_inner()).get()?,
+                collect_recovered(inner).get()?,
             ),
 
             Rule::literal => Pattern::Literal(Literal::try_from(pair).get()?),
