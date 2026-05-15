@@ -18,13 +18,18 @@ pub fn parse<'a>(source: &'a str) -> Result<Vec<TopLevel>, ParseError<'a, Vec<To
 
     let mut statements = vec![];
 
+    let mut analyzer = error::AstErrorAnalyzer(None);
+
     for pair in pairs.next().unwrap().into_inner() {
         if pair.as_rule() != Rule::EOI {
-            statements.push(TopLevel::try_from(pair).get()?);
+            statements.push(analyzer.get(TopLevel::try_from(pair)).get()?);
         }
     }
 
-    Ok(statements)
+    match analyzer.build(statements) {
+        Ok(v) => Ok(v),
+        Err(e) => Err(ParseError::Ast(e)),
+    }
 }
 
 #[macro_export]

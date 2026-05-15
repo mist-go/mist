@@ -1,6 +1,4 @@
 void main() {
     app_instance.boot();
     app_instance.run();
-
-    hi
 }

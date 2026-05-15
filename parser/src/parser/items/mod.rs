@@ -18,14 +18,13 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevel {
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
 
-        let attributes = collect_recovered(inner.next().unwrap().into_inner()).get()?;
+        let attributes = collect_recovered(inner.next().unwrap().into_inner());
 
-        Ok(TopLevel(
+        ast_expr!(TopLevel(
             inner
                 .next()
                 .map(TopLevelKind::try_from)
-                .unwrap_or(Ok(TopLevelKind::ModAttribute))
-                .get()?,
+                .unwrap_or(Ok(TopLevelKind::ModAttribute)),
             attributes,
         ))
     }
