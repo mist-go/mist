@@ -1,6 +1,7 @@
 use crate::{
     Rule,
     ast::*,
+    ast_expr,
     error::{AstError, AstResult, ErrorCode, GetParseError, collect_recovered},
     parser::listen_rule,
 };
@@ -10,7 +11,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         if pair.as_rule() == Rule::block {
-            Ok(Block(collect_recovered(pair.into_inner()).get()?))
+            ast_expr!(Block(collect_recovered(pair.into_inner())))
         } else {
             Err(AstError {
                 span: pair.as_span(),

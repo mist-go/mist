@@ -108,7 +108,7 @@ where
             span: ast_err.span,
             error_code: ast_err.error_code,
             error_message: ast_err.error_message,
-            recovered: None,
+            recovered: Some(items),
         }),
         None => Ok(items),
     }

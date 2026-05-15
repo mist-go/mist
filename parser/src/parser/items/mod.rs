@@ -7,6 +7,7 @@ pub mod impl_decl;
 use crate::{
     Rule,
     ast::*,
+    ast_expr,
     error::{AstError, GetParseError, collect_recovered},
     parser::consume_rule,
 };
@@ -43,7 +44,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 Path::try_from(inner.next().unwrap()).get()?,
             ),
 
-            Rule::function_decl => TopLevelKind::FunctionDecl(pair.try_into().get()?),
+            Rule::function_decl => return ast_expr!(TopLevelKind::FunctionDecl(pair.try_into())),
 
             Rule::struct_decl => TopLevelKind::StructDecl {
                 visibility: Visibility::try_from(&mut inner).get()?,
