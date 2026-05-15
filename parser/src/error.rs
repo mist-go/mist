@@ -10,10 +10,10 @@ pub enum ParseError<'a, T> {
 
 #[derive(Debug, Clone)]
 pub struct AstError<'a, T> {
-    span: pest::Span<'a>,
-    error_code: ErrorCode,
-    error_message: String,
-    recovered: Option<T>,
+    pub span: pest::Span<'a>,
+    pub error_code: ErrorCode,
+    pub error_message: String,
+    pub recovered: Option<T>,
 }
 
 #[derive(Debug, Clone)]
@@ -66,17 +66,36 @@ impl<'a, F> GetParseError<'a, Option<F>> for Result<Option<F>, AstError<'a, F>> 
     }
 }
 
+impl<'a, F> GetParseError<'a, Option<Vec<F>>> for Result<Option<Vec<F>>, AstError<'a, F>> {
+    fn get<T>(self) -> AstResult<'a, Option<Vec<F>>, T> {
+        match self {
+            Ok(v) => Ok(v),
+            Err(e) => Err(e.get()),
+        }
+    }
+}
+
 pub fn collect_recovered<'a, T, ET>(
     pairs: impl Iterator<Item = pest::iterators::Pair<'a, Rule>>,
 ) -> AstResult<'a, Vec<T>, Vec<T>>
 where
     T: TryFrom<pest::iterators::Pair<'a, Rule>, Error = AstError<'a, ET>>,
 {
+    collect_recovered_map(pairs, T::try_from)
+}
+
+pub fn collect_recovered_map<'a, T, F, ET>(
+    pairs: impl Iterator<Item = pest::iterators::Pair<'a, Rule>>,
+    f: F,
+) -> AstResult<'a, Vec<T>, Vec<T>>
+where
+    F: Fn(pest::iterators::Pair<'a, Rule>) -> AstResult<'a, T, ET>,
+{
     let mut items = Vec::new();
     let mut last_error: Option<AstError<'a, ET>> = None;
 
     for pair in pairs {
-        match T::try_from(pair) {
+        match f(pair) {
             Ok(item) => items.push(item),
             Err(e) => {
                 last_error = Some(e);

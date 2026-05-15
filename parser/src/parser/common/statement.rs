@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    error::{ErrorCode, AstError, AstResult},
+    error::{AstError, AstResult, ErrorCode, GetParseError, collect_recovered},
     parser::listen_rule,
 };
 
@@ -9,18 +9,9 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
     type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        let statements = pair
-            .into_inner()
-            .flat_map(|pair| {
-                if pair.as_rule() == Rule::statement_list {
-                    pair.into_inner().map(Statement::try_from).collect()
-                } else {
-                    vec![Statement::try_from(pair)]
-                }
-            })
-            .collect::<AstResult<'a, Vec<_>>>()?;
-
-        Ok(Block(statements))
+        Ok(Block(
+            collect_recovered(pair.into_inner().next().unwrap().into_inner()).get()?,
+        ))
     }
 }
 
@@ -34,14 +25,16 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
         Ok(match rule {
             Rule::statement => Statement::try_from(inner.next().unwrap())?,
 
-            Rule::expr_stmt => Statement::Expression(Expression::try_from(inner.next().unwrap())?),
+            Rule::expr_stmt => {
+                Statement::Expression(Expression::try_from(inner.next().unwrap()).get()?)
+            }
 
-            Rule::block => Statement::Block(Block::try_from(inner.next().unwrap())?),
+            Rule::block => Statement::Block(Block::try_from(inner.next().unwrap()).get()?),
 
-            Rule::var_decl_statement => Statement::VarDecl(VarDeclStmt::try_from(pair)?),
+            Rule::var_decl_statement => Statement::VarDecl(VarDeclStmt::try_from(pair).get()?),
 
             Rule::return_stmt => {
-                Statement::Return(inner.next().map(Expression::try_from).transpose()?)
+                Statement::Return(inner.next().map(Expression::try_from).transpose().get()?)
             }
 
             Rule::break_stmt => Statement::Break,
@@ -52,13 +45,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                 let mut inner = inner.skip(2);
 
                 Statement::If {
-                    initial: StatementBranch::try_from(pair)?,
-                    else_if: inner
-                        .next()
-                        .unwrap()
-                        .into_inner()
-                        .map(StatementBranch::try_from)
-                        .collect::<AstResult<'a, Vec<_>>>()?,
+                    initial: StatementBranch::try_from(pair).get()?,
+                    else_if: collect_recovered(inner.next().unwrap().into_inner()).get()?,
                     else_branch: inner
                         .next()
                         .map(Statement::try_from)
@@ -67,45 +55,47 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                 }
             }
 
-            Rule::while_stmt => Statement::While(pair.try_into()?),
+            Rule::while_stmt => Statement::While(pair.try_into().get()?),
 
             Rule::c_for_stmt => Statement::CStyleFor {
-                init: Box::new(Statement::try_from(inner.next().unwrap())?),
-                condition: inner.next().unwrap().try_into()?,
-                update: Box::new(Statement::try_from(inner.next().unwrap())?),
-                body: Box::new(Statement::try_from(inner.next().unwrap())?),
+                init: Box::new(inner.next().unwrap().try_into().get()?),
+                condition: inner.next().unwrap().try_into().get()?,
+                update: Box::new(inner.next().unwrap().try_into().get()?),
+                body: Box::new(inner.next().unwrap().try_into().get()?),
             },
 
             Rule::for_stmt => Statement::For {
                 mutable: listen_rule(&mut inner, Rule::mutable),
-                pattern: Pattern::try_from(inner.next().unwrap())?,
-                iterator: inner.next().unwrap().try_into()?,
+                pattern: inner.next().unwrap().try_into().get()?,
+                iterator: inner.next().unwrap().try_into().get()?,
                 body: Box::new(Statement::try_from(inner.next().unwrap())?),
             },
 
             Rule::assign_statement => Statement::VarAssign(VarAssignStmt {
-                target: Expression::try_from(inner.next().unwrap())?,
-                value: Expression::try_from(inner.next().unwrap())?,
+                target: inner.next().unwrap().try_into().get()?,
+                value: inner.next().unwrap().try_into().get()?,
             }),
 
             Rule::match_stmt => Statement::Match(
-                Expression::try_from(inner.next().unwrap())?,
+                inner.next().unwrap().try_into().get()?,
                 inner
                     .map(|match_itms| {
                         let mut match_inner = match_itms.into_inner();
                         Ok((
-                            Pattern::try_from(match_inner.next().unwrap())?,
-                            Block::try_from(match_inner.next().unwrap())?,
+                            Pattern::try_from(match_inner.next().unwrap()).get()?,
+                            Block::try_from(match_inner.next().unwrap()).get()?,
                         ))
                     })
-                    .collect::<AstResult<'a, Vec<_>>>()?,
+                    .collect::<AstResult<'a, Vec<_>>>()
+                    .get()?,
             ),
 
             Rule::unexpected_statement => {
-                return Err(AstError::Ast {
+                return Err(AstError {
                     span: pair.as_span(),
                     error_code: ErrorCode::InvalidStatement,
                     error_message: "Invalid Statement".to_string(),
+                    recovered: None,
                 });
             }
 
@@ -120,8 +110,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for StatementBranch {
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
 
-        let condition = Expression::try_from(inner.next().unwrap())?;
-        let body = Statement::try_from(inner.next().unwrap())?;
+        let condition = inner.next().unwrap().try_into().get()?;
+        let body = inner.next().unwrap().try_into().get()?;
 
         Ok(StatementBranch {
             condition,
