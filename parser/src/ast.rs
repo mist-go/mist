@@ -272,3 +272,9 @@ pub enum Literal {
     Bool(bool),
     Tuple(Vec<Expression>),
 }
+
+impl TypeExpr {
+    pub fn no_px(kind: TypeExprKind) -> Self {
+        Self(kind, Vec::new())
+    }
+}
