@@ -1,0 +1,20 @@
+pub enum TaskState {
+    Pending,
+    Running,
+    Finished,
+    Failed,
+}
+
+pub struct Task {
+    pub String name,
+    pub TaskState state,
+    pub i32 executions,
+}
+
+pub Task create_task(str* name) {
+    return Task {
+        name: name.to_string(),
+        state: TaskState::Pending,
+        executions: 0,
+    };
+}
