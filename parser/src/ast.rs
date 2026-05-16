@@ -181,7 +181,15 @@ pub enum Statement {
     Block(Block),
 
     VarDecl(VarDeclStmt),
-    VarAssign(VarAssignStmt),
+    Assign {
+        target: Expression,
+        value: Expression,
+    },
+    CompoundAssign {
+        target: Expression,
+        compound: String,
+        value: Expression,
+    },
     If {
         initial: StatementBranch,
         else_if: Vec<StatementBranch>,

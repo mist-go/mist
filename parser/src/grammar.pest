@@ -314,6 +314,7 @@ statement = _{
     expr_stmt
   | match_stmt
   | assign_statement
+  | compound_assign_statement
   | if_stmt
   | while_stmt
   | c_for_stmt
@@ -351,6 +352,22 @@ var_decl_statement = {
 
 assign_statement = {
     expr ~ "=" ~ expr ~ semicolon
+}
+
+compound_assign = {
+    "+="
+  | "-="
+  | "/="
+  | "%="
+  | "&="
+  | "|="
+  | "^="
+  | "<<="
+  | ">>="
+}
+
+compound_assign_statement = {
+    expr ~ compound_assign ~ expr ~ semicolon
 }
 
 // ------------------------------------------------------

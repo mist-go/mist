@@ -545,8 +545,21 @@ impl ToRust for Statement {
                 cg.add_indentedln(&format!("let {}{};", decl.get_rust(), init));
             }
 
-            Statement::VarAssign(VarAssignStmt { target, value }) => {
+            Statement::Assign { target, value } => {
                 cg.add_indentedln(&format!("{} = {};", target.get_rust(), value.get_rust(),));
+            }
+
+            Statement::CompoundAssign {
+                target,
+                compound,
+                value,
+            } => {
+                cg.add_indentedln(&format!(
+                    "{} {} {};",
+                    target.get_rust(),
+                    compound,
+                    value.get_rust(),
+                ));
             }
 
             Statement::Match(expr, match_items) => {
