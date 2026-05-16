@@ -51,7 +51,6 @@ program = {
 visibility = { "pub" ~ ("(" ~ static_path ~ ")")? }
 mutable    = { "mut" }
 var        = { "var" }
-deref_px   = { "*" }
 
 // ======================================================
 // ERROR RECOVERY
@@ -418,106 +417,137 @@ match_stmt = {
 }
 
 // ======================================================
-// EXPRESSIONS (Nested by Precedence, Low to High)
+// EXPRESSIONS
 // ======================================================
 
-// Base entry point for a pure expression
-expr = { logical_or_expr }
-
-// 1. Logical OR
-logical_or_expr = { logical_and_expr ~ ("||" ~ logical_and_expr)* }
-
-// 2. Logical AND
-logical_and_expr = { bit_or_expr ~ ("&&" ~ bit_or_expr)* }
-
-// 3. Bitwise OR
-bit_or_expr = { bit_xor_expr ~ ("|" ~ bit_xor_expr)* }
-
-// 4. Bitwise XOR
-bit_xor_expr = { bit_and_expr ~ ("^" ~ bit_and_expr)* }
-
-// 5. Bitwise AND
-bit_and_expr = { comparison_expr ~ ("&" ~ comparison_expr)* }
-
-// 6. Comparisons
-comparison_expr = { bshift_expr ~ (comp_op ~ bshift_expr)? }
-comp_op         = { "==" | "!=" | "<=" | ">=" | "<" | ">" }
-
-// 7. Bitwise Shifts
-bshift_expr = { add_sub_expr ~ (shift_op ~ add_sub_expr)* }
-shift_op    = { "<<" | ">>" }
-
-// 8. Addition and Subtraction
-add_sub_expr = { mul_div_mod_expr ~ (add_sub_op ~ mul_div_mod_expr)* }
-add_sub_op   = { "+" | "-" }
-
-// 9. Multiplication, Division, and Remainder
-mul_div_mod_expr = { cast_expr ~ (mul_div_mod_op ~ cast_expr)* }
-mul_div_mod_op   = { "*" | "/" | "%" }
-
-// 10. Type Casting (as)
-cast_expr = { range_expr ~ ("as" ~ type_expr)* }
-
-// 11. Ranges (e.g., start..end, start.., ..end, ..)
-range_expr = {
-    (unary_expr? ~ ".." ~ "="? ~ unary_expr?)
-  | unary_expr
-}
-
-// 12. Unary / Prefix Operators (Right-associative recursion)
-unary_expr = {
-    (unary_op ~ unary_expr)
-  | postfix_expr
-}
-unary_op   = { "-" | "!" | "*" | "&" ~ "mut"? }
-
-// 13. Postfix Operators (Method calls, indexing, fields, try, macro calls)
-postfix_expr   = { primary_expr ~ postfix_suffix* }
-postfix_suffix = {
-    call_suffix
-  | macro_call_suffix
-  | index_suffix
-  | field_suffix
-  | try_suffix
-  | struct_suffix
-}
-
-// Postfix Sub-rules
-call_suffix       = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ","? ~ ")" }
-macro_call_suffix = { "!" ~ "(" ~ macro_inner_v* ~ ")" }
-index_suffix      = { "[" ~ expr ~ "]" }
-field_suffix      = { "." ~ (identifier | tuple_index) }
-try_suffix        = { "?" }
-struct_suffix     = { "{" ~ (struct_field_decl ~ ("," ~ struct_field_decl)*)? ~ ","? ~ "}" }
-
 // ------------------------------------------------------
-// PRIMARY EXPRESSIONS & ATOMS
+// TUPLES
 // ------------------------------------------------------
 
-primary_expr = {
-    literal
-  | macro_rules_call // Standalone macro like println!(...)
-
-  | static_path // Variables, paths
-
-  | group_or_tuple // (expr) or (a, b)
-
-  | array_expr // [1, 2, 3]
+tuple = {
+    "(" ~ (expr ~ ("," ~ expr)*)? ~ ")"
 }
 
-group_or_tuple = { "(" ~ (expr ~ ("," ~ expr)*)? ~ ","? ~ ")" }
-array_expr     = { "[" ~ (expr ~ ("," ~ expr)*)? ~ ","? ~ "]" }
-
-struct_field_decl = { identifier ~ ":" ~ expr }
+// ------------------------------------------------------
+// MACROS
+// ------------------------------------------------------
 
 macro_inner_v = {
     "(" ~ macro_inner_v* ~ ")"
-  | "[" ~ macro_inner_v* ~ "]"
-  | "{" ~ macro_inner_v* ~ "}"
-  | (!("(" | ")" | "[" | "]" | "{" | "}") ~ ANY)
+  | (!("(" | ")") ~ ANY)
 }
 
-macro_rules_call = { static_path ~ "!" ~ (("(" ~ macro_inner_v* ~ ")") | ("{" ~ macro_inner_v* ~ "}")) }
+// ------------------------------------------------------
+// PRIMARY EXPRESSIONS
+// ------------------------------------------------------
 
-// (Assumed rules from your codebase)
-tuple_index = { ASCII_DIGIT+ }
+primary = {
+    literal
+  | static_path
+  | tuple
+}
+
+// ------------------------------------------------------
+// POSTFIX EXPRESSIONS
+// ------------------------------------------------------
+
+field_px = {
+    "." ~ identifier
+}
+
+call_px = {
+    "(" ~ (expr ~ ("," ~ expr)*)? ~ ")"
+}
+
+macro_call_px = {
+    "!" ~ "(" ~ macro_inner_v* ~ ")"
+}
+
+struct_field_decl = {
+    identifier ~ ":" ~ expr
+}
+
+struct_px = {
+    "{" ~ (struct_field_decl ~ ("," ~ struct_field_decl)*)? ~ ","? ~ "}"
+}
+
+index_px = {
+    "[" ~ expr ~ "]"
+}
+
+binary_px = {
+    bin_op ~ expr
+}
+
+postfix = {
+    field_px
+  | call_px
+  | macro_call_px
+  | struct_px
+  | index_px
+  | binary_px
+}
+
+// ------------------------------------------------------
+// PREFIX EXPRESSIONS
+// ------------------------------------------------------
+
+deref_px = {
+    "*"
+}
+
+mut_ref_px = {
+    "&" ~ mutable
+}
+
+ref_px = {
+    "&"
+}
+
+new_px = {
+    "new"
+}
+
+not_px = {
+    "!"
+}
+
+prefix = {
+    deref_px
+  | mut_ref_px
+  | ref_px
+  | new_px
+  | not_px
+}
+
+prefix_list = {
+    prefix*
+}
+
+// ------------------------------------------------------
+// OPERATORS
+// ------------------------------------------------------
+
+bin_op = {
+    "<="
+  | ">="
+  | "=="
+  | "!="
+  | "&&"
+  | "||"
+  | "+"
+  | "-"
+  | "*"
+  | "/"
+  | "%"
+  | "<"
+  | ">"
+}
+
+// ------------------------------------------------------
+// EXPRESSIONS
+// ------------------------------------------------------
+
+expr = {
+    prefix_list ~ primary ~ postfix*
+}
