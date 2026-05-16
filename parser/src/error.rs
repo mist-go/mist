@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use pest::iterators::Pair;
+
 use crate::Rule;
 
 pub type AstResult<'a, T, ET = T> = Result<T, AstError<'a, ET>>;
@@ -44,6 +46,15 @@ impl<'a, F> AstError<'a, F> {
             error_message: self.error_message,
             recovered: None,
         }
+    }
+
+    pub fn bug_unimplemented<T>(pair: Pair<'a, Rule>) -> AstResult<'a, T, F> {
+        Err(Self {
+            span: pair.as_span(),
+            error_code: ErrorCode::AstGenBug,
+            error_message: format!("Possible bug, unimplemented: {:#?}", pair),
+            recovered: None,
+        })
     }
 }
 

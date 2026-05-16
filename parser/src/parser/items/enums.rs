@@ -29,7 +29,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for EnumItem {
                     .unwrap_or_default(),
             )),
 
-            _ => unimplemented!("{rule:#?}"),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }

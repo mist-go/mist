@@ -20,7 +20,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDeclStmt {
                 })
             }
 
-            _ => unimplemented!(),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }
@@ -39,7 +39,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDeclStmt {
                 })
             }
 
-            _ => unimplemented!(),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }
@@ -74,7 +74,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDecl {
                 })
             }
 
-            _ => unimplemented!("{:?}", pair.as_rule()),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }
@@ -94,7 +94,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDecl {
                 })
             }
 
-            _ => unimplemented!("{:?}", pair.as_rule()),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }

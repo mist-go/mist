@@ -35,7 +35,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ImplDecl {
                 methods: collect_recovered(inner).get()?,
             }),
 
-            _ => unimplemented!("{rule:#?}"),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }

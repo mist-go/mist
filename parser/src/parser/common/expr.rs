@@ -31,10 +31,12 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                     exp
                 }
             }
+
             Rule::primary => inner.next().unwrap().try_into(),
             Rule::static_path => ast_expr!(Expression::Path(pair.try_into())),
             Rule::literal => ast_expr!(Expression::Literal(pair.try_into())),
-            _ => unimplemented!("{rule:#?}"),
+
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }
@@ -50,7 +52,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Prefix {
             Rule::ref_px => Self::Ref,
             Rule::new_px => Self::New,
             Rule::not_px => Self::Not,
-            _ => unimplemented!("{pair:#?}"),
+
+            _ => return AstError::bug_unimplemented(pair),
         })
     }
 }
@@ -60,7 +63,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
-        let mut inner = pair.into_inner();
+        let mut inner = pair.clone().into_inner();
 
         match rule {
             Rule::postfix => Postfix::try_from(inner.next().unwrap()),
@@ -100,9 +103,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
                     "&&" => BinaryOp::And,
                     "||" => BinaryOp::Or,
 
-                    _ => {
-                        unimplemented!("Binary operator not implemented yet: {}", op_pair.as_str())
-                    }
+                    _ => return AstError::bug_unimplemented(op_pair),
                 };
 
                 Ok(Postfix::Binary(op, inner.next().unwrap().try_into().get()?))
@@ -110,7 +111,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
 
             Rule::macro_call_px => Ok(Postfix::MacroCall(inner.as_str().to_string())),
 
-            _ => unimplemented!("{rule:#?}"),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }

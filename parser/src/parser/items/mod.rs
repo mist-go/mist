@@ -123,7 +123,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 items: collect_recovered(inner).get()?,
             },
 
-            _ => unimplemented!("{rule:#?}"),
+            _ => return AstError::bug_unimplemented(pair),
         })
     }
 }

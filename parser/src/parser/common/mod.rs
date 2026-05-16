@@ -27,7 +27,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Path {
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
             Rule::static_path => Ok(Path(collect_recovered(pair.into_inner()).get()?)),
-            _ => unimplemented!("{pair:#?}"),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }
@@ -47,7 +47,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Literal {
             Rule::boolean => Literal::Bool(pair.as_str().parse::<bool>().unwrap()),
             Rule::string_lit => Literal::String(inner.as_str().to_string()),
             Rule::tuple => Literal::Tuple(collect_recovered(inner).get()?),
-            _ => unimplemented!("{rule:#?}"),
+            _ => return AstError::bug_unimplemented(pair),
         })
     }
 }
@@ -78,7 +78,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
 
             Rule::static_path => ast_expr!(Pattern::Path(pair.try_into())),
 
-            _ => unimplemented!("{rule:?}"),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }

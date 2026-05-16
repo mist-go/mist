@@ -119,7 +119,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                 });
             }
 
-            _ => unimplemented!("{rule:#?}"),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }

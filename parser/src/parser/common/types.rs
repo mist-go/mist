@@ -11,7 +11,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypePostfix {
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
-        let mut inner = pair.into_inner();
+        let mut inner = pair.clone().into_inner();
 
         match rule {
             Rule::ref_type => {
@@ -35,7 +35,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypePostfix {
                     }
                 })
             }
-            _ => unimplemented!("{rule:#?}"),
+
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }
@@ -45,7 +46,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExprKind {
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
-        let mut inner = pair.into_inner();
+        let mut inner = pair.clone().into_inner();
 
         match rule {
             Rule::tuple_type => ast_expr!(TypeExprKind::Tuple(collect_recovered(inner))),
@@ -59,7 +60,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExprKind {
                     ast_expr!(TypeExprKind::PathParams(path, params))
                 }
             }
-            _ => unimplemented!("{rule:#?}"),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }
@@ -69,7 +70,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
-        let mut inner = pair.into_inner();
+        let mut inner = pair.clone().into_inner();
 
         match rule {
             Rule::type_expr => ast_expr!(TypeExpr(
@@ -80,7 +81,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
             Rule::lifetime => ast_expr!(TypeExprKind::Lifetime(inner.next().unwrap().try_into()))
                 .get_map(TypeExpr::no_px)
                 .map(TypeExpr::no_px),
-            _ => unimplemented!("{rule:#?}"),
+
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }
@@ -94,7 +96,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Generics {
 
         match rule {
             Rule::generics => ast_expr!(Generics(collect_recovered(inner))),
-            _ => unimplemented!("{rule:#?}"),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }
