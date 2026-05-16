@@ -12,11 +12,11 @@ fn main() {
     }
 
     match args[1].as_str() {
-        "run" | "build" => {
+        "run" | "build" | "r" | "b" => {
             compiler::build();
             Command::new("cargo").args(&args[1..]).status().unwrap();
         }
-        "transpile" => compiler::build(),
+        "transpile" | "t" => compiler::build(),
         "version" | "--version" | "-v" => {
             println!("mist {}", env!("CARGO_PKG_VERSION"));
         }
