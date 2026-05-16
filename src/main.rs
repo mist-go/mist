@@ -32,11 +32,17 @@ fn main() {
 }
 
 fn print_usage() {
-    println!("mist - the mist compiler\n");
+    println!("Mist - the mist compiler\n");
+    println!("󰖟 View our documentation! \x1b[35mhttps://mist.selimaj.dev\x1b[0m");
+    println!(" Follow us on github!    \x1b[35mhttps://github.com/mist-go\x1b[0m\n");
     println!("usage:");
     println!(" \x1b[36m mist run\x1b[0m               run the project in the current directory\n");
-    println!(" \x1b[36m mist build\x1b[0m             build the project in the current directory\n");
-    println!(" \x1b[36m mist transpile\x1b[0m         transpile the project in the current directory\n");
+    println!(
+        " \x1b[36m mist build\x1b[0m             build the project in the current directory\n"
+    );
+    println!(
+        " \x1b[36m mist transpile\x1b[0m         transpile the project in the current directory\n"
+    );
     println!(" \x1b[36m mist version \x1b[0m          print the compiler version\n");
     println!(" \x1b[36m mist help\x1b[0m              print this message\n");
 }
