@@ -48,11 +48,19 @@ impl<'a, F> AstError<'a, F> {
         }
     }
 
+    #[track_caller]
     pub fn bug_unimplemented<T>(pair: Pair<'a, Rule>) -> AstResult<'a, T, F> {
+        let loc = std::panic::Location::caller();
+
         Err(Self {
             span: pair.as_span(),
             error_code: ErrorCode::AstGenBug,
-            error_message: format!("Possible bug, unimplemented: {:#?}", pair.as_rule()),
+            error_message: format!(
+                "Possible bug, unimplemented: {:#?}, at {}:{}",
+                pair.as_rule(),
+                loc.file(),
+                loc.line(),
+            ),
             recovered: None,
         })
     }
