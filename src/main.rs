@@ -1,4 +1,4 @@
-use std::process;
+use std::process::{self, Command};
 
 pub mod codegen;
 pub mod compiler;
@@ -12,13 +12,11 @@ fn main() {
     }
 
     match args[1].as_str() {
-        "build" => {
-            if args.len() < 2 {
-                eprintln!("error: expected a file path\n  usage: mist build");
-                process::exit(1);
-            }
+        "run" | "build" | "r" | "b" => {
             compiler::build();
+            Command::new("cargo").args(&args[1..]).status().unwrap();
         }
+        "transpile" | "t" => compiler::build(),
         "version" | "--version" | "-v" => {
             println!("mist {}", env!("CARGO_PKG_VERSION"));
         }
@@ -34,11 +32,17 @@ fn main() {
 }
 
 fn print_usage() {
-    println!("mist - the mist compiler");
-    println!();
+    println!("Mist - the mist compiler\n");
+    println!("󰖟 View our documentation! \x1b[35mhttps://mist.selimaj.dev\x1b[0m");
+    println!(" Follow us on github!    \x1b[35mhttps://github.com/mist-go\x1b[0m\n");
     println!("usage:");
-    println!("  mist build             compile the project in the current directory");
-    println!("  mist check <file.ms>   parse and validate without compiling");
-    println!("  mist version           print the compiler version");
-    println!("  mist help              print this message");
+    println!(" \x1b[36m mist run\x1b[0m               run the project in the current directory\n");
+    println!(
+        " \x1b[36m mist build\x1b[0m             build the project in the current directory\n"
+    );
+    println!(
+        " \x1b[36m mist transpile\x1b[0m         transpile the project in the current directory\n"
+    );
+    println!(" \x1b[36m mist version \x1b[0m          print the compiler version\n");
+    println!(" \x1b[36m mist help\x1b[0m              print this message\n");
 }

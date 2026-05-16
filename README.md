@@ -4,13 +4,9 @@
 Originally this readme was part of the Carbon Language project, licensed with Apache-2.0
 -->
 
-<!-- <p align="center">
-  <a href="#why-build-carbon">Why?</a> |
-  <a href="#language-goals">Goals</a> |
-  <a href="#project-status">Status</a> |
-  <a href="#getting-started">Getting started</a> |
-  <a href="#join-us">Join us</a>
-</p> -->
+<p align="center">
+  <a href="https://mist.selimaj.dev">Documentation</a>
+</p>
 
 
 <img src="code.png" align="right" width="575" alt="">
