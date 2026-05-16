@@ -20,11 +20,13 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for StatementBranch {
     type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        let mut inner = pair.into_inner();
+        let mut inner = pair.clone().into_inner();
 
-        ast_expr!(StatementBranch {
-            condition: inner.next().unwrap().try_into(),
-            body: inner.next().unwrap().try_into().map(Box::new),
+        ast_ensure!(pair, Rule::statement_branch => {
+            ast_expr!(StatementBranch {
+                condition: inner.next().unwrap().try_into(),
+                body: inner.next().unwrap().try_into().map(Box::new),
+            })
         })
     }
 }
@@ -74,7 +76,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                 })
             }
 
-            Rule::while_stmt => ast_expr!(Statement::While(pair.try_into())),
+            Rule::while_stmt => ast_expr!(Statement::While(inner.next().unwrap().try_into())),
 
             Rule::c_for_stmt => ast_expr!(Statement::CStyleFor {
                 init: inner.next().unwrap().try_into().map(Box::new),
