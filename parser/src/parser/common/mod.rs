@@ -6,7 +6,7 @@ pub mod types;
 use crate::{
     Rule,
     ast::*,
-    ast_ensure,
+    ast_ensure, ast_expr,
     error::{AstError, IntoErr, collect_recovered},
     parser::consume_rule,
 };
@@ -59,27 +59,27 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
         let rule = pair.as_rule();
         let mut inner = pair.clone().into_inner();
 
-        Ok(match rule {
-            Rule::tuple_pattern => Pattern::Tuple(collect_recovered(pair.into_inner()).get()?),
+        match rule {
+            Rule::tuple_pattern => ast_expr!(Pattern::Tuple(collect_recovered(pair.into_inner()))),
 
-            Rule::named_tuple_pattern => Pattern::NamedTuple(
-                Path::try_from(inner.next().unwrap()).get()?,
-                collect_recovered(inner).get()?,
-            ),
+            Rule::named_tuple_pattern => ast_expr!(Pattern::NamedTuple(
+                Path::try_from(inner.next().unwrap()),
+                collect_recovered(inner),
+            )),
 
-            Rule::struct_pattern => Pattern::Struct(
-                Path::try_from(inner.next().unwrap()).get()?,
-                collect_recovered(inner).get()?,
-            ),
+            Rule::struct_pattern => ast_expr!(Pattern::Struct(
+                Path::try_from(inner.next().unwrap()),
+                collect_recovered(inner),
+            )),
 
-            Rule::literal => Pattern::Literal(Literal::try_from(pair).get()?),
+            Rule::literal => ast_expr!(Pattern::Literal(pair.try_into())),
 
-            Rule::identifier => Pattern::Id(Identifier::try_from(pair).get()?),
+            Rule::identifier => ast_expr!(Pattern::Id(pair.try_into())),
 
-            Rule::static_path => Pattern::Path(Path::try_from(pair).get()?),
+            Rule::static_path => ast_expr!(Pattern::Path(pair.try_into())),
 
             _ => unimplemented!("{rule:?}"),
-        })
+        }
     }
 }
 
@@ -90,7 +90,7 @@ impl<'a> TryFrom<&mut pest::iterators::Pairs<'a, Rule>> for Visibility {
         Ok(consume_rule(pairs, Rule::visibility)
             .map(|pair| -> Result<Visibility, AstError<'a, Self>> {
                 if let Some(path) = pair.into_inner().next() {
-                    Ok(Visibility::PublicTarget(Path::try_from(path).get()?))
+                    ast_expr!(Visibility::PublicTarget(Path::try_from(path)))
                 } else {
                     Ok(Visibility::Public)
                 }
