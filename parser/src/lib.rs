@@ -33,6 +33,22 @@ pub fn parse<'a>(source: &'a str) -> Result<Vec<TopLevel>, ParseError<'a, Vec<To
 }
 
 #[macro_export]
+macro_rules! ast_ensure {
+    ($pair:expr, $rule:expr => $body:block) => {
+        if $pair.as_rule() == $rule
+            $body
+        else {
+            Err(AstError {
+                span: $pair.as_span(),
+                error_code: crate::error::ErrorCode::AstGenBug,
+                error_message: format!("Possible bug: expected {:?}, got {}", $rule, $pair),
+                recovered: None,
+            })
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! ast_expr {
     ($($item:ident)::+ { $($k:ident: $v:expr),* $(,)? }) => {{
         let mut analyzer = $crate::error::AstErrorAnalyzer(None);

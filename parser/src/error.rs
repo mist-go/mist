@@ -20,7 +20,8 @@ pub struct AstError<'a, T> {
 
 #[derive(Debug, Clone)]
 pub enum ErrorCode {
-    InvalidStatement = 200,
+    InvalidStatement,
+    AstGenBug,
 }
 
 impl<T> From<pest::error::Error<Rule>> for ParseError<'_, T> {

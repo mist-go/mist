@@ -6,6 +6,7 @@ pub mod types;
 use crate::{
     Rule,
     ast::*,
+    ast_ensure,
     error::{AstError, IntoErr, collect_recovered},
     parser::consume_rule,
 };
@@ -14,7 +15,9 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Identifier {
     type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        Ok(Identifier(pair.as_str().to_string()))
+        ast_ensure!(pair, Rule::identifier => {
+            Ok(Identifier(pair.as_str().to_string()))
+        })
     }
 }
 

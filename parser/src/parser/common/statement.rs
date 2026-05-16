@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    ast_expr,
+    ast_ensure, ast_expr,
     error::{AstError, AstResult, ErrorCode, IntoErr, collect_recovered},
     parser::listen_rule,
 };
@@ -10,19 +10,25 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
     type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        if pair.as_rule() == Rule::block {
+        ast_ensure!(pair, Rule::block => {
             ast_expr!(Block(collect_recovered(pair.into_inner())))
-        } else {
-            Err(AstError {
-                span: pair.as_span(),
-                error_code: ErrorCode::InvalidStatement,
-                error_message: format!(
-                    "BUG: AST requires a block, this isn't a block, it's a {:?}",
-                    pair.as_rule()
-                ),
-                recovered: None,
-            })
-        }
+        })
+    }
+}
+
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for StatementBranch {
+    type Error = AstError<'a, Self>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        let mut inner = pair.into_inner();
+
+        let condition = inner.next().unwrap().try_into().get()?;
+        let body = inner.next().unwrap().try_into().get()?;
+
+        Ok(StatementBranch {
+            condition,
+            body: Box::new(body),
+        })
     }
 }
 
@@ -111,22 +117,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
             }
 
             _ => unimplemented!("{rule:#?}"),
-        })
-    }
-}
-
-impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for StatementBranch {
-    type Error = AstError<'a, Self>;
-
-    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        let mut inner = pair.into_inner();
-
-        let condition = inner.next().unwrap().try_into().get()?;
-        let body = inner.next().unwrap().try_into().get()?;
-
-        Ok(StatementBranch {
-            condition,
-            body: Box::new(body),
         })
     }
 }
