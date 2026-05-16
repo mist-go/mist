@@ -2,7 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_expr,
-    error::{AstError, IntoErr, collect_recovered, collect_recovered_map},
+    error::{AstError, GetLength, IntoErr, collect_recovered, collect_recovered_map},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
@@ -21,19 +21,19 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
 
                 let exp = Expression::try_from(inner.next().unwrap());
 
-                if inner.len() > 0 {
+                if inner.len() > 0 || prefixes.len() > 0 {
                     ast_expr!(Expression::Fix {
                         initial: exp.map(Box::new),
                         prefixes: prefixes,
                         postfixes: collect_recovered(inner),
                     })
                 } else {
-                    Ok(exp?)
+                    exp
                 }
             }
-            Rule::primary => Expression::try_from(inner.next().unwrap()),
-            Rule::static_path => Ok(Expression::Path(Path::try_from(pair).get()?)),
-            Rule::literal => Ok(Expression::Literal(Literal::try_from(pair).get()?)),
+            Rule::primary => inner.next().unwrap().try_into(),
+            Rule::static_path => ast_expr!(Expression::Path(pair.try_into())),
+            Rule::literal => ast_expr!(Expression::Literal(pair.try_into())),
             _ => unimplemented!("{rule:#?}"),
         }
     }
@@ -62,27 +62,26 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
         let rule = pair.as_rule();
         let mut inner = pair.into_inner();
 
-        Ok(match rule {
-            Rule::postfix => Postfix::try_from(inner.next().unwrap())?,
+        match rule {
+            Rule::postfix => Postfix::try_from(inner.next().unwrap()),
 
             Rule::field_px => {
-                Postfix::FieldAccess(Identifier::try_from(inner.next().unwrap()).get()?)
+                ast_expr!(Postfix::FieldAccess(inner.next().unwrap().try_into()))
             }
 
-            Rule::call_px => Postfix::Call(collect_recovered(inner).get()?),
+            Rule::call_px => ast_expr!(Postfix::Call(collect_recovered(inner))),
 
-            Rule::struct_px => Postfix::StructCall(
-                collect_recovered_map(inner, |p| {
-                    let mut pi = p.into_inner();
-                    Ok((
-                        Identifier::try_from(pi.next().unwrap())?,
-                        Expression::try_from(pi.next().unwrap()).get()?,
-                    ))
-                })
-                .get()?,
-            ),
+            Rule::struct_px => ast_expr!(Postfix::StructCall(collect_recovered_map(inner, |p| {
+                let mut pi = p.into_inner();
+                Ok((
+                    Identifier::try_from(pi.next().unwrap())?,
+                    Expression::try_from(pi.next().unwrap()).get()?,
+                ))
+            }))),
 
-            Rule::index_px => Postfix::Index(Expression::try_from(inner.next().unwrap()).get()?),
+            Rule::index_px => {
+                ast_expr!(Postfix::Index(Expression::try_from(inner.next().unwrap())))
+            }
 
             Rule::binary_px => {
                 let op_pair = inner.next().unwrap();
@@ -105,12 +104,13 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
                         unimplemented!("Binary operator not implemented yet: {}", op_pair.as_str())
                     }
                 };
-                Postfix::Binary(op, Expression::try_from(inner.next().unwrap()).get()?)
+
+                Ok(Postfix::Binary(op, inner.next().unwrap().try_into().get()?))
             }
 
-            Rule::macro_call_px => Postfix::MacroCall(inner.as_str().to_string()),
+            Rule::macro_call_px => Ok(Postfix::MacroCall(inner.as_str().to_string())),
 
             _ => unimplemented!("{rule:#?}"),
-        })
+        }
     }
 }

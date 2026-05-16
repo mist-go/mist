@@ -56,6 +56,16 @@ impl<'a, T, TE, TE2> IntoErr<AstResult<'a, T, TE2>> for AstResult<'a, T, TE> {
     }
 }
 
+pub trait GetLength {
+    fn len(&self) -> usize;
+}
+
+impl<T, E> GetLength for Result<Vec<T>, E> {
+    fn len(&self) -> usize {
+        if let Ok(v) = self { v.len() } else { 0 }
+    }
+}
+
 pub fn collect_recovered<'a, T: Debug, ET>(
     pairs: impl Iterator<Item = pest::iterators::Pair<'a, Rule>>,
 ) -> AstResult<'a, Vec<T>, Vec<T>>
