@@ -250,12 +250,6 @@ pub struct FieldDeclStmt {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct VarAssignStmt {
-    pub target: Expression,
-    pub value: Expression,
-}
-
-#[derive(Debug, Clone, Serialize)]
 pub struct StatementBranch {
     pub condition: Expression,
     pub body: Box<Statement>,
