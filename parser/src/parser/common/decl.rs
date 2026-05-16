@@ -1,7 +1,8 @@
 use crate::{
     Rule,
     ast::*,
-    error::{AstError, GetParseError},
+    ast_expr,
+    error::{AstError, AstResult, IntoErr},
     parser::listen_rule,
 };
 
@@ -13,14 +14,13 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDeclStmt {
             Rule::var_decl_statement => {
                 let mut inner = pair.into_inner();
 
-                let decl = VarDecl::try_from(inner.next().unwrap()).get()?;
-
-                let init = inner.next().map(Expression::try_from).transpose().get()?;
-
-                Ok(VarDeclStmt { decl, init })
+                ast_expr!(VarDeclStmt {
+                    decl: inner.next().unwrap().try_into(),
+                    init: inner.next().map(Expression::try_from).transpose()
+                })
             }
 
-            _ => unimplemented!(),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }
@@ -33,14 +33,13 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDeclStmt {
             Rule::class_field => {
                 let mut inner = pair.into_inner();
 
-                let decl = FieldDecl::try_from(inner.next().unwrap()).get()?;
-
-                let init = inner.next().map(Expression::try_from).transpose().get()?;
-
-                Ok(FieldDeclStmt { decl, init })
+                ast_expr!(FieldDeclStmt {
+                    decl: inner.next().unwrap().try_into(),
+                    init: inner.next().map(Expression::try_from).transpose(),
+                })
             }
 
-            _ => unimplemented!(),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }
@@ -62,21 +61,20 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDecl {
                             Some(TypeExpr::try_from(pair))
                         }
                     })
-                    .transpose()
-                    .get()?;
+                    .transpose();
 
-                let mutable = listen_rule(&mut inner, Rule::mutable);
+                let mutable: AstResult<'_, bool> = Ok(listen_rule(&mut inner, Rule::mutable));
 
-                let name = Pattern::try_from(inner.next().unwrap()).get()?;
+                let name = Pattern::try_from(inner.next().unwrap());
 
-                Ok(VarDecl {
-                    mutable,
-                    name,
-                    type_,
+                ast_expr!(VarDecl {
+                    type_: type_,
+                    mutable: mutable,
+                    name: name,
                 })
             }
 
-            _ => unimplemented!("{:?}", pair.as_rule()),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }
@@ -89,18 +87,14 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDecl {
             Rule::field => {
                 let mut inner = pair.into_inner();
 
-                let visibility = Visibility::try_from(&mut inner).get()?;
-                let type_ = TypeExpr::try_from(inner.next().unwrap()).get()?;
-                let name = Identifier::try_from(inner.next().unwrap()).get()?;
-
-                Ok(FieldDecl {
-                    visibility,
-                    type_,
-                    name,
+                ast_expr!(FieldDecl {
+                    visibility: Visibility::try_from(&mut inner),
+                    type_: TypeExpr::try_from(inner.next().unwrap()),
+                    name: Identifier::try_from(inner.next().unwrap()),
                 })
             }
 
-            _ => unimplemented!("{:?}", pair.as_rule()),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    error::{AstError, GetParseError},
+    error::{AstError, IntoErr},
     parser::consume_rule,
 };
 
@@ -44,7 +44,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ClassItem {
 
             Rule::method => Ok(ClassItem::Method(pair.try_into().get()?)),
 
-            _ => unimplemented!("{rule:#?}"),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }

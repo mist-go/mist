@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    error::{AstError, GetParseError, collect_recovered},
+    error::{AstError, IntoErr, collect_recovered},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for EnumItem {
@@ -25,11 +25,11 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for EnumItem {
                     .next()
                     .map(|pair| collect_recovered::<FieldDecl, FieldDecl>(pair.into_inner()))
                     .transpose()
-                    .get::<Self>()?
+                    .get()?
                     .unwrap_or_default(),
             )),
 
-            _ => unimplemented!("{rule:#?}"),
+            _ => AstError::bug_unimplemented(pair),
         }
     }
 }

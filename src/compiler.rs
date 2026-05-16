@@ -5,6 +5,7 @@ use std::{
     time::Instant,
 };
 
+use mist_parser::error::ParseError;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -100,7 +101,25 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
             }
         };
 
-        let parser_result = mist_parser::parse(&source).map_err(|e| format!("{e:?}"));
+        let parser_result = mist_parser::parse(&source).map_err(|e| match e {
+            ParseError::Ast(e) => {
+                let start_pos = e.span.start_pos().line_col();
+
+                let span = e.span.as_str();
+
+                format!(
+                    "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}{}\t{}",
+                    path.as_os_str().display(),
+                    start_pos.0,
+                    start_pos.1,
+                    e.error_message,
+                    span,
+                    if span.ends_with("\n") { "" } else { "\n" },
+                    "^".repeat(span.trim().len()),
+                )
+            }
+            ParseError::PreAst(e) => format!("{e}"),
+        });
 
         let ast = match parser_result {
             Ok(ast) => ast,

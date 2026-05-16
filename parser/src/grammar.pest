@@ -357,8 +357,10 @@ assign_statement = {
 // CONDITIONALS
 // ------------------------------------------------------
 
+statement_branch = { "(" ~ expr ~ ")" ~ statement }
+
 else_if = {
-    "else" ~ "if" ~ "(" ~ expr ~ ")" ~ statement
+    "else" ~ "if" ~ statement_branch
 }
 
 else_if_list = {
@@ -366,7 +368,7 @@ else_if_list = {
 }
 
 if_stmt = {
-    "if" ~ "(" ~ expr ~ ")" ~ statement ~ else_if_list ~ ("else" ~ statement)?
+    "if" ~ statement_branch ~ else_if_list ~ ("else" ~ statement)?
 }
 
 // ------------------------------------------------------
@@ -374,7 +376,7 @@ if_stmt = {
 // ------------------------------------------------------
 
 while_stmt = {
-    "while" ~ "(" ~ expr ~ ")" ~ statement
+    "while" ~ statement_branch
 }
 
 c_for_stmt = {

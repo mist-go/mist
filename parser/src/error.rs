@@ -1,3 +1,7 @@
+use std::fmt::Debug;
+
+use pest::iterators::Pair;
+
 use crate::Rule;
 
 pub type AstResult<'a, T, ET = T> = Result<T, AstError<'a, ET>>;
@@ -18,7 +22,8 @@ pub struct AstError<'a, T> {
 
 #[derive(Debug, Clone)]
 pub enum ErrorCode {
-    InvalidStatement = 200,
+    InvalidStatement,
+    AstGenBug,
 }
 
 impl<T> From<pest::error::Error<Rule>> for ParseError<'_, T> {
@@ -42,40 +47,48 @@ impl<'a, F> AstError<'a, F> {
             recovered: None,
         }
     }
-}
 
-pub trait GetParseError<'a, F> {
-    fn get<T>(self) -> AstResult<'a, F, T>;
-}
-
-impl<'a, F> GetParseError<'a, F> for AstResult<'a, F> {
-    fn get<T>(self) -> AstResult<'a, F, T> {
-        match self {
-            Ok(v) => Ok(v),
-            Err(e) => Err(e.get()),
-        }
+    pub fn bug_unimplemented<T>(pair: Pair<'a, Rule>) -> AstResult<'a, T, F> {
+        Err(Self {
+            span: pair.as_span(),
+            error_code: ErrorCode::AstGenBug,
+            error_message: format!("Possible bug, unimplemented: {:#?}", pair.as_rule()),
+            recovered: None,
+        })
     }
 }
 
-impl<'a, F> GetParseError<'a, Option<F>> for Result<Option<F>, AstError<'a, F>> {
-    fn get<T>(self) -> AstResult<'a, Option<F>, T> {
-        match self {
-            Ok(v) => Ok(v),
-            Err(e) => Err(e.get()),
-        }
+pub trait IntoErr<T, FA, FR> {
+    fn get(self) -> T;
+    fn get_map(self, m: impl Fn(FA) -> FR) -> T;
+}
+
+impl<'a, T, TE, TE2> IntoErr<AstResult<'a, T, TE2>, TE, TE2> for AstResult<'a, T, TE> {
+    fn get(self) -> AstResult<'a, T, TE2> {
+        self.map_err(AstError::get)
+    }
+
+    fn get_map(self, m: impl Fn(TE) -> TE2) -> AstResult<'a, T, TE2> {
+        self.map_err(|e| AstError {
+            span: e.span,
+            error_code: e.error_code,
+            error_message: e.error_message,
+            recovered: e.recovered.map(m),
+        })
     }
 }
 
-impl<'a, F> GetParseError<'a, Option<Vec<F>>> for Result<Option<Vec<F>>, AstError<'a, F>> {
-    fn get<T>(self) -> AstResult<'a, Option<Vec<F>>, T> {
-        match self {
-            Ok(v) => Ok(v),
-            Err(e) => Err(e.get()),
-        }
+pub trait GetLength {
+    fn len(&self) -> usize;
+}
+
+impl<T, E> GetLength for Result<Vec<T>, E> {
+    fn len(&self) -> usize {
+        if let Ok(v) = self { v.len() } else { 0 }
     }
 }
 
-pub fn collect_recovered<'a, T, ET>(
+pub fn collect_recovered<'a, T: Debug, ET>(
     pairs: impl Iterator<Item = pest::iterators::Pair<'a, Rule>>,
 ) -> AstResult<'a, Vec<T>, Vec<T>>
 where
@@ -84,7 +97,7 @@ where
     collect_recovered_map(pairs, T::try_from)
 }
 
-pub fn collect_recovered_map<'a, T, F, ET>(
+pub fn collect_recovered_map<'a, T: Debug, F, ET>(
     pairs: impl Iterator<Item = pest::iterators::Pair<'a, Rule>>,
     f: F,
 ) -> AstResult<'a, Vec<T>, Vec<T>>
@@ -108,8 +121,39 @@ where
             span: ast_err.span,
             error_code: ast_err.error_code,
             error_message: ast_err.error_message,
-            recovered: None,
+            recovered: Some(items),
         }),
         None => Ok(items),
+    }
+}
+
+pub struct AstErrorAnalyzer<'a, T>(pub Option<AstError<'a, T>>);
+
+impl<'a, T> AstErrorAnalyzer<'a, T> {
+    pub fn get<V: Clone, V2: Clone + Into<V>>(
+        &mut self,
+        r: AstResult<'a, V, V2>,
+    ) -> AstResult<'a, V, V2> {
+        if let Err(e) = r {
+            self.0 = Some(e.clone().get());
+
+            if let Some(recovered) = e.recovered {
+                Ok(recovered.into())
+            } else {
+                Err(e)
+            }
+        } else {
+            r
+        }
+    }
+
+    pub fn build(self, v: T) -> AstResult<'a, T> {
+        if let Some(mut e) = self.0 {
+            e.recovered = Some(v);
+
+            Err(e)
+        } else {
+            Ok(v)
+        }
     }
 }
