@@ -2,7 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_expr,
-    error::{AstError, AstResult, ErrorCode, GetParseError, collect_recovered},
+    error::{AstError, AstResult, ErrorCode, IntoErr, collect_recovered},
     parser::listen_rule,
 };
 

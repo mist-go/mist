@@ -46,34 +46,13 @@ impl<'a, F> AstError<'a, F> {
     }
 }
 
-pub trait GetParseError<'a, F> {
-    fn get<T>(self) -> AstResult<'a, F, T>;
+pub trait IntoErr<T> {
+    fn get(self) -> T;
 }
 
-impl<'a, F> GetParseError<'a, F> for AstResult<'a, F> {
-    fn get<T>(self) -> AstResult<'a, F, T> {
-        match self {
-            Ok(v) => Ok(v),
-            Err(e) => Err(e.get()),
-        }
-    }
-}
-
-impl<'a, F> GetParseError<'a, Option<F>> for Result<Option<F>, AstError<'a, F>> {
-    fn get<T>(self) -> AstResult<'a, Option<F>, T> {
-        match self {
-            Ok(v) => Ok(v),
-            Err(e) => Err(e.get()),
-        }
-    }
-}
-
-impl<'a, F> GetParseError<'a, Option<Vec<F>>> for Result<Option<Vec<F>>, AstError<'a, F>> {
-    fn get<T>(self) -> AstResult<'a, Option<Vec<F>>, T> {
-        match self {
-            Ok(v) => Ok(v),
-            Err(e) => Err(e.get()),
-        }
+impl<'a, T, TE, TE2> IntoErr<AstResult<'a, T, TE2>> for AstResult<'a, T, TE> {
+    fn get(self) -> AstResult<'a, T, TE2> {
+        self.map_err(AstError::get)
     }
 }
 

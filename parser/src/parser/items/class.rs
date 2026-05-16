@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    error::{AstError, GetParseError},
+    error::{AstError, IntoErr},
     parser::consume_rule,
 };
 

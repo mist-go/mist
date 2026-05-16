@@ -7,7 +7,7 @@ pub mod parser;
 
 use ast::*;
 
-use crate::error::{GetParseError, ParseError};
+use crate::error::{IntoErr, ParseError};
 
 #[derive(Parser)]
 #[grammar = "./src/grammar.pest"]

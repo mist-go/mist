@@ -1,7 +1,8 @@
 use crate::{
     Rule,
     ast::*,
-    error::{AstError, AstResult, GetParseError, collect_recovered, collect_recovered_map},
+    ast_expr,
+    error::{AstError, IntoErr, collect_recovered, collect_recovered_map},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
@@ -15,26 +16,19 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
             Rule::expr => {
                 let prefixes = inner
                     .next()
-                    .map(|p| {
-                        p.into_inner()
-                            .into_iter()
-                            .map(Prefix::try_from)
-                            .collect::<AstResult<'a, Vec<_>, _>>()
-                    })
-                    .transpose()
-                    .get()?
-                    .unwrap_or_default();
+                    .map(|p| collect_recovered::<Prefix, Prefix>(p.into_inner()))
+                    .unwrap_or_else(|| Ok(Vec::new()));
 
-                let exp = Expression::try_from(inner.next().unwrap())?;
+                let exp = Expression::try_from(inner.next().unwrap());
 
-                if inner.len() > 0 || prefixes.len() > 0 {
-                    Ok(Expression::Fix {
-                        initial: Box::new(exp),
-                        prefixes,
-                        postfixes: collect_recovered(inner).get()?,
+                if inner.len() > 0 {
+                    ast_expr!(Expression::Fix {
+                        initial: exp.map(Box::new),
+                        prefixes: prefixes,
+                        postfixes: collect_recovered(inner),
                     })
                 } else {
-                    Ok(exp)
+                    Ok(exp?)
                 }
             }
             Rule::primary => Expression::try_from(inner.next().unwrap()),

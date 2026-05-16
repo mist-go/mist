@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    error::{AstError, GetParseError, collect_recovered},
+    error::{AstError, IntoErr, collect_recovered},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Attribute {

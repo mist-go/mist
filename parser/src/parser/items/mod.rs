@@ -8,7 +8,7 @@ use crate::{
     Rule,
     ast::*,
     ast_expr,
-    error::{AstError, GetParseError, collect_recovered},
+    error::{AstError, IntoErr, collect_recovered},
     parser::consume_rule,
 };
 
