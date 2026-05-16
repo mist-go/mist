@@ -47,9 +47,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
 
             Rule::block => ast_expr!(Statement::Block(pair.try_into())),
 
-            Rule::var_decl_statement => {
-                ast_expr!(Statement::VarDecl(inner.next().unwrap().try_into()))
-            }
+            Rule::var_decl_statement => ast_expr!(Statement::VarDecl(pair.try_into())),
 
             Rule::return_stmt => {
                 ast_expr!(Statement::Return(
@@ -62,8 +60,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
             Rule::continue_stmt => Ok(Statement::Continue),
 
             Rule::if_stmt => {
-                let mut inner = inner.skip(2);
-
                 ast_expr!(Statement::If {
                     initial: inner.next().unwrap().try_into(),
                     else_if: collect_recovered(inner.next().unwrap().into_inner()),

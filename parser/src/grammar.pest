@@ -368,7 +368,7 @@ else_if_list = {
 }
 
 if_stmt = {
-    "if" ~ "(" ~ statement_branch ~ else_if_list ~ ("else" ~ statement)?
+    "if" ~ statement_branch ~ else_if_list ~ ("else" ~ statement)?
 }
 
 // ------------------------------------------------------
