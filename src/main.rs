@@ -32,13 +32,11 @@ fn main() {
 }
 
 fn print_usage() {
-    println!("mist - the mist compiler");
-    println!();
+    println!("mist - the mist compiler\n");
     println!("usage:");
-    println!("  mist run               run the project in the current directory");
-    println!("  mist build             build the project in the current directory");
-    println!("  mist transpile         transpile the project in the current directory");
-    println!("  mist check <file.ms>   parse and validate without compiling");
-    println!("  mist version           print the compiler version");
-    println!("  mist help              print this message");
+    println!(" \x1b[36m mist run\x1b[0m               run the project in the current directory\n");
+    println!(" \x1b[36m mist build\x1b[0m             build the project in the current directory\n");
+    println!(" \x1b[36m mist transpile\x1b[0m         transpile the project in the current directory\n");
+    println!(" \x1b[36m mist version \x1b[0m          print the compiler version\n");
+    println!(" \x1b[36m mist help\x1b[0m              print this message\n");
 }
