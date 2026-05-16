@@ -52,7 +52,7 @@ impl<'a, F> AstError<'a, F> {
         Err(Self {
             span: pair.as_span(),
             error_code: ErrorCode::AstGenBug,
-            error_message: format!("Possible bug, unimplemented: {:#?}", pair),
+            error_message: format!("Possible bug, unimplemented: {:#?}", pair.as_rule()),
             recovered: None,
         })
     }
