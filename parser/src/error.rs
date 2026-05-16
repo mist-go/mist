@@ -47,13 +47,23 @@ impl<'a, F> AstError<'a, F> {
     }
 }
 
-pub trait IntoErr<T> {
+pub trait IntoErr<T, FA, FR> {
     fn get(self) -> T;
+    fn get_map(self, m: impl Fn(FA) -> FR) -> T;
 }
 
-impl<'a, T, TE, TE2> IntoErr<AstResult<'a, T, TE2>> for AstResult<'a, T, TE> {
+impl<'a, T, TE, TE2> IntoErr<AstResult<'a, T, TE2>, TE, TE2> for AstResult<'a, T, TE> {
     fn get(self) -> AstResult<'a, T, TE2> {
         self.map_err(AstError::get)
+    }
+
+    fn get_map(self, m: impl Fn(TE) -> TE2) -> AstResult<'a, T, TE2> {
+        self.map_err(|e| AstError {
+            span: e.span,
+            error_code: e.error_code,
+            error_message: e.error_message,
+            recovered: e.recovered.map(m),
+        })
     }
 }
 
