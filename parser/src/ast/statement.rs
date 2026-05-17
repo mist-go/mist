@@ -13,10 +13,6 @@ pub enum Statement {
     VarDecl(VarDeclStmt),
     Assign {
         target: Expression,
-        value: Expression,
-    },
-    CompoundAssign {
-        target: Expression,
         compound: String,
         value: Expression,
     },

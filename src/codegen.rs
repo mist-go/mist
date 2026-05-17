@@ -219,7 +219,7 @@ impl GetRust for [Prefix] {
 
 impl GetRust for ExprPath {
     fn get_rust(&self) -> String {
-        self.segments
+        self.0
             .iter()
             .map(ExprPathSegment::get_rust)
             .collect::<Vec<_>>()
@@ -601,11 +601,7 @@ impl ToRust for Statement {
                 cg.add_indentedln(&format!("let {}{};", decl.get_rust(), init));
             }
 
-            Statement::Assign { target, value } => {
-                cg.add_indentedln(&format!("{} = {};", target.get_rust(), value.get_rust(),));
-            }
-
-            Statement::CompoundAssign {
+            Statement::Assign {
                 target,
                 compound,
                 value,

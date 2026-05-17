@@ -90,6 +90,4 @@ pub struct ExprPathSegment {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct ExprPath {
-    pub segments: Vec<ExprPathSegment>,
-}
+pub struct ExprPath(pub Vec<ExprPathSegment>);

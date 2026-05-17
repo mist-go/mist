@@ -90,6 +90,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
 
             Rule::assign_statement => ast_expr!(Statement::Assign {
                 target: inner.next().unwrap().try_into(),
+                compound: Ok(inner.next().unwrap().as_str().trim().to_string())
+                    as AstResult<'_, String>,
                 value: inner.next().unwrap().try_into(),
             }),
             Rule::match_stmt => ast_expr!(Statement::Match(
@@ -104,15 +106,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                     })
                     .collect::<AstResult<'a, Vec<_>>>(),
             )),
-
-            Rule::compound_assign_statement => {
-                ast_expr!(Statement::CompoundAssign {
-                    target: inner.next().unwrap().try_into(),
-                    compound: Ok(inner.next().unwrap().as_str().trim().to_string())
-                        as AstResult<'_, String>,
-                    value: inner.next().unwrap().try_into(),
-                })
-            }
 
             Rule::increment_statement => {
                 ast_expr!(Statement::Increment(inner.next().unwrap().try_into()))

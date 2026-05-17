@@ -193,9 +193,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ExprPath {
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         ast_ensure!(pair, Rule::expr_path => {
-            ast_expr!(ExprPath {
-                segments: collect_recovered(pair.into_inner()),
-            })
+            ast_expr!(ExprPath(collect_recovered(pair.into_inner())))
         })
     }
 }

@@ -314,7 +314,6 @@ statement = _{
     expr_stmt
   | match_stmt
   | assign_statement
-  | compound_assign_statement
   | if_stmt
   | while_stmt
   | c_for_stmt
@@ -352,10 +351,6 @@ var_decl_statement = {
     var_decl ~ ("=" ~ expr)? ~ semicolon
 }
 
-assign_statement = {
-    expr ~ "=" ~ expr ~ semicolon
-}
-
 increment_statement = {
     expr ~ "++" ~ semicolon
 }
@@ -365,7 +360,8 @@ decrement_statement = {
 }
 
 compound_assign = {
-    "+="
+    "="
+  | "+="
   | "-="
   | "/="
   | "%="
@@ -376,7 +372,7 @@ compound_assign = {
   | ">>="
 }
 
-compound_assign_statement = {
+assign_statement = {
     expr ~ compound_assign ~ expr ~ semicolon
 }
 
@@ -517,12 +513,12 @@ postfix = {
 // PREFIX EXPRESSIONS
 // ------------------------------------------------------
 
-deref_px           = { "*" }
-mut_ref_px         = { "&" ~ mutable }
-ref_px             = { "&" }
-new_px             = { "new" ~ generics? }
-not_px             = { "!" }
-neg_px             = { "-" }
+deref_px   = { "*" }
+mut_ref_px = { "&" ~ mutable }
+ref_px     = { "&" }
+new_px     = { "new" ~ generics? }
+not_px     = { "!" }
+neg_px     = { "-" }
 
 prefix = {
     deref_px
