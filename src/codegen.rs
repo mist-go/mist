@@ -890,7 +890,7 @@ impl GetRust for Generics {
                 "<{}>",
                 self.0
                     .iter()
-                    .map(|v| (true, v).get_rust())
+                    .map(|v| (false, v).get_rust())
                     .collect::<Vec<_>>()
                     .join(", ")
             )
@@ -904,9 +904,7 @@ impl GetRust for (bool, &Generic) {
             Generic::Lifetime(name) => format!("'{}", name.get_rust()),
             Generic::Type(name, requirements) => {
                 name.get_rust()
-                    + &(if !self.0 && requirements.len() == 0 {
-                        String::new()
-                    } else {
+                    + &(if self.0 && requirements.len() != 0 {
                         format!(
                             ": {}",
                             requirements
@@ -915,6 +913,8 @@ impl GetRust for (bool, &Generic) {
                                 .collect::<Vec<_>>()
                                 .join("+")
                         )
+                    } else {
+                        String::new()
                     })
             }
         }
