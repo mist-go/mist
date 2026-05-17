@@ -14,8 +14,6 @@ pub class Application {
     i32 ticks;
 
     pub constructor(str* name) {
-        new<T::t> test::Test();
-
         self.name = name.to_string();
 
         self.tasks = new Vec();

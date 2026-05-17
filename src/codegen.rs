@@ -482,9 +482,10 @@ impl ToRust for TopLevelKind {
                     format!(
                         "<{}>",
                         generics
+                            .clone()
                             .0
-                            .iter()
-                            .map(|v| (false, v).get_rust())
+                            .into_iter()
+                            .map(|v| Generic::from(v).get_rust())
                             .collect::<Vec<_>>()
                             .join(", ")
                     )
@@ -892,7 +893,7 @@ impl GetRust for GenericsDecl {
                 "<{}>",
                 self.0
                     .iter()
-                    .map(|v| (false, v).get_rust())
+                    .map(|v| v.get_rust())
                     .collect::<Vec<_>>()
                     .join(", ")
             )
@@ -900,13 +901,13 @@ impl GetRust for GenericsDecl {
     }
 }
 
-impl GetRust for (bool, &GenericDecl) {
+impl GetRust for GenericDecl {
     fn get_rust(&self) -> String {
-        match &self.1 {
+        match &self {
             GenericDecl::Lifetime(name) => format!("'{}", name.get_rust()),
             GenericDecl::Type(name, requirements) => {
                 name.get_rust()
-                    + &(if self.0 && requirements.len() != 0 {
+                    + &(if requirements.len() != 0 {
                         format!(
                             ": {}",
                             requirements

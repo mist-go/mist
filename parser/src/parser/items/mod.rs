@@ -101,7 +101,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 ast_expr!(TopLevelKind::ImplDecl(pair.try_into()))
             }
 
-            Rule::trait_decl => dbg!(ast_expr!(TopLevelKind::TraitDecl {
+            Rule::trait_decl => ast_expr!(TopLevelKind::TraitDecl {
                 visibility: Visibility::try_from(&mut inner),
 
                 name: inner.next().unwrap().try_into(),
@@ -117,7 +117,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                     .map(|v| v.unwrap_or_default()),
 
                 items: Ok(Vec::new()) as AstResult<'_, Vec<_>>,
-            })),
+            }),
 
             _ => AstError::bug_unimplemented(pair),
         }
