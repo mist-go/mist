@@ -65,7 +65,7 @@ pub enum Pattern {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Postfix {
-    FieldAccess(Identifier, Option<GenericsDecl>),
+    FieldAccess(Identifier, Option<Generics>),
     Call(Vec<Expression>),
     MacroCall(String),
     StructCall(Vec<(Identifier, Expression)>),
@@ -79,7 +79,7 @@ pub enum Prefix {
     Ref,
     RefMut,
     Deref,
-    New(Option<GenericsDecl>),
+    New(Option<Generics>),
     Not,
     Neg,
 }
@@ -87,8 +87,17 @@ pub enum Prefix {
 #[derive(Debug, Clone, Serialize)]
 pub struct ExprPathSegment {
     pub ident: Identifier,
-    pub generics: Option<GenericsDecl>,
+    pub generics: Option<Generics>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ExprPath(pub Vec<ExprPathSegment>);
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Generics(pub Vec<Generic>);
+
+#[derive(Debug, Clone, Serialize)]
+pub enum Generic {
+    Lifetime(Identifier),
+    Type(TypeExpr),
+}

@@ -119,3 +119,35 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for GenericDecl {
         })
     }
 }
+
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Generics {
+    type Error = AstError<'a, Self>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        let inner = pair.clone().into_inner();
+
+        ast_ensure!(pair, Rule::generics => {
+            ast_expr!(Generics(collect_recovered(inner)))
+        })
+    }
+}
+
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Generic {
+    type Error = AstError<'a, Self>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        let mut inner = pair.clone().into_inner();
+
+        ast_ensure!(pair, Rule::generic => {
+            if let Some(pair) = consume_rule(&mut inner, Rule::lifetime) {
+                ast_expr!(Generic::Lifetime(
+                    pair.into_inner().next().unwrap().try_into(),
+                ))
+            } else {
+                ast_expr!(Generic::Type(
+                    inner.next().unwrap().try_into()
+                ))
+            }
+        })
+    }
+}

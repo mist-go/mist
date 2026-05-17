@@ -159,7 +159,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
             Rule::field_px => {
                 ast_expr!(Postfix::FieldAccess(
                     inner.next().unwrap().try_into(),
-                    inner.next().map(GenericsDecl::try_from).transpose()
+                    inner.next().map(Generics::try_from).transpose()
                 ))
             }
 
@@ -209,7 +209,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ExprPathSegment {
         ast_ensure!(pair, Rule::expr_path_segment => {
             ast_expr!(ExprPathSegment {
                 ident: Identifier::try_from(inner.next().unwrap()),
-                generics: inner.next().map(GenericsDecl::try_from).transpose(),
+                generics: inner.next().map(Generics::try_from).transpose(),
             })
         })
     }

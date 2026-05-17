@@ -74,6 +74,7 @@ pub enum GenericDecl {
     Lifetime(Identifier),
     Type(Identifier, Vec<TypeExpr>),
 }
+
 #[derive(Debug, Clone, Serialize)]
 pub enum EnumItem {
     Named(Identifier),

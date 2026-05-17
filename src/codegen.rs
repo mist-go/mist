@@ -1,8 +1,8 @@
 use mist_parser::ast::{
     Attribute, BinaryOp, Block, ClassItem, EnumItem, ExprPath, ExprPathSegment, Expression,
-    FieldDecl, FunctionDecl, GenericDecl, GenericsDecl, Identifier, ImplDecl, Literal, Path,
-    Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr,
-    TypeExprKind, TypePostfix, VarDecl, VarDeclStmt, Visibility,
+    FieldDecl, FunctionDecl, Generic, GenericDecl, Generics, GenericsDecl, Identifier, ImplDecl,
+    Literal, Path, Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind,
+    TypeExpr, TypeExprKind, TypePostfix, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -919,6 +919,32 @@ impl GetRust for (bool, &GenericDecl) {
                         String::new()
                     })
             }
+        }
+    }
+}
+
+impl GetRust for Generics {
+    fn get_rust(&self) -> String {
+        if self.0.len() == 0 {
+            String::new()
+        } else {
+            format!(
+                "<{}>",
+                self.0
+                    .iter()
+                    .map(Generic::get_rust)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        }
+    }
+}
+
+impl GetRust for Generic {
+    fn get_rust(&self) -> String {
+        match &self {
+            Self::Lifetime(name) => format!("'{}", name.get_rust()),
+            Self::Type(ty) => ty.get_rust(),
         }
     }
 }
