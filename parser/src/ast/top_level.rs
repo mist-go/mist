@@ -33,27 +33,27 @@ pub enum TopLevelKind {
     TraitDecl {
         visibility: Visibility,
         name: Identifier,
-        generics: Generics,
+        generics: GenericsDecl,
         requirements: Vec<TypeExpr>,
         items: Vec<FunctionDecl>,
     },
     EnumDecl {
         visibility: Visibility,
         name: Identifier,
-        generics: Generics,
+        generics: GenericsDecl,
         fields: Vec<EnumItem>,
     },
     StructDecl {
         visibility: Visibility,
         name: Identifier,
-        generics: Generics,
+        generics: GenericsDecl,
         fields: Vec<FieldDecl>,
     },
     FunctionDecl(FunctionDecl),
     ClassDecl {
         visibility: Visibility,
         name: Identifier,
-        generics: Generics,
+        generics: GenericsDecl,
         fields: Vec<FieldDeclStmt>,
         constructor: ClassConstructor,
         items: Vec<ClassItem>,
@@ -67,10 +67,10 @@ pub enum ClassItem {
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
-pub struct Generics(pub Vec<Generic>);
+pub struct GenericsDecl(pub Vec<GenericDecl>);
 
 #[derive(Debug, Clone, Serialize)]
-pub enum Generic {
+pub enum GenericDecl {
     Lifetime(Identifier),
     Type(Identifier, Vec<TypeExpr>),
 }
@@ -84,7 +84,7 @@ pub enum EnumItem {
 #[derive(Debug, Clone, Serialize)]
 pub struct ClassConstructor {
     pub visibility: Visibility,
-    pub generics: Generics,
+    pub generics: GenericsDecl,
     pub params: ParamList,
     pub body: Block,
 }
@@ -93,7 +93,7 @@ pub struct ClassConstructor {
 pub struct FunctionDecl {
     pub visibility: Visibility,
     pub name: Identifier,
-    pub generics: Generics,
+    pub generics: GenericsDecl,
     pub params: ParamList,
     pub return_type: TypeExpr,
     pub body: Option<Block>,
@@ -101,7 +101,7 @@ pub struct FunctionDecl {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ImplDecl {
-    pub generics: Generics,
+    pub generics: GenericsDecl,
     pub target: TypeExpr,
     pub trait_: Option<TypeExpr>,
     pub methods: Vec<FunctionDecl>,

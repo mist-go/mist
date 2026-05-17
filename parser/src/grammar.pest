@@ -63,7 +63,10 @@ unexpected_statement = {
 // ======================================================
 // GENERICS
 // ======================================================
-generic  = { lifetime | (identifier ~ (":" ~ type_expr_param ~ ("+" ~ type_expr_param)*)?) }
+generic_decl  = { lifetime | (identifier ~ (":" ~ type_expr_param ~ ("+" ~ type_expr_param)*)?) }
+generics_decl = { "<" ~ (generic_decl ~ ("," ~ generic_decl)*)? ~ ">" }
+
+generic  = { lifetime | type_expr_param }
 generics = { "<" ~ (generic ~ ("," ~ generic)*)? ~ ">" }
 
 // ======================================================
@@ -190,7 +193,7 @@ mod_package = {
 // ======================================================
 
 struct_decl = {
-    visibility? ~ "struct" ~ identifier ~ generics? ~ "{" ~ field_list? ~ "}"
+    visibility? ~ "struct" ~ identifier ~ generics_decl? ~ "{" ~ field_list? ~ "}"
 }
 
 // ======================================================
@@ -220,7 +223,7 @@ enum_fields = _{
 }
 
 enum_decl = {
-    visibility? ~ "enum" ~ identifier ~ generics? ~ "{" ~ enum_fields ~ "}"
+    visibility? ~ "enum" ~ identifier ~ generics_decl? ~ "{" ~ enum_fields ~ "}"
 }
 
 // ======================================================
@@ -228,7 +231,7 @@ enum_decl = {
 // ======================================================
 
 class_constructor = {
-    visibility? ~ "constructor" ~ generics? ~ "(" ~ param_list? ~ ")" ~ block
+    visibility? ~ "constructor" ~ generics_decl? ~ "(" ~ param_list? ~ ")" ~ block
 }
 
 class_fields = {
@@ -244,7 +247,7 @@ self_param = {
 }
 
 method = {
-    visibility? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ block
+    visibility? ~ type_expr ~ identifier ~ generics_decl? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ block
 }
 
 class_item = _{
@@ -253,18 +256,18 @@ class_item = _{
 }
 
 class_decl = {
-    visibility? ~ "class" ~ identifier ~ generics? ~ "{" ~ class_fields ~ class_constructor ~ class_item* ~ "}"
+    visibility? ~ "class" ~ identifier ~ generics_decl? ~ "{" ~ class_fields ~ class_constructor ~ class_item* ~ "}"
 }
 
 // ======================================================
 // IMPL
 // ======================================================
 impl_for_decl = {
-    "impl" ~ generics? ~ type_expr ~ "for" ~ type_expr ~ "{" ~ method* ~ "}"
+    "impl" ~ generics_decl? ~ type_expr ~ "for" ~ type_expr ~ "{" ~ method* ~ "}"
 }
 
 impl_decl = {
-    "impl" ~ generics? ~ type_expr ~ "{" ~ method* ~ "}"
+    "impl" ~ generics_decl? ~ type_expr ~ "{" ~ method* ~ "}"
 }
 
 // ======================================================
@@ -273,7 +276,7 @@ impl_decl = {
 trait_requirements = { ":" ~ type_expr_param ~ ("+" ~ type_expr_param)* }
 
 method_no_body = {
-    visibility? ~ type_expr ~ identifier ~ generics? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ semicolon
+    visibility? ~ type_expr ~ identifier ~ generics_decl? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ semicolon
 }
 
 trait_item = _{
@@ -282,7 +285,7 @@ trait_item = _{
 }
 
 trait_decl = {
-    visibility? ~ "trait" ~ identifier ~ generics? ~ trait_requirements? ~ "{" ~ trait_item* ~ "}"
+    visibility? ~ "trait" ~ identifier ~ generics_decl? ~ trait_requirements? ~ "{" ~ trait_item* ~ "}"
 }
 
 // ======================================================

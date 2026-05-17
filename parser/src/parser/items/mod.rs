@@ -51,7 +51,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 name: inner.next().unwrap().try_into(),
 
                 generics: consume_rule(&mut inner, Rule::generics)
-                    .map(Generics::try_from)
+                    .map(GenericsDecl::try_from)
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
 
@@ -68,7 +68,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 name: inner.next().unwrap().try_into(),
 
                 generics: consume_rule(&mut inner, Rule::generics)
-                    .map(Generics::try_from)
+                    .map(GenericsDecl::try_from)
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
 
@@ -85,7 +85,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 name: inner.next().unwrap().try_into(),
 
                 generics: consume_rule(&mut inner, Rule::generics)
-                    .map(Generics::try_from)
+                    .map(GenericsDecl::try_from)
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
 
@@ -107,7 +107,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 name: inner.next().unwrap().try_into(),
 
                 generics: consume_rule(&mut inner, Rule::generics)
-                    .map(Generics::try_from)
+                    .map(GenericsDecl::try_from)
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
 
