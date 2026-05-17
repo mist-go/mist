@@ -14,8 +14,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ClassConstructor {
         Ok(Self {
             visibility: Visibility::try_from(&mut inner).get()?,
 
-            generics: consume_rule(&mut inner, Rule::generics)
-                .map(Generics::try_from)
+            generics: consume_rule(&mut inner, Rule::generics_decl)
+                .map(GenericsDecl::try_from)
                 .transpose()
                 .get()?
                 .unwrap_or_default(),

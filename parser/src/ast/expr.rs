@@ -92,3 +92,12 @@ pub struct ExprPathSegment {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ExprPath(pub Vec<ExprPathSegment>);
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Generics(pub Vec<Generic>);
+
+#[derive(Debug, Clone, Serialize)]
+pub enum Generic {
+    Lifetime(Identifier),
+    Type(TypeExpr),
+}

@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    ast_expr,
+    ast_ensure, ast_expr,
     error::{AstError, GetLength, IntoErr, collect_recovered},
     parser::{consume_rule, listen_rule},
 };
@@ -87,17 +87,48 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
     }
 }
 
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for GenericsDecl {
+    type Error = AstError<'a, Self>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        let inner = pair.clone().into_inner();
+
+        ast_ensure!(pair, Rule::generics_decl => {
+            ast_expr!(GenericsDecl(collect_recovered(inner)))
+        })
+    }
+}
+
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for GenericDecl {
+    type Error = AstError<'a, Self>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        let mut inner = pair.clone().into_inner();
+
+        ast_ensure!(pair, Rule::generic_decl => {
+            if let Some(pair) = consume_rule(&mut inner, Rule::lifetime) {
+                ast_expr!(GenericDecl::Lifetime(
+                    pair.into_inner().next().unwrap().try_into(),
+                ))
+            } else {
+                ast_expr!(GenericDecl::Type(
+                    inner.next().unwrap().try_into(),
+                    collect_recovered(inner),
+                ))
+            }
+        })
+    }
+}
+
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Generics {
     type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        let rule = pair.as_rule();
         let inner = pair.clone().into_inner();
 
-        match rule {
-            Rule::generics => ast_expr!(Generics(collect_recovered(inner))),
-            _ => AstError::bug_unimplemented(pair),
-        }
+        ast_ensure!(pair, Rule::generics => {
+            ast_expr!(Generics(collect_recovered(inner)))
+        })
     }
 }
 
@@ -107,15 +138,16 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Generic {
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.clone().into_inner();
 
-        if let Some(pair) = consume_rule(&mut inner, Rule::lifetime) {
-            ast_expr!(Generic::Lifetime(
-                pair.into_inner().next().unwrap().try_into(),
-            ))
-        } else {
-            ast_expr!(Generic::Type(
-                inner.next().unwrap().try_into(),
-                collect_recovered(inner),
-            ))
-        }
+        ast_ensure!(pair, Rule::generic => {
+            if let Some(pair) = consume_rule(&mut inner, Rule::lifetime) {
+                ast_expr!(Generic::Lifetime(
+                    pair.into_inner().next().unwrap().try_into(),
+                ))
+            } else {
+                ast_expr!(Generic::Type(
+                    inner.next().unwrap().try_into()
+                ))
+            }
+        })
     }
 }

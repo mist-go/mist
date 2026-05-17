@@ -41,3 +41,14 @@ impl TypeExpr {
         Self(kind, Vec::new())
     }
 }
+
+impl From<GenericDecl> for Generic {
+    fn from(value: GenericDecl) -> Self {
+        match value {
+            GenericDecl::Lifetime(life) => Generic::Lifetime(life),
+            GenericDecl::Type(ty, _) => {
+                Generic::Type(TypeExpr(TypeExprKind::Path(Path(vec![ty])), Vec::new()))
+            }
+        }
+    }
+}

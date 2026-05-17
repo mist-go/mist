@@ -1,8 +1,8 @@
 use mist_parser::ast::{
     Attribute, BinaryOp, Block, ClassItem, EnumItem, ExprPath, ExprPathSegment, Expression,
-    FieldDecl, FunctionDecl, Generic, Generics, Identifier, ImplDecl, Literal, Path, Pattern,
-    Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind,
-    TypePostfix, VarDecl, VarDeclStmt, Visibility,
+    FieldDecl, FunctionDecl, Generic, GenericDecl, Generics, GenericsDecl, Identifier, ImplDecl,
+    Literal, Path, Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind,
+    TypeExpr, TypeExprKind, TypePostfix, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -12,13 +12,13 @@ use mist_parser::ast::{
 /// Implemented by nodes that *write* into the codegen output buffer.
 /// Requires `&mut RustCodegen` because it calls `add` / `addln` / indentation helpers.
 pub trait ToRust {
-    fn to_rust(&self, cg: &mut RustCodegen);
+    fn to_rust(self, cg: &mut RustCodegen);
 }
 
 /// Implemented by nodes that *produce* a `String` without mutating the codegen.
 /// Only needs `&RustCodegen` (e.g. for indent level or helper access).
 pub trait GetRust {
-    fn get_rust(&self) -> String;
+    fn get_rust(self) -> String;
 }
 
 // ---------------------------------------------------------------------------
@@ -56,15 +56,16 @@ impl RustCodegen {
         self.add(&line);
     }
 
-    pub fn generate(&mut self, toplevels: &[TopLevel]) -> String {
+    pub fn generate(&mut self, toplevels: Vec<TopLevel>) -> String {
         for tl in toplevels {
             tl.to_rust(self);
         }
+
         self.output.clone()
     }
 
-    pub fn ensure_brackets(&mut self, stmt: &Statement) {
-        match stmt {
+    pub fn ensure_brackets(&mut self, stmt: Box<Statement>) {
+        match *stmt {
             Statement::Block(_) => stmt.to_rust(self),
             _ => {
                 self.add_indentedln("{");
@@ -88,13 +89,13 @@ impl Default for RustCodegen {
 // ---------------------------------------------------------------------------
 
 impl GetRust for TypeExpr {
-    fn get_rust(&self) -> String {
-        get_type_postfixes(&self.1) + &self.0.get_rust()
+    fn get_rust(self) -> String {
+        get_type_postfixes(self.1) + &self.0.get_rust()
     }
 }
 
 impl GetRust for TypeExprKind {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         match self {
             TypeExprKind::Path(path) => get_static_type_path(path),
             TypeExprKind::Lifetime(name) => format!("'{}", name.get_rust()),
@@ -103,7 +104,7 @@ impl GetRust for TypeExprKind {
                     "{}<{}>",
                     get_static_type_path(path),
                     params
-                        .iter()
+                        .into_iter()
                         .map(|t| t.get_rust())
                         .collect::<Vec<_>>()
                         .join(", ")
@@ -112,7 +113,7 @@ impl GetRust for TypeExprKind {
             TypeExprKind::Tuple(types) => format!(
                 "({})",
                 types
-                    .iter()
+                    .into_iter()
                     .map(|t| t.get_rust())
                     .collect::<Vec<_>>()
                     .join(", ")
@@ -122,7 +123,7 @@ impl GetRust for TypeExprKind {
 }
 
 impl GetRust for Literal {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         match self {
             Self::Int(n) => n.to_string(),
             Self::Float(n) => format!("{n:?}"),
@@ -131,7 +132,7 @@ impl GetRust for Literal {
             Self::Tuple(t) => {
                 format!(
                     "({})",
-                    t.iter()
+                    t.into_iter()
                         .map(Expression::get_rust)
                         .collect::<Vec<_>>()
                         .join(", ")
@@ -140,7 +141,7 @@ impl GetRust for Literal {
             Self::Array(values) => format!(
                 "[{}]",
                 values
-                    .iter()
+                    .into_iter()
                     .map(Expression::get_rust)
                     .collect::<Vec<_>>()
                     .join(", ")
@@ -153,7 +154,7 @@ impl GetRust for Literal {
 }
 
 impl GetRust for Expression {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         match self {
             Expression::Path(path) => path.get_rust(),
             Expression::Literal(literal) => literal.get_rust(),
@@ -162,7 +163,7 @@ impl GetRust for Expression {
                 prefixes,
                 postfixes,
             } => {
-                prefixes.get_rust()
+                prefixes.clone().get_rust()
                     + &initial.get_rust()
                     + &Some(prefixes).get_rust()
                     + &postfixes.get_rust()
@@ -198,7 +199,7 @@ impl GetRust for Expression {
 }
 
 impl GetRust for Prefix {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         match self {
             Self::Deref => "*",
             Self::Ref => "&",
@@ -211,16 +212,16 @@ impl GetRust for Prefix {
     }
 }
 
-impl GetRust for [Prefix] {
-    fn get_rust(&self) -> String {
-        self.iter().map(Prefix::get_rust).collect()
+impl GetRust for Vec<Prefix> {
+    fn get_rust(self) -> String {
+        self.into_iter().map(Prefix::get_rust).collect()
     }
 }
 
 impl GetRust for ExprPath {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         self.0
-            .iter()
+            .into_iter()
             .map(ExprPathSegment::get_rust)
             .collect::<Vec<_>>()
             .join("::")
@@ -228,29 +229,27 @@ impl GetRust for ExprPath {
 }
 
 impl GetRust for ExprPathSegment {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         format!(
             "{}{}",
             self.ident.get_rust(),
             self.generics
-                .as_ref()
                 .map(|v| format!("::{}", v.get_rust()))
                 .unwrap_or_default()
         )
     }
 }
 
-impl GetRust for Option<&Vec<Prefix>> {
-    fn get_rust(&self) -> String {
+impl GetRust for Option<Vec<Prefix>> {
+    fn get_rust(self) -> String {
         self.map(|prefixes| {
             prefixes
-                .iter()
+                .into_iter()
                 .last()
                 .map(|p| match p {
                     Prefix::New(generics) => format!(
                         "::new{}",
                         generics
-                            .as_ref()
                             .map(|v| format!("::{}", v.get_rust()))
                             .unwrap_or_default(),
                     ),
@@ -264,20 +263,19 @@ impl GetRust for Option<&Vec<Prefix>> {
 }
 
 impl GetRust for Postfix {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         match self {
             Postfix::FieldAccess(field, generics) => format!(
                 ".{}{}",
                 field.get_rust(),
                 generics
-                    .as_ref()
                     .map(|v| format!("::{}", v.get_rust()))
                     .unwrap_or_default()
             ),
 
             Postfix::Call(args) => {
                 let args = args
-                    .iter()
+                    .into_iter()
                     .map(|a| a.get_rust())
                     .collect::<Vec<_>>()
                     .join(", ");
@@ -290,7 +288,7 @@ impl GetRust for Postfix {
 
             Postfix::StructCall(fields) => {
                 let fields = fields
-                    .iter()
+                    .into_iter()
                     .map(|(k, v)| format!("{}: {}", k.get_rust(), v.get_rust()))
                     .collect::<Vec<_>>()
                     .join(", ");
@@ -308,9 +306,9 @@ impl GetRust for Postfix {
     }
 }
 
-impl GetRust for [Postfix] {
-    fn get_rust(&self) -> String {
-        self.iter().map(Postfix::get_rust).collect()
+impl GetRust for Vec<Postfix> {
+    fn get_rust(self) -> String {
+        self.into_iter().map(Postfix::get_rust).collect()
     }
 }
 // ---------------------------------------------------------------------------
@@ -318,23 +316,23 @@ impl GetRust for [Postfix] {
 // ---------------------------------------------------------------------------
 
 impl ToRust for Block {
-    fn to_rust(&self, cg: &mut RustCodegen) {
-        for stmt in &self.0 {
+    fn to_rust(self, cg: &mut RustCodegen) {
+        for stmt in self.0 {
             stmt.to_rust(cg);
         }
     }
 }
 
 impl ToRust for TopLevel {
-    fn to_rust(&self, cg: &mut RustCodegen) {
-        match &self.0 {
+    fn to_rust(self, cg: &mut RustCodegen) {
+        match self.0 {
             TopLevelKind::ModAttribute => {
-                for attr in &self.1 {
+                for attr in self.1 {
                     cg.addln(&format!("#![{}]", attr.get_rust()));
                 }
             }
             _ => {
-                for attr in &self.1 {
+                for attr in self.1 {
                     cg.addln(&format!("#[{}]", attr.get_rust()));
                 }
             }
@@ -345,7 +343,7 @@ impl ToRust for TopLevel {
 }
 
 impl GetRust for Attribute {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         match self {
             Self::Path(path) => path.get_rust(),
             Self::NameValue { path, value } => {
@@ -356,7 +354,7 @@ impl GetRust for Attribute {
                     "{}({})",
                     path.get_rust(),
                     items
-                        .iter()
+                        .into_iter()
                         .map(Attribute::get_rust)
                         .collect::<Vec<_>>()
                         .join(", ")
@@ -367,7 +365,7 @@ impl GetRust for Attribute {
 }
 
 impl ToRust for TopLevelKind {
-    fn to_rust(&self, cg: &mut RustCodegen) {
+    fn to_rust(self, cg: &mut RustCodegen) {
         match self {
             Self::ModAttribute => {}
             Self::Import(vis, path) => {
@@ -433,7 +431,7 @@ impl ToRust for TopLevelKind {
                     if requirements.len() != 0 {
                         String::from(": ")
                             + &requirements
-                                .iter()
+                                .into_iter()
                                 .map(TypeExpr::get_rust)
                                 .collect::<Vec<_>>()
                                 .join("+")
@@ -462,12 +460,12 @@ impl ToRust for TopLevelKind {
                 cg.addln(&format!(
                     "{}struct {}{} {{",
                     visibility.get_rust(),
-                    name.get_rust(),
-                    generics.get_rust()
+                    name.clone().get_rust(),
+                    generics.clone().get_rust()
                 ));
                 cg.indent += 1;
 
-                for field in fields {
+                for field in fields.clone() {
                     cg.add_indentedln(&field.decl.get_rust());
                 }
 
@@ -477,14 +475,15 @@ impl ToRust for TopLevelKind {
                 // Constructor
                 cg.addln(&format!(
                     "impl{} {}{} {{",
-                    generics.get_rust(),
-                    name.get_rust(),
+                    generics.clone().get_rust(),
+                    name.clone().get_rust(),
                     format!(
                         "<{}>",
                         generics
+                            .clone()
                             .0
-                            .iter()
-                            .map(|v| (false, v).get_rust())
+                            .into_iter()
+                            .map(|v| Generic::from(v).get_rust())
                             .collect::<Vec<_>>()
                             .join(", ")
                     )
@@ -494,7 +493,8 @@ impl ToRust for TopLevelKind {
                 let params_str = constructor
                     .params
                     .0
-                    .iter()
+                    .clone()
+                    .into_iter()
                     .map(VarDecl::get_rust)
                     .collect::<Vec<_>>()
                     .join(", ");
@@ -502,8 +502,8 @@ impl ToRust for TopLevelKind {
                 cg.add_indentedln("#[allow(invalid_value)]");
                 cg.add_indentedln(&format!(
                     "{}fn new{}({}) -> Self {{",
-                    constructor.visibility.get_rust(),
-                    constructor.generics.get_rust(),
+                    constructor.visibility.clone().get_rust(),
+                    constructor.generics.clone().get_rust(),
                     params_str
                 ));
                 cg.indent += 1;
@@ -511,7 +511,7 @@ impl ToRust for TopLevelKind {
                 cg.add_indentedln("let mut this: Self = unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
 
                 for field in fields {
-                    if let Some(init) = &field.init {
+                    if let Some(init) = field.init {
                         cg.add_indentedln(&format!(
                             "this.{} = {};",
                             field.decl.name.get_rust(),
@@ -525,7 +525,7 @@ impl ToRust for TopLevelKind {
                     constructor
                         .params
                         .0
-                        .iter()
+                        .into_iter()
                         .map(|e| e.name.get_rust())
                         .collect::<Vec<_>>()
                         .join(", ")
@@ -550,7 +550,7 @@ impl ToRust for TopLevelKind {
                 cg.indent -= 1;
                 cg.add_indentedln("}\n");
 
-                for item in items {
+                for item in items.clone() {
                     match item {
                         ClassItem::ImplDecl(_) => {}
                         ClassItem::Method(method) => method.to_rust(cg),
@@ -580,7 +580,7 @@ impl ToRust for TopLevelKind {
 }
 
 impl ToRust for Statement {
-    fn to_rust(&self, cg: &mut RustCodegen) {
+    fn to_rust(self, cg: &mut RustCodegen) {
         match self {
             Statement::Expression(expr) => {
                 cg.add_indentedln(&format!("{};", expr.get_rust()));
@@ -596,7 +596,6 @@ impl ToRust for Statement {
 
             Statement::VarDecl(VarDeclStmt { decl, init }) => {
                 let init = init
-                    .as_ref()
                     .map(|e| format!(" = {}", e.get_rust()))
                     .unwrap_or_default();
 
@@ -639,11 +638,11 @@ impl ToRust for Statement {
                 else_branch,
             } => {
                 cg.add_indentedln(&format!("if {}", initial.condition.get_rust()));
-                cg.ensure_brackets(&initial.body);
+                cg.ensure_brackets(initial.body);
 
                 for else_if_branch in else_if {
                     cg.add_indentedln(&format!("else if {}", else_if_branch.condition.get_rust()));
-                    cg.ensure_brackets(&else_if_branch.body);
+                    cg.ensure_brackets(else_if_branch.body);
                 }
 
                 if let Some(else_br) = else_branch {
@@ -692,7 +691,7 @@ impl ToRust for Statement {
             } => {
                 cg.add_indentedln(&format!(
                     "for {}{} in {}",
-                    get_mutable(*mutable),
+                    get_mutable(mutable),
                     pattern.get_rust(),
                     iterator.get_rust()
                 ));
@@ -700,7 +699,7 @@ impl ToRust for Statement {
             }
 
             Statement::Return(expr) => {
-                let val = expr.as_ref().map(|e| e.get_rust()).unwrap_or_default();
+                let val = expr.map(|e| e.get_rust()).unwrap_or_default();
                 cg.add_indentedln(&format!("return {};", val));
             }
 
@@ -714,11 +713,11 @@ impl ToRust for Statement {
 }
 
 impl ToRust for FunctionDecl {
-    fn to_rust(&self, cg: &mut RustCodegen) {
+    fn to_rust(self, cg: &mut RustCodegen) {
         let params_str = self
             .params
             .0
-            .iter()
+            .into_iter()
             .map(VarDecl::get_rust)
             .collect::<Vec<_>>()
             .join(", ");
@@ -731,7 +730,7 @@ impl ToRust for FunctionDecl {
             params_str,
             self.return_type.get_rust()
         ));
-        if let Some(body) = &self.body {
+        if let Some(body) = self.body {
             cg.add_indentedln("{\n");
             cg.indent += 1;
             body.to_rust(cg);
@@ -744,8 +743,8 @@ impl ToRust for FunctionDecl {
 }
 
 impl ToRust for ImplDecl {
-    fn to_rust(&self, cg: &mut RustCodegen) {
-        if let Some(trait_) = &self.trait_ {
+    fn to_rust(self, cg: &mut RustCodegen) {
+        if let Some(trait_) = self.trait_ {
             cg.add_indentedln(&format!(
                 "impl{} {} for {} {{",
                 self.generics.get_rust(),
@@ -761,7 +760,7 @@ impl ToRust for ImplDecl {
         }
         cg.indent += 1;
 
-        for method in &self.methods {
+        for method in self.methods {
             method.to_rust(cg);
         }
 
@@ -771,10 +770,9 @@ impl ToRust for ImplDecl {
 }
 
 impl GetRust for VarDecl {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         let ty = self
             .type_
-            .as_ref()
             .map(|t| format!(": {}", t.get_rust()))
             .unwrap_or_default();
 
@@ -788,9 +786,9 @@ impl GetRust for VarDecl {
 }
 
 impl GetRust for Path {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         self.0
-            .iter()
+            .into_iter()
             .map(Identifier::get_rust)
             .collect::<Vec<String>>()
             .join("::")
@@ -798,7 +796,7 @@ impl GetRust for Path {
 }
 
 impl GetRust for TypePostfix {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         match self {
             TypePostfix::Ref => format!("&"),
             TypePostfix::RefMut => format!("&mut "),
@@ -809,7 +807,7 @@ impl GetRust for TypePostfix {
 }
 
 impl GetRust for Visibility {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         match self {
             Visibility::Public => "pub ".to_string(),
             Visibility::PublicTarget(path) => format!("pub({}) ", path.get_rust()),
@@ -819,19 +817,19 @@ impl GetRust for Visibility {
 }
 
 impl GetRust for Identifier {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         self.0.clone()
     }
 }
 
 impl GetRust for EnumItem {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         match self {
             Self::Named(id) => id.get_rust(),
             Self::Struct(id, s) => format!(
                 "{} {{{}}}",
                 id.get_rust(),
-                s.iter()
+                s.into_iter()
                     .map(|field| format!("{}: {}", field.name.get_rust(), field.type_.get_rust()))
                     .collect::<Vec<_>>()
                     .join(", ")
@@ -839,7 +837,7 @@ impl GetRust for EnumItem {
             Self::Tuple(id, t) => format!(
                 "{} ({})",
                 id.get_rust(),
-                t.iter()
+                t.into_iter()
                     .map(TypeExpr::get_rust)
                     .collect::<Vec<_>>()
                     .join(", ")
@@ -849,7 +847,7 @@ impl GetRust for EnumItem {
 }
 
 impl GetRust for Pattern {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         match self {
             Self::Id(id) => id.get_rust(),
             Self::Path(path) => path.get_rust(),
@@ -857,14 +855,14 @@ impl GetRust for Pattern {
             Self::Struct(path, ids) => format!(
                 "{} {{{}}}",
                 path.get_rust(),
-                ids.iter()
+                ids.into_iter()
                     .map(Identifier::get_rust)
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
             Self::Tuple(ids) => format!(
                 "({})",
-                ids.iter()
+                ids.into_iter()
                     .map(Identifier::get_rust)
                     .collect::<Vec<_>>()
                     .join(", ")
@@ -873,7 +871,7 @@ impl GetRust for Pattern {
                 format!(
                     "{} ({})",
                     path.get_rust(),
-                    ids.iter()
+                    ids.into_iter()
                         .map(Identifier::get_rust)
                         .collect::<Vec<_>>()
                         .join(", ")
@@ -883,16 +881,16 @@ impl GetRust for Pattern {
     }
 }
 
-impl GetRust for Generics {
-    fn get_rust(&self) -> String {
+impl GetRust for GenericsDecl {
+    fn get_rust(self) -> String {
         if self.0.len() == 0 {
             String::new()
         } else {
             format!(
                 "<{}>",
                 self.0
-                    .iter()
-                    .map(|v| (false, v).get_rust())
+                    .into_iter()
+                    .map(|v| v.get_rust())
                     .collect::<Vec<_>>()
                     .join(", ")
             )
@@ -900,17 +898,17 @@ impl GetRust for Generics {
     }
 }
 
-impl GetRust for (bool, &Generic) {
-    fn get_rust(&self) -> String {
-        match &self.1 {
-            Generic::Lifetime(name) => format!("'{}", name.get_rust()),
-            Generic::Type(name, requirements) => {
+impl GetRust for GenericDecl {
+    fn get_rust(self) -> String {
+        match self {
+            GenericDecl::Lifetime(name) => format!("'{}", name.get_rust()),
+            GenericDecl::Type(name, requirements) => {
                 name.get_rust()
-                    + &(if self.0 && requirements.len() != 0 {
+                    + &(if requirements.len() != 0 {
                         format!(
                             ": {}",
                             requirements
-                                .iter()
+                                .into_iter()
                                 .map(TypeExpr::get_rust)
                                 .collect::<Vec<_>>()
                                 .join("+")
@@ -923,8 +921,34 @@ impl GetRust for (bool, &Generic) {
     }
 }
 
+impl GetRust for Generics {
+    fn get_rust(self) -> String {
+        if self.0.len() == 0 {
+            String::new()
+        } else {
+            format!(
+                "<{}>",
+                self.0
+                    .into_iter()
+                    .map(Generic::get_rust)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        }
+    }
+}
+
+impl GetRust for Generic {
+    fn get_rust(self) -> String {
+        match self {
+            Self::Lifetime(name) => format!("'{}", name.get_rust()),
+            Self::Type(ty) => ty.get_rust(),
+        }
+    }
+}
+
 impl GetRust for FieldDecl {
-    fn get_rust(&self) -> String {
+    fn get_rust(self) -> String {
         format!(
             "{}{}: {},",
             self.visibility.get_rust(),
@@ -934,7 +958,7 @@ impl GetRust for FieldDecl {
     }
 }
 
-pub fn get_static_type_path(path: &Path) -> String {
+pub fn get_static_type_path(path: Path) -> String {
     let rust_path = path.get_rust();
 
     if rust_path == "void" {
@@ -944,8 +968,12 @@ pub fn get_static_type_path(path: &Path) -> String {
     }
 }
 
-pub fn get_type_postfixes(postfixes: &[TypePostfix]) -> String {
-    postfixes.iter().map(TypePostfix::get_rust).collect()
+pub fn get_type_postfixes(postfixes: Vec<TypePostfix>) -> String {
+    postfixes
+        .into_iter()
+        .map(TypePostfix::get_rust)
+        .rev()
+        .collect()
 }
 
 pub fn get_mutable(mutable: bool) -> String {

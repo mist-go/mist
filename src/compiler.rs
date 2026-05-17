@@ -69,12 +69,12 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
             continue;
         }
 
-        // skip non-mist files
+        let relative = path.strip_prefix(base_src).unwrap();
+
         if path.extension().and_then(|e| e.to_str()) != Some("mist") {
+            fs::copy(&path, out_dir.join(relative)).expect("Failed to copy non-mist file");
             continue;
         }
-
-        let relative = path.strip_prefix(base_src).unwrap();
 
         let output_path = out_dir.join(relative).with_extension("rs");
 
@@ -133,7 +133,7 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
         // semantic::walk_ast(semantic::scope::Scope::from_top(root, &ast), &mut ast);
 
         let mut gc = crate::codegen::RustCodegen::new();
-        let output = gc.generate(&ast);
+        let output = gc.generate(ast);
 
         if let Err(e) = fs::write(&output_path, output) {
             eprintln!(

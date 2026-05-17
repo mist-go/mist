@@ -34,8 +34,8 @@ pub fn parse<'a>(source: &'a str) -> Result<Vec<TopLevel>, ParseError<'a, Vec<To
 
 #[macro_export]
 macro_rules! ast_ensure {
-    ($pair:expr, $rule:expr => $body:block) => {
-        if $pair.as_rule() == $rule
+    ($pair:expr, $rule:expr $(, $rules:expr)* => $body:block) => {
+        if $pair.as_rule() == $rule $(|| $pair.as_rule() == $rules)*
             $body
         else {
             Err(AstError {
