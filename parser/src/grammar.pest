@@ -475,17 +475,12 @@ index_px = {
     "[" ~ expr ~ "]"
 }
 
-binary_px = {
-    bin_op ~ expr
-}
-
 postfix = {
     field_px
   | call_px
   | macro_call_px
   | struct_px
   | index_px
-  | binary_px
 }
 
 // ------------------------------------------------------
@@ -520,10 +515,6 @@ prefix = {
   | not_px
 }
 
-prefix_list = {
-    prefix*
-}
-
 // ------------------------------------------------------
 // OPERATORS
 // ------------------------------------------------------
@@ -548,6 +539,7 @@ bin_op = {
 // EXPRESSIONS
 // ------------------------------------------------------
 
-expr = {
-    prefix_list ~ primary ~ postfix*
-}
+expr = { term ~ (bin_op ~ term)* }
+
+// A term is anything that acts as a single unit in an operation
+term = _{ prefix* ~ primary ~ postfix* }
