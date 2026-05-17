@@ -102,6 +102,14 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                 }
             }
 
+            Rule::tuple => {
+                ast_expr!(Expression::Literal(
+                    collect_recovered(pair.into_inner())
+                        .map(Literal::Tuple)
+                        .get_map(Literal::Tuple)
+                ))
+            }
+
             Rule::primary => pair.into_inner().next().unwrap().try_into(),
             Rule::static_path => ast_expr!(Expression::Path(pair.try_into())),
             Rule::literal => ast_expr!(Expression::Literal(pair.try_into())),
