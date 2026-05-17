@@ -14,7 +14,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ImplDecl {
 
         match rule {
             Rule::impl_for_decl => Ok(ImplDecl {
-                generics: consume_rule(&mut inner, Rule::generics)
+                generics: consume_rule(&mut inner, Rule::generics_decl)
                     .map(GenericsDecl::try_from)
                     .transpose()
                     .get()?
@@ -25,7 +25,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ImplDecl {
             }),
 
             Rule::impl_decl => Ok(ImplDecl {
-                generics: consume_rule(&mut inner, Rule::generics)
+                generics: consume_rule(&mut inner, Rule::generics_decl)
                     .map(GenericsDecl::try_from)
                     .transpose()
                     .get()?

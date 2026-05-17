@@ -8,7 +8,7 @@ use crate::{
     Rule,
     ast::*,
     ast_expr,
-    error::{AstError, IntoErr, collect_recovered},
+    error::{AstError, AstResult, IntoErr, collect_recovered},
     parser::consume_rule,
 };
 
@@ -50,7 +50,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
 
                 name: inner.next().unwrap().try_into(),
 
-                generics: consume_rule(&mut inner, Rule::generics)
+                generics: consume_rule(&mut inner, Rule::generics_decl)
                     .map(GenericsDecl::try_from)
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
@@ -67,7 +67,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
 
                 name: inner.next().unwrap().try_into(),
 
-                generics: consume_rule(&mut inner, Rule::generics)
+                generics: consume_rule(&mut inner, Rule::generics_decl)
                     .map(GenericsDecl::try_from)
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
@@ -84,7 +84,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
 
                 name: inner.next().unwrap().try_into(),
 
-                generics: consume_rule(&mut inner, Rule::generics)
+                generics: consume_rule(&mut inner, Rule::generics_decl)
                     .map(GenericsDecl::try_from)
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
@@ -101,23 +101,23 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 ast_expr!(TopLevelKind::ImplDecl(pair.try_into()))
             }
 
-            Rule::trait_decl => ast_expr!(TopLevelKind::TraitDecl {
+            Rule::trait_decl => dbg!(ast_expr!(TopLevelKind::TraitDecl {
                 visibility: Visibility::try_from(&mut inner),
 
                 name: inner.next().unwrap().try_into(),
 
-                generics: consume_rule(&mut inner, Rule::generics)
+                generics: consume_rule(&mut inner, Rule::generics_decl)
                     .map(GenericsDecl::try_from)
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
 
                 requirements: consume_rule(&mut inner, Rule::trait_requirements)
-                    .map(|pair| collect_recovered::<TypeExpr, TypeExpr>(pair.into_inner()))
+                    .map(|pair| collect_recovered(pair.into_inner()))
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
 
-                items: collect_recovered(inner),
-            }),
+                items: Ok(Vec::new()) as AstResult<'_, Vec<_>>,
+            })),
 
             _ => AstError::bug_unimplemented(pair),
         }
