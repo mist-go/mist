@@ -101,7 +101,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                         postfixes: postfixes,
                     })
                 } else {
-                    exp
+                    ast_expr!(use exp?, prefixes, postfixes)
                 }
             }
 
