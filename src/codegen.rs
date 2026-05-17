@@ -1,8 +1,8 @@
 use mist_parser::ast::{
-    Attribute, BinaryOp, Block, ClassItem, EnumItem, Expression, FieldDecl, FunctionDecl, Generic,
-    Generics, Identifier, ImplDecl, Literal, Path, Pattern, Postfix, Prefix, Statement,
-    StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarDecl,
-    VarDeclStmt, Visibility,
+    Attribute, BinaryOp, Block, ClassItem, EnumItem, ExprPath, ExprPathSegment, Expression,
+    FieldDecl, FunctionDecl, Generic, Generics, Identifier, ImplDecl, Literal, Path, Pattern,
+    Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind,
+    TypePostfix, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -137,6 +137,17 @@ impl GetRust for Literal {
                         .join(", ")
                 )
             }
+            Self::Array(values) => format!(
+                "[{}]",
+                values
+                    .iter()
+                    .map(Expression::get_rust)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Self::ArrayRepeat(value, repeat) => {
+                format!("[{}; {}]", value.get_rust(), repeat.get_rust())
+            }
         }
     }
 }
@@ -172,6 +183,13 @@ impl GetRust for Expression {
                     BinaryOp::GreaterThanOrEqual => ">=",
                     BinaryOp::And => "&&",
                     BinaryOp::Or => "||",
+                    BinaryOp::ShiftLeft => "<<",
+                    BinaryOp::ShiftRight => ">>",
+                    BinaryOp::RangeInclusive => "..=",
+                    BinaryOp::RangeExclusive => "..",
+                    BinaryOp::BitAnd => "&",
+                    BinaryOp::BitOr => "|",
+                    BinaryOp::BitXor => "^",
                 };
                 format!("{} {} {}", lhs.get_rust(), op_str, rhs.get_rust())
             }
@@ -187,6 +205,9 @@ impl GetRust for Prefix {
             Self::RefMut => "&mut ",
             Self::Not => "!",
             Self::New => "",
+            Self::Neg => "-",
+            Self::RangeInclusive => "..=",
+            Self::RangeExclusive => "..",
         }
         .to_string()
     }
@@ -195,6 +216,29 @@ impl GetRust for Prefix {
 impl GetRust for [Prefix] {
     fn get_rust(&self) -> String {
         self.iter().map(Prefix::get_rust).collect()
+    }
+}
+
+impl GetRust for ExprPath {
+    fn get_rust(&self) -> String {
+        self.segments
+            .iter()
+            .map(ExprPathSegment::get_rust)
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
+impl GetRust for ExprPathSegment {
+    fn get_rust(&self) -> String {
+        format!(
+            "{}{}",
+            self.ident.get_rust(),
+            self.generics
+                .as_ref()
+                .map(|v| format!("::{}", v.get_rust()))
+                .unwrap_or_default()
+        )
     }
 }
 
@@ -218,7 +262,14 @@ impl GetRust for Option<&Vec<Prefix>> {
 impl GetRust for Postfix {
     fn get_rust(&self) -> String {
         match self {
-            Postfix::FieldAccess(field) => format!(".{}", field.get_rust()),
+            Postfix::FieldAccess(field, generics) => format!(
+                ".{}{}",
+                field.get_rust(),
+                generics
+                    .as_ref()
+                    .map(|v| format!("::{}", v.get_rust()))
+                    .unwrap_or_default()
+            ),
 
             Postfix::Call(args) => {
                 let args = args
@@ -244,8 +295,12 @@ impl GetRust for Postfix {
 
             Postfix::Index(idx) => {
                 format!("[{}]", idx.get_rust())
-            } // Note: Postfix::Binary variant logic has been completely transferred
-              // to Expression::Binary to match your updated AST configuration.
+            }
+
+            Postfix::As(ty) => format!("as {}", ty.get_rust()),
+
+            Postfix::RangeInclusive => String::from("..="),
+            Postfix::RangeExclusive => String::from(".."),
         }
     }
 }
