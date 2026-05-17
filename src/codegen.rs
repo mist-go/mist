@@ -713,6 +713,9 @@ impl ToRust for Statement {
 
             Statement::Break => cg.add_indentedln("break;"),
             Statement::Continue => cg.add_indentedln("continue;"),
+
+            Statement::Increment(e) => cg.add(&format!("{}+=1;", e.get_rust())),
+            Statement::Decrement(e) => cg.add(&format!("{}-=1;", e.get_rust())),
         }
     }
 }

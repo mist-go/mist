@@ -43,6 +43,9 @@ pub enum Statement {
     Return(Option<Expression>),
     Break,
     Continue,
+
+    Increment(Expression),
+    Decrement(Expression),
 }
 
 #[derive(Debug, Clone, Serialize)]

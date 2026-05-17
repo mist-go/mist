@@ -324,6 +324,8 @@ statement = _{
   | continue_stmt
   | block
   | var_decl_statement
+  | increment_statement
+  | decrement_statement
 }
 
 // ------------------------------------------------------
@@ -352,6 +354,14 @@ var_decl_statement = {
 
 assign_statement = {
     expr ~ "=" ~ expr ~ semicolon
+}
+
+increment_statement = {
+    expr ~ "++" ~ semicolon
+}
+
+decrement_statement = {
+    expr ~ "--" ~ semicolon
 }
 
 compound_assign = {

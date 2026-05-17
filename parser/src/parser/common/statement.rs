@@ -114,6 +114,14 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                 })
             }
 
+            Rule::increment_statement => {
+                ast_expr!(Statement::Increment(inner.next().unwrap().try_into()))
+            }
+
+            Rule::decrement_statement => {
+                ast_expr!(Statement::Decrement(inner.next().unwrap().try_into()))
+            }
+
             Rule::unexpected_statement => {
                 return Err(AstError {
                     span: pair.as_span(),
