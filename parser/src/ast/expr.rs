@@ -80,7 +80,7 @@ pub enum Prefix {
     Ref,
     RefMut,
     Deref,
-    New,
+    New(Option<Generics>),
     Not,
     Neg,
     RangeInclusive,

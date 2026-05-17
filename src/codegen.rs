@@ -204,7 +204,7 @@ impl GetRust for Prefix {
             Self::Ref => "&",
             Self::RefMut => "&mut ",
             Self::Not => "!",
-            Self::New => "",
+            Self::New(_) => "",
             Self::Neg => "-",
             Self::RangeInclusive => "..=",
             Self::RangeExclusive => "..",
@@ -249,8 +249,14 @@ impl GetRust for Option<&Vec<Prefix>> {
                 .iter()
                 .last()
                 .map(|p| match p {
-                    Prefix::New => "::new",
-                    _ => "",
+                    Prefix::New(generics) => format!(
+                        "::new{}",
+                        generics
+                            .as_ref()
+                            .map(|v| format!("::{}", v.get_rust()))
+                            .unwrap_or_default(),
+                    ),
+                    _ => String::new(),
                 })
                 .unwrap_or_default()
                 .to_string()
