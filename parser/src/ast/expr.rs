@@ -65,7 +65,7 @@ pub enum Pattern {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Postfix {
-    FieldAccess(Identifier, Option<Generics>), // Updated to support method turbofish chains
+    FieldAccess(Identifier, Option<Generics>),
     Call(Vec<Expression>),
     MacroCall(String),
     StructCall(Vec<(Identifier, Expression)>),

@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    ast_expr,
+    ast_ensure, ast_expr,
     error::{AstError, AstResult, GetLength, IntoErr, collect_recovered, collect_recovered_map},
 };
 use pest::pratt_parser::PrattParser;
@@ -15,34 +15,37 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
         let inner = pair.clone().into_inner();
 
         match rule {
-            // 1. The top level expressions are now processed via the Pratt Parser
             Rule::expr => {
                 static PRATT_PARSER: OnceLock<PrattParser<Rule>> = OnceLock::new();
                 let pratt = PRATT_PARSER.get_or_init(|| {
                     use Rule::*;
                     use pest::pratt_parser::{Assoc::*, Op};
 
-                    // Precedence defined from lowest to highest
                     PrattParser::new()
+                        .op(Op::infix(range_inc, Left) | Op::infix(range_exc, Left))
                         .op(Op::infix(or, Left))
                         .op(Op::infix(and, Left))
-                        .op(Op::infix(eq, Left)
-                            | Op::infix(neq, Left)
-                            | Op::infix(lt, Left)
-                            | Op::infix(gt, Left)
+                        .op(Op::infix(bitor, Left))
+                        .op(Op::infix(bitxor, Left))
+                        .op(Op::infix(bitand, Left))
+                        .op(Op::infix(eq, Left) | Op::infix(neq, Left))
+                        .op(Op::infix(lt, Left)
                             | Op::infix(lte, Left)
+                            | Op::infix(gt, Left)
                             | Op::infix(gte, Left))
+                        .op(Op::infix(shl, Left) | Op::infix(shr, Left))
                         .op(Op::infix(add, Left) | Op::infix(sub, Left))
                         .op(Op::infix(mul, Left) | Op::infix(div, Left) | Op::infix(rem, Left))
                 });
 
                 pratt
-                    .map_primary(|primary_pair| {
-                        // Elements handled by map_primary are either sub-expressions or 'term' rules
-                        Expression::try_from(primary_pair)
-                    })
+                    .map_primary(|primary_pair| Expression::try_from(primary_pair))
                     .map_infix(|lhs, op, rhs| {
                         let bin_op = match op.as_rule() {
+                            Rule::shl => BinaryOp::ShiftLeft,
+                            Rule::shr => BinaryOp::ShiftRight,
+                            Rule::range_inc => BinaryOp::RangeInclusive,
+                            Rule::range_exc => BinaryOp::RangeExclusive,
                             Rule::lte => BinaryOp::LessThanOrEqual,
                             Rule::gte => BinaryOp::GreaterThanOrEqual,
                             Rule::eq => BinaryOp::Equal,
@@ -56,6 +59,9 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                             Rule::rem => BinaryOp::Modulo,
                             Rule::lt => BinaryOp::LessThan,
                             Rule::gt => BinaryOp::GreaterThan,
+                            Rule::bitand => BinaryOp::BitAnd,
+                            Rule::bitor => BinaryOp::BitOr,
+                            Rule::bitxor => BinaryOp::BitXor,
                             _ => return AstError::bug_unimplemented(op),
                         };
 
@@ -130,6 +136,9 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Prefix {
             Rule::ref_px => Self::Ref,
             Rule::new_px => Self::New,
             Rule::not_px => Self::Not,
+            Rule::neg_px => Self::Neg,
+            Rule::range_start_inc_px => Self::RangeInclusive,
+            Rule::range_start_exc_px => Self::RangeExclusive,
 
             _ => return AstError::bug_unimplemented(pair),
         })
@@ -147,7 +156,10 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
             Rule::postfix => Postfix::try_from(inner.next().unwrap()),
 
             Rule::field_px => {
-                ast_expr!(Postfix::FieldAccess(inner.next().unwrap().try_into()))
+                ast_expr!(Postfix::FieldAccess(
+                    inner.next().unwrap().try_into(),
+                    inner.next().map(Generics::try_from).transpose()
+                ))
             }
 
             Rule::call_px => ast_expr!(Postfix::Call(collect_recovered(inner))),
@@ -166,9 +178,34 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
 
             Rule::macro_call_px => Ok(Postfix::MacroCall(inner.as_str().to_string())),
 
-            // Note: Rule::binary_px has been completely decoupled from postfix rules
-            // as it is now safely managed inside the top-level Pratt execution above.
             _ => AstError::bug_unimplemented(pair),
         }
+    }
+}
+
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ExprPath {
+    type Error = AstError<'a, Self>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        ast_ensure!(pair, Rule::expr_path => {
+            ast_expr!(ExprPath {
+                segments: collect_recovered(pair.into_inner()),
+            })
+        })
+    }
+}
+
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ExprPathSegment {
+    type Error = AstError<'a, Self>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        let mut inner = pair.clone().into_inner();
+
+        ast_ensure!(pair, Rule::expr_path_segment => {
+            ast_expr!(ExprPathSegment {
+                ident: Identifier::try_from(inner.next().unwrap()),
+                generics: inner.next().map(Generics::try_from).transpose(),
+            })
+        })
     }
 }

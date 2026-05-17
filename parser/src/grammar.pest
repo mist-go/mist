@@ -447,8 +447,12 @@ macro_inner_v = {
 // PRIMARY EXPRESSIONS
 // ------------------------------------------------------
 
+expr_path_segment = {
+    identifier ~ ("::" ~ generics)?
+}
+
 expr_path = {
-    identifier ~ ("::" ~ generics)? ~ ("::" ~ identifier ~ ("::" ~ generics)?)*
+    expr_path_segment ~ ("::" ~ expr_path_segment)*
 }
 
 primary = {
