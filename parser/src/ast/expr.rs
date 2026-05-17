@@ -17,12 +17,19 @@ pub enum BinaryOp {
     GreaterThanOrEqual,
     And,
     Or,
+    ShiftLeft,
+    ShiftRight,
+    RangeInclusive,
+    RangeExclusive,
+    BitAnd,
+    BitOr,
+    BitXor,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Expression {
     Literal(Literal),
-    Path(Path),
+    Path(ExprPath), // Updated from Path to support paths containing turbofish segments
     Fix {
         initial: Box<Expression>,
         prefixes: Vec<Prefix>,
@@ -42,6 +49,8 @@ pub enum Literal {
     Float(f64),
     Bool(bool),
     Tuple(Vec<Expression>),
+    Array(Vec<Expression>),
+    ArrayRepeat(Box<Expression>, Box<Expression>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -56,11 +65,14 @@ pub enum Pattern {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Postfix {
-    FieldAccess(Identifier),
+    FieldAccess(Identifier, Option<Generics>), // Updated to support method turbofish chains
     Call(Vec<Expression>),
     MacroCall(String),
     StructCall(Vec<(Identifier, Expression)>),
     Index(Expression),
+    As(TypeExpr),
+    RangeInclusive,
+    RangeExclusive,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -70,4 +82,18 @@ pub enum Prefix {
     Deref,
     New,
     Not,
+    Neg,
+    RangeInclusive,
+    RangeExclusive,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExprPathSegment {
+    pub ident: Identifier,
+    pub generics: Option<Generics>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExprPath {
+    pub segments: Vec<ExprPathSegment>,
 }
