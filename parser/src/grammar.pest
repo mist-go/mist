@@ -487,25 +487,11 @@ postfix = {
 // PREFIX EXPRESSIONS
 // ------------------------------------------------------
 
-deref_px = {
-    "*"
-}
-
-mut_ref_px = {
-    "&" ~ mutable
-}
-
-ref_px = {
-    "&"
-}
-
-new_px = {
-    "new"
-}
-
-not_px = {
-    "!"
-}
+deref_px   = { "*" }
+mut_ref_px = { "&" ~ mutable }
+ref_px     = { "&" }
+new_px     = { "new" }
+not_px     = { "!" }
 
 prefix = {
     deref_px
@@ -516,30 +502,45 @@ prefix = {
 }
 
 // ------------------------------------------------------
-// OPERATORS
+// OPERATORS (Named individually for Pratt Parser configuration)
 // ------------------------------------------------------
 
-bin_op = {
-    "<="
-  | ">="
-  | "=="
-  | "!="
-  | "&&"
-  | "||"
-  | "+"
-  | "-"
-  | "*"
-  | "/"
-  | "%"
-  | "<"
-  | ">"
+lte = { "<=" }
+gte = { ">=" }
+eq  = { "==" }
+neq = { "!=" }
+and = { "&&" }
+or  = { "||" }
+add = { "+" }
+sub = { "-" }
+mul = { "*" }
+div = { "/" }
+rem = { "%" }
+lt  = { "<" }
+gt  = { ">" }
+
+bin_op = _{
+    lte
+  | gte
+  | eq
+  | neq
+  | and
+  | or
+  | add
+  | sub
+  | mul
+  | div
+  | rem
+  | lt
+  | gt
 }
 
 // ------------------------------------------------------
 // EXPRESSIONS
 // ------------------------------------------------------
 
+// Top-level entry point for expressions
 expr = { term ~ (bin_op ~ term)* }
 
-// A term is anything that acts as a single unit in an operation
-term = _{ prefix* ~ primary ~ postfix* }
+// A term handles your Prefix and Postfix combinations around a core Primary
+term = { prefix* ~ primary ~ postfix* }
