@@ -421,11 +421,17 @@ match_stmt = {
 // ======================================================
 
 // ------------------------------------------------------
-// TUPLES
+// TUPLES & ARRAYS
 // ------------------------------------------------------
 
 tuple = {
     "(" ~ (expr ~ ("," ~ expr)*)? ~ ")"
+}
+
+array = {
+    "[" ~ expr ~ ";" ~ expr ~ "]" // Repeat notation: [0; 10]
+
+  | "[" ~ (expr ~ ("," ~ expr)* ~ ","?)? ~ "]" // Standard elements initialization
 }
 
 // ------------------------------------------------------
@@ -441,10 +447,15 @@ macro_inner_v = {
 // PRIMARY EXPRESSIONS
 // ------------------------------------------------------
 
+expr_path = {
+    identifier ~ ("::" ~ generics)? ~ ("::" ~ identifier ~ ("::" ~ generics)?)*
+}
+
 primary = {
     literal
-  | static_path
+  | expr_path
   | tuple
+  | array
 }
 
 // ------------------------------------------------------
@@ -452,7 +463,7 @@ primary = {
 // ------------------------------------------------------
 
 field_px = {
-    "." ~ identifier
+    "." ~ identifier ~ ("::" ~ generics)?
 }
 
 call_px = {
@@ -475,23 +486,36 @@ index_px = {
     "[" ~ expr ~ "]"
 }
 
+as_px = {
+    "as" ~ type_expr
+}
+
+range_end_inc_px = { "..=" }
+range_end_exc_px = { ".." }
+
 postfix = {
     field_px
   | call_px
   | macro_call_px
   | struct_px
   | index_px
+  | as_px
+  | range_end_inc_px
+  | range_end_exc_px
 }
 
 // ------------------------------------------------------
 // PREFIX EXPRESSIONS
 // ------------------------------------------------------
 
-deref_px   = { "*" }
-mut_ref_px = { "&" ~ mutable }
-ref_px     = { "&" }
-new_px     = { "new" }
-not_px     = { "!" }
+deref_px           = { "*" }
+mut_ref_px         = { "&" ~ mutable }
+ref_px             = { "&" }
+new_px             = { "new" }
+not_px             = { "!" }
+neg_px             = { "-" }
+range_start_inc_px = { "..=" }
+range_start_exc_px = { ".." }
 
 prefix = {
     deref_px
@@ -499,48 +523,63 @@ prefix = {
   | ref_px
   | new_px
   | not_px
+  | neg_px
+  | range_start_inc_px
+  | range_start_exc_px
 }
 
 // ------------------------------------------------------
-// OPERATORS (Named individually for Pratt Parser configuration)
+// OPERATORS (Arranged carefully for PEG priority matching)
 // ------------------------------------------------------
 
-lte = { "<=" }
-gte = { ">=" }
-eq  = { "==" }
-neq = { "!=" }
-and = { "&&" }
-or  = { "||" }
-add = { "+" }
-sub = { "-" }
-mul = { "*" }
-div = { "/" }
-rem = { "%" }
-lt  = { "<" }
-gt  = { ">" }
+shl       = { "<<" }
+shr       = { ">>" }
+range_inc = { "..=" }
+range_exc = { ".." }
+lte       = { "<=" }
+gte       = { ">=" }
+eq        = { "==" }
+neq       = { "!=" }
+and       = { "&&" }
+or        = { "||" }
+add       = { "+" }
+sub       = { "-" }
+mul       = { "*" }
+div       = { "/" }
+rem       = { "%" }
+lt        = { "<" }
+gt        = { ">" }
+bitand    = { "&" }
+bitor     = { "|" }
+bitxor    = { "^" }
 
 bin_op = _{
-    lte
+    shl
+  | shr
+  | range_inc
+  | range_exc
+  | lte
   | gte
   | eq
   | neq
   | and
   | or
+  | lt
+  | gt
   | add
   | sub
   | mul
   | div
   | rem
-  | lt
-  | gt
+  | bitand
+  | bitor
+  | bitxor
 }
 
 // ------------------------------------------------------
 // EXPRESSIONS
 // ------------------------------------------------------
 
-// Top-level entry point for expressions
 expr = { term ~ (bin_op ~ term)* }
 
-// A term handles your Prefix and Postfix combinations around a core Primary
 term = { prefix* ~ primary ~ postfix* }
