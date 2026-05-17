@@ -225,7 +225,7 @@ impl GetRust for ExprPath {
             .iter()
             .map(ExprPathSegment::get_rust)
             .collect::<Vec<_>>()
-            .join(", ")
+            .join("::")
     }
 }
 

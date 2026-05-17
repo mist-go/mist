@@ -29,7 +29,7 @@ pub enum BinaryOp {
 #[derive(Debug, Clone, Serialize)]
 pub enum Expression {
     Literal(Literal),
-    Path(ExprPath), // Updated from Path to support paths containing turbofish segments
+    Path(ExprPath),
     Fix {
         initial: Box<Expression>,
         prefixes: Vec<Prefix>,

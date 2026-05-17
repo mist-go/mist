@@ -74,7 +74,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                     .parse(inner)
             }
 
-            // 2. The single unit 'term' replaces the old flat 'expr' layout
             Rule::term => {
                 let mut prefix_pairs = Vec::new();
                 let mut primary_pair = None;
@@ -119,6 +118,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
             Rule::primary => pair.into_inner().next().unwrap().try_into(),
             Rule::static_path => ast_expr!(Expression::Path(pair.try_into())),
             Rule::literal => ast_expr!(Expression::Literal(pair.try_into())),
+            Rule::expr_path => ast_expr!(Expression::Path(pair.try_into())),
 
             _ => AstError::bug_unimplemented(pair),
         }
