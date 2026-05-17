@@ -303,7 +303,7 @@ impl GetRust for Postfix {
                 format!("[{}]", idx.get_rust())
             }
 
-            Postfix::As(ty) => format!("as {}", ty.get_rust()),
+            Postfix::As(ty) => format!(" as {}", ty.get_rust()),
 
             Postfix::RangeInclusive => String::from("..="),
             Postfix::RangeExclusive => String::from(".."),
