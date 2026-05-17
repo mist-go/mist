@@ -323,6 +323,8 @@ statement = _{
   | continue_stmt
   | block
   | var_decl_statement
+  | increment_statement
+  | decrement_statement
 }
 
 // ------------------------------------------------------
@@ -349,8 +351,29 @@ var_decl_statement = {
     var_decl ~ ("=" ~ expr)? ~ semicolon
 }
 
+increment_statement = {
+    expr ~ "++" ~ semicolon
+}
+
+decrement_statement = {
+    expr ~ "--" ~ semicolon
+}
+
+compound_assign = {
+    "="
+  | "+="
+  | "-="
+  | "/="
+  | "%="
+  | "&="
+  | "|="
+  | "^="
+  | "<<="
+  | ">>="
+}
+
 assign_statement = {
-    expr ~ "=" ~ expr ~ semicolon
+    expr ~ compound_assign ~ expr ~ semicolon
 }
 
 // ------------------------------------------------------
@@ -404,11 +427,17 @@ match_stmt = {
 // ======================================================
 
 // ------------------------------------------------------
-// TUPLES
+// TUPLES & ARRAYS
 // ------------------------------------------------------
 
 tuple = {
     "(" ~ (expr ~ ("," ~ expr)*)? ~ ")"
+}
+
+array = {
+    "[" ~ expr ~ ";" ~ expr ~ "]" // Repeat notation: [0; 10]
+
+  | "[" ~ (expr ~ ("," ~ expr)* ~ ","?)? ~ "]" // Standard elements initialization
 }
 
 // ------------------------------------------------------
@@ -424,10 +453,19 @@ macro_inner_v = {
 // PRIMARY EXPRESSIONS
 // ------------------------------------------------------
 
+expr_path_segment = {
+    identifier ~ ("::" ~ generics)?
+}
+
+expr_path = {
+    expr_path_segment ~ ("::" ~ expr_path_segment)*
+}
+
 primary = {
     literal
-  | static_path
+  | expr_path
   | tuple
+  | array
 }
 
 // ------------------------------------------------------
@@ -435,7 +473,7 @@ primary = {
 // ------------------------------------------------------
 
 field_px = {
-    "." ~ identifier
+    "." ~ identifier ~ ("::" ~ generics)?
 }
 
 call_px = {
@@ -458,8 +496,8 @@ index_px = {
     "[" ~ expr ~ "]"
 }
 
-binary_px = {
-    bin_op ~ expr
+as_px = {
+    "as" ~ type_expr
 }
 
 postfix = {
@@ -468,32 +506,19 @@ postfix = {
   | macro_call_px
   | struct_px
   | index_px
-  | binary_px
+  | as_px
 }
 
 // ------------------------------------------------------
 // PREFIX EXPRESSIONS
 // ------------------------------------------------------
 
-deref_px = {
-    "*"
-}
-
-mut_ref_px = {
-    "&" ~ mutable
-}
-
-ref_px = {
-    "&"
-}
-
-new_px = {
-    "new"
-}
-
-not_px = {
-    "!"
-}
+deref_px   = { "*" }
+mut_ref_px = { "&" ~ mutable }
+ref_px     = { "&" }
+new_px     = { "new" ~ generics? }
+not_px     = { "!" }
+neg_px     = { "-" }
 
 prefix = {
     deref_px
@@ -501,36 +526,61 @@ prefix = {
   | ref_px
   | new_px
   | not_px
-}
-
-prefix_list = {
-    prefix*
+  | neg_px
 }
 
 // ------------------------------------------------------
-// OPERATORS
+// OPERATORS (Arranged carefully for PEG priority matching)
 // ------------------------------------------------------
 
-bin_op = {
-    "<="
-  | ">="
-  | "=="
-  | "!="
-  | "&&"
-  | "||"
-  | "+"
-  | "-"
-  | "*"
-  | "/"
-  | "%"
-  | "<"
-  | ">"
+shl       = { "<<" }
+shr       = { ">>" }
+range_inc = { "..=" }
+range_exc = { ".." }
+lte       = { "<=" }
+gte       = { ">=" }
+eq        = { "==" }
+neq       = { "!=" }
+and       = { "&&" }
+or        = { "||" }
+add       = { "+" }
+sub       = { "-" }
+mul       = { "*" }
+div       = { "/" }
+rem       = { "%" }
+lt        = { "<" }
+gt        = { ">" }
+bitand    = { "&" }
+bitor     = { "|" }
+bitxor    = { "^" }
+
+bin_op = _{
+    shl
+  | shr
+  | range_inc
+  | range_exc
+  | lte
+  | gte
+  | eq
+  | neq
+  | and
+  | or
+  | lt
+  | gt
+  | add
+  | sub
+  | mul
+  | div
+  | rem
+  | bitand
+  | bitor
+  | bitxor
 }
 
 // ------------------------------------------------------
 // EXPRESSIONS
 // ------------------------------------------------------
 
-expr = {
-    prefix_list ~ primary ~ postfix*
-}
+expr = { term ~ (bin_op ~ term)* }
+
+term = { prefix* ~ primary ~ postfix* }

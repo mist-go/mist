@@ -41,7 +41,7 @@ macro_rules! ast_ensure {
             Err(AstError {
                 span: $pair.as_span(),
                 error_code: crate::error::ErrorCode::AstGenBug,
-                error_message: format!("Possible bug: expected {:?}, got {}", $rule, $pair),
+                error_message: format!("Possible bug: expected {:?}, got {:?}", $rule, $pair.as_rule()),
                 recovered: None,
             })
         }
@@ -50,6 +50,16 @@ macro_rules! ast_ensure {
 
 #[macro_export]
 macro_rules! ast_expr {
+    (use $r:expr, $($v:expr),* $(,)?) => {{
+        let mut analyzer = $crate::error::AstErrorAnalyzer(None);
+
+        $(
+            analyzer.get($v).get()?;
+        )*
+
+        analyzer.build($r)
+    }};
+
     ($($item:ident)::+ { $($k:ident: $v:expr),* $(,)? }) => {{
         let mut analyzer = $crate::error::AstErrorAnalyzer(None);
 

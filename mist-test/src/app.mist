@@ -46,7 +46,7 @@ pub class Application {
     void tick(self mut*) {
         self.logger.info("tick");
 
-        self.ticks = self.ticks + 1;
+        self.ticks++;
 
         var task = task::create_task("background-job");
 

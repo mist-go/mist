@@ -1,8 +1,8 @@
 use mist_parser::ast::{
-    Attribute, BinaryOp, Block, ClassItem, EnumItem, Expression, FieldDecl, FunctionDecl, Generic,
-    Generics, Identifier, ImplDecl, Literal, Path, Pattern, Postfix, Prefix, Statement,
-    StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarAssignStmt,
-    VarDecl, VarDeclStmt, Visibility,
+    Attribute, BinaryOp, Block, ClassItem, EnumItem, ExprPath, ExprPathSegment, Expression,
+    FieldDecl, FunctionDecl, Generic, Generics, Identifier, ImplDecl, Literal, Path, Pattern,
+    Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind, TypeExpr, TypeExprKind,
+    TypePostfix, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -137,6 +137,17 @@ impl GetRust for Literal {
                         .join(", ")
                 )
             }
+            Self::Array(values) => format!(
+                "[{}]",
+                values
+                    .iter()
+                    .map(Expression::get_rust)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Self::ArrayRepeat(value, repeat) => {
+                format!("[{}; {}]", value.get_rust(), repeat.get_rust())
+            }
         }
     }
 }
@@ -156,6 +167,32 @@ impl GetRust for Expression {
                     + &Some(prefixes).get_rust()
                     + &postfixes.get_rust()
             }
+            // Safely integrated to handle the tree structure built by the Pratt Parser
+            Expression::Binary { lhs, op, rhs } => {
+                let op_str = match op {
+                    BinaryOp::Plus => "+",
+                    BinaryOp::Minus => "-",
+                    BinaryOp::Multiply => "*",
+                    BinaryOp::Divide => "/",
+                    BinaryOp::Modulo => "%",
+                    BinaryOp::Equal => "==",
+                    BinaryOp::NotEqual => "!=",
+                    BinaryOp::LessThan => "<",
+                    BinaryOp::GreaterThan => ">",
+                    BinaryOp::LessThanOrEqual => "<=",
+                    BinaryOp::GreaterThanOrEqual => ">=",
+                    BinaryOp::And => "&&",
+                    BinaryOp::Or => "||",
+                    BinaryOp::ShiftLeft => "<<",
+                    BinaryOp::ShiftRight => ">>",
+                    BinaryOp::RangeInclusive => "..=",
+                    BinaryOp::RangeExclusive => "..",
+                    BinaryOp::BitAnd => "&",
+                    BinaryOp::BitOr => "|",
+                    BinaryOp::BitXor => "^",
+                };
+                format!("{} {} {}", lhs.get_rust(), op_str, rhs.get_rust())
+            }
         }
     }
 }
@@ -167,7 +204,8 @@ impl GetRust for Prefix {
             Self::Ref => "&",
             Self::RefMut => "&mut ",
             Self::Not => "!",
-            Self::New => "",
+            Self::New(_) => "",
+            Self::Neg => "-",
         }
         .to_string()
     }
@@ -179,6 +217,29 @@ impl GetRust for [Prefix] {
     }
 }
 
+impl GetRust for ExprPath {
+    fn get_rust(&self) -> String {
+        self.0
+            .iter()
+            .map(ExprPathSegment::get_rust)
+            .collect::<Vec<_>>()
+            .join("::")
+    }
+}
+
+impl GetRust for ExprPathSegment {
+    fn get_rust(&self) -> String {
+        format!(
+            "{}{}",
+            self.ident.get_rust(),
+            self.generics
+                .as_ref()
+                .map(|v| format!("::{}", v.get_rust()))
+                .unwrap_or_default()
+        )
+    }
+}
+
 impl GetRust for Option<&Vec<Prefix>> {
     fn get_rust(&self) -> String {
         self.map(|prefixes| {
@@ -186,8 +247,14 @@ impl GetRust for Option<&Vec<Prefix>> {
                 .iter()
                 .last()
                 .map(|p| match p {
-                    Prefix::New => "::new",
-                    _ => "",
+                    Prefix::New(generics) => format!(
+                        "::new{}",
+                        generics
+                            .as_ref()
+                            .map(|v| format!("::{}", v.get_rust()))
+                            .unwrap_or_default(),
+                    ),
+                    _ => String::new(),
                 })
                 .unwrap_or_default()
                 .to_string()
@@ -199,7 +266,14 @@ impl GetRust for Option<&Vec<Prefix>> {
 impl GetRust for Postfix {
     fn get_rust(&self) -> String {
         match self {
-            Postfix::FieldAccess(field) => format!(".{}", field.get_rust()),
+            Postfix::FieldAccess(field, generics) => format!(
+                ".{}{}",
+                field.get_rust(),
+                generics
+                    .as_ref()
+                    .map(|v| format!("::{}", v.get_rust()))
+                    .unwrap_or_default()
+            ),
 
             Postfix::Call(args) => {
                 let args = args
@@ -227,24 +301,7 @@ impl GetRust for Postfix {
                 format!("[{}]", idx.get_rust())
             }
 
-            Postfix::Binary(op, rhs) => {
-                let op_str = match op {
-                    BinaryOp::Plus => "+",
-                    BinaryOp::Minus => "-",
-                    BinaryOp::Multiply => "*",
-                    BinaryOp::Divide => "/",
-                    BinaryOp::Modulo => "%",
-                    BinaryOp::Equal => "==",
-                    BinaryOp::NotEqual => "!=",
-                    BinaryOp::LessThan => "<",
-                    BinaryOp::GreaterThan => ">",
-                    BinaryOp::LessThanOrEqual => "<=",
-                    BinaryOp::GreaterThanOrEqual => ">=",
-                    BinaryOp::And => "&&",
-                    BinaryOp::Or => "||",
-                };
-                format!(" {} {}", op_str, rhs.get_rust())
-            }
+            Postfix::As(ty) => format!(" as {}", ty.get_rust()),
         }
     }
 }
@@ -254,7 +311,6 @@ impl GetRust for [Postfix] {
         self.iter().map(Postfix::get_rust).collect()
     }
 }
-
 // ---------------------------------------------------------------------------
 // ToRust — output-writing (top-level, statements, blocks)
 // ---------------------------------------------------------------------------
@@ -545,8 +601,17 @@ impl ToRust for Statement {
                 cg.add_indentedln(&format!("let {}{};", decl.get_rust(), init));
             }
 
-            Statement::VarAssign(VarAssignStmt { target, value }) => {
-                cg.add_indentedln(&format!("{} = {};", target.get_rust(), value.get_rust(),));
+            Statement::Assign {
+                target,
+                compound,
+                value,
+            } => {
+                cg.add_indentedln(&format!(
+                    "{} {} {};",
+                    target.get_rust(),
+                    compound,
+                    value.get_rust(),
+                ));
             }
 
             Statement::Match(expr, match_items) => {
@@ -639,6 +704,9 @@ impl ToRust for Statement {
 
             Statement::Break => cg.add_indentedln("break;"),
             Statement::Continue => cg.add_indentedln("continue;"),
+
+            Statement::Increment(e) => cg.add_indentedln(&format!("{}+=1;", e.get_rust())),
+            Statement::Decrement(e) => cg.add_indentedln(&format!("{}-=1;", e.get_rust())),
         }
     }
 }
@@ -822,7 +890,7 @@ impl GetRust for Generics {
                 "<{}>",
                 self.0
                     .iter()
-                    .map(|v| (true, v).get_rust())
+                    .map(|v| (false, v).get_rust())
                     .collect::<Vec<_>>()
                     .join(", ")
             )
@@ -836,9 +904,7 @@ impl GetRust for (bool, &Generic) {
             Generic::Lifetime(name) => format!("'{}", name.get_rust()),
             Generic::Type(name, requirements) => {
                 name.get_rust()
-                    + &(if !self.0 && requirements.len() == 0 {
-                        String::new()
-                    } else {
+                    + &(if self.0 && requirements.len() != 0 {
                         format!(
                             ": {}",
                             requirements
@@ -847,6 +913,8 @@ impl GetRust for (bool, &Generic) {
                                 .collect::<Vec<_>>()
                                 .join("+")
                         )
+                    } else {
+                        String::new()
                     })
             }
         }
