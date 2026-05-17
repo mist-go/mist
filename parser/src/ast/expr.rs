@@ -71,8 +71,6 @@ pub enum Postfix {
     StructCall(Vec<(Identifier, Expression)>),
     Index(Expression),
     As(TypeExpr),
-    RangeInclusive,
-    RangeExclusive,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -83,8 +81,6 @@ pub enum Prefix {
     New(Option<Generics>),
     Not,
     Neg,
-    RangeInclusive,
-    RangeExclusive,
 }
 
 #[derive(Debug, Clone, Serialize)]

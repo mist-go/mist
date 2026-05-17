@@ -504,9 +504,6 @@ as_px = {
     "as" ~ type_expr
 }
 
-range_end_inc_px = { "..=" }
-range_end_exc_px = { ".." }
-
 postfix = {
     field_px
   | call_px
@@ -514,8 +511,6 @@ postfix = {
   | struct_px
   | index_px
   | as_px
-  | range_end_inc_px
-  | range_end_exc_px
 }
 
 // ------------------------------------------------------
@@ -528,8 +523,6 @@ ref_px             = { "&" }
 new_px             = { "new" ~ generics? }
 not_px             = { "!" }
 neg_px             = { "-" }
-range_start_inc_px = { "..=" }
-range_start_exc_px = { ".." }
 
 prefix = {
     deref_px
@@ -538,8 +531,6 @@ prefix = {
   | new_px
   | not_px
   | neg_px
-  | range_start_inc_px
-  | range_start_exc_px
 }
 
 // ------------------------------------------------------

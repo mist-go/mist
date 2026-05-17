@@ -206,8 +206,6 @@ impl GetRust for Prefix {
             Self::Not => "!",
             Self::New(_) => "",
             Self::Neg => "-",
-            Self::RangeInclusive => "..=",
-            Self::RangeExclusive => "..",
         }
         .to_string()
     }
@@ -304,9 +302,6 @@ impl GetRust for Postfix {
             }
 
             Postfix::As(ty) => format!(" as {}", ty.get_rust()),
-
-            Postfix::RangeInclusive => String::from("..="),
-            Postfix::RangeExclusive => String::from(".."),
         }
     }
 }

@@ -140,8 +140,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Prefix {
             ),
             Rule::not_px => Self::Not,
             Rule::neg_px => Self::Neg,
-            Rule::range_start_inc_px => Self::RangeInclusive,
-            Rule::range_start_exc_px => Self::RangeExclusive,
 
             _ => return AstError::bug_unimplemented(pair),
         })
@@ -184,9 +182,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
             Rule::as_px => {
                 ast_expr!(Postfix::As(inner.next().unwrap().try_into()))
             }
-
-            Rule::range_end_inc_px => Ok(Postfix::RangeInclusive),
-            Rule::range_end_exc_px => Ok(Postfix::RangeExclusive),
 
             _ => AstError::bug_unimplemented(pair),
         }
