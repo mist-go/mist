@@ -945,7 +945,7 @@ pub fn get_static_type_path(path: &Path) -> String {
 }
 
 pub fn get_type_postfixes(postfixes: &[TypePostfix]) -> String {
-    postfixes.iter().map(TypePostfix::get_rust).collect()
+    postfixes.iter().map(TypePostfix::get_rust).rev().collect()
 }
 
 pub fn get_mutable(mutable: bool) -> String {
