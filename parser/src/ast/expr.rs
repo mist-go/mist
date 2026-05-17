@@ -71,6 +71,7 @@ pub enum Postfix {
     StructCall(Vec<(Identifier, Expression)>),
     Index(Expression),
     As(TypeExpr),
+    Try,
 }
 
 #[derive(Debug, Clone, Serialize)]

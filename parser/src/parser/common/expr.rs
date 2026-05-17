@@ -183,6 +183,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
                 ast_expr!(Postfix::As(inner.next().unwrap().try_into()))
             }
 
+            Rule::try_px => Ok(Postfix::Try),
+
             _ => AstError::bug_unimplemented(pair),
         }
     }

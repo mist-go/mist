@@ -302,6 +302,8 @@ impl GetRust for Postfix {
             }
 
             Postfix::As(ty) => format!(" as {}", ty.get_rust()),
+
+            Postfix::Try => String::from("?"),
         }
     }
 }

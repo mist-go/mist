@@ -500,6 +500,10 @@ as_px = {
     "as" ~ type_expr
 }
 
+try_px = {
+    "?"
+}
+
 postfix = {
     field_px
   | call_px
@@ -507,6 +511,7 @@ postfix = {
   | struct_px
   | index_px
   | as_px
+  | try_px
 }
 
 // ------------------------------------------------------
