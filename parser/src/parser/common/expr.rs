@@ -79,7 +79,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                 let mut primary_pair = None;
                 let mut postfix_pairs = Vec::new();
 
-                // Sort out flat layout components
                 for p in inner {
                     match p.as_rule() {
                         Rule::prefix => prefix_pairs.push(p),
@@ -95,7 +94,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                 );
                 let postfixes = collect_recovered::<Postfix, Postfix>(postfix_pairs.into_iter());
 
-                // Employs your exact original logic using the GetLength trait
                 if postfixes.len() > 0 || prefixes.len() > 0 {
                     ast_expr!(Expression::Fix {
                         initial: exp.map(Box::new),
@@ -182,6 +180,13 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
             }
 
             Rule::macro_call_px => Ok(Postfix::MacroCall(inner.as_str().to_string())),
+
+            Rule::as_px => {
+                ast_expr!(Postfix::As(inner.next().unwrap().try_into()))
+            }
+
+            Rule::range_end_inc_px => Ok(Postfix::RangeInclusive),
+            Rule::range_end_exc_px => Ok(Postfix::RangeExclusive),
 
             _ => AstError::bug_unimplemented(pair),
         }

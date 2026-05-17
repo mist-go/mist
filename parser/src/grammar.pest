@@ -497,8 +497,13 @@ as_px = {
 range_end_inc_px = { "..=" }
 range_end_exc_px = { ".." }
 
+increment_px = { "++" }
+decrement_px = { "++" }
+
 postfix = {
     field_px
+  | increment_px
+  | decrement_px
   | call_px
   | macro_call_px
   | struct_px
