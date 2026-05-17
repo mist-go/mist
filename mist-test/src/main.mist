@@ -12,4 +12,6 @@ void main() {
 
     app_instance.boot();
     app_instance.run();
+
+    1+(1*2);
 }

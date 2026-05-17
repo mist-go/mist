@@ -156,6 +156,25 @@ impl GetRust for Expression {
                     + &Some(prefixes).get_rust()
                     + &postfixes.get_rust()
             }
+            // Safely integrated to handle the tree structure built by the Pratt Parser
+            Expression::Binary { lhs, op, rhs } => {
+                let op_str = match op {
+                    BinaryOp::Plus => "+",
+                    BinaryOp::Minus => "-",
+                    BinaryOp::Multiply => "*",
+                    BinaryOp::Divide => "/",
+                    BinaryOp::Modulo => "%",
+                    BinaryOp::Equal => "==",
+                    BinaryOp::NotEqual => "!=",
+                    BinaryOp::LessThan => "<",
+                    BinaryOp::GreaterThan => ">",
+                    BinaryOp::LessThanOrEqual => "<=",
+                    BinaryOp::GreaterThanOrEqual => ">=",
+                    BinaryOp::And => "&&",
+                    BinaryOp::Or => "||",
+                };
+                format!("{} {} {}", lhs.get_rust(), op_str, rhs.get_rust())
+            }
         }
     }
 }
@@ -225,26 +244,8 @@ impl GetRust for Postfix {
 
             Postfix::Index(idx) => {
                 format!("[{}]", idx.get_rust())
-            }
-
-            Postfix::Binary(op, rhs) => {
-                let op_str = match op {
-                    BinaryOp::Plus => "+",
-                    BinaryOp::Minus => "-",
-                    BinaryOp::Multiply => "*",
-                    BinaryOp::Divide => "/",
-                    BinaryOp::Modulo => "%",
-                    BinaryOp::Equal => "==",
-                    BinaryOp::NotEqual => "!=",
-                    BinaryOp::LessThan => "<",
-                    BinaryOp::GreaterThan => ">",
-                    BinaryOp::LessThanOrEqual => "<=",
-                    BinaryOp::GreaterThanOrEqual => ">=",
-                    BinaryOp::And => "&&",
-                    BinaryOp::Or => "||",
-                };
-                format!(" {} {}", op_str, rhs.get_rust())
-            }
+            } // Note: Postfix::Binary variant logic has been completely transferred
+              // to Expression::Binary to match your updated AST configuration.
         }
     }
 }
@@ -254,7 +255,6 @@ impl GetRust for [Postfix] {
         self.iter().map(Postfix::get_rust).collect()
     }
 }
-
 // ---------------------------------------------------------------------------
 // ToRust — output-writing (top-level, statements, blocks)
 // ---------------------------------------------------------------------------
