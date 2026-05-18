@@ -3,7 +3,7 @@ use serde::Serialize;
 use super::*;
 
 #[derive(Debug, Clone, Serialize, Default)]
-pub struct Block(pub Vec<Statement>);
+pub struct Block(pub Vec<Spanned<Statement>>);
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Statement {
