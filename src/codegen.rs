@@ -384,9 +384,9 @@ impl ToRust for TopLevelKind {
         match self {
             Self::ModAttribute => {}
             Self::Import(vis, path) => {
-                cg.addln(&format!("{} use {};", vis.get_rust(), path.get_rust()))
+                cg.addln(&format!("{}use {};", vis.get_rust(), path.get_rust()))
             }
-            Self::Mod(vis, id) => cg.addln(&format!("{} mod {};", vis.get_rust(), id.get_rust())),
+            Self::Mod(vis, id) => cg.addln(&format!("{}mod {};", vis.get_rust(), id.get_rust())),
             Self::FunctionDecl(decl) => decl.to_rust(cg),
             Self::ImplDecl(impl_) => impl_.to_rust(cg),
             Self::StructDecl {
