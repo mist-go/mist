@@ -1,7 +1,7 @@
 pub mod common;
 pub mod items;
 
-use crate::{Rule, ast::Spanned};
+use crate::{Rule, ast::Spanned, error::AstError};
 
 pub fn listen_rule(pairs: &mut pest::iterators::Pairs<'_, Rule>, rule: Rule) -> bool {
     let consumed = pairs
@@ -28,10 +28,10 @@ pub fn consume_rule<'a>(
     if consumed { pairs.next() } else { None }
 }
 
-impl<'a, T: TryFrom<pest::iterators::Pair<'a, Rule>>> TryFrom<pest::iterators::Pair<'a, Rule>>
-    for Spanned<T>
+impl<'a, T: TryFrom<pest::iterators::Pair<'a, Rule>, Error = AstError<'a, T>>>
+    TryFrom<pest::iterators::Pair<'a, Rule>> for Spanned<T>
 {
-    type Error = T::Error;
+    type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let span = pair.as_span().start_pos().line_col();
@@ -41,5 +41,22 @@ impl<'a, T: TryFrom<pest::iterators::Pair<'a, Rule>>> TryFrom<pest::iterators::P
             column: span.1,
             item: pair.try_into()?,
         })
+    }
+}
+
+impl<'a, T> From<AstError<'a, T>> for AstError<'a, Spanned<T>> {
+    fn from(value: AstError<'a, T>) -> Self {
+        let span = value.span.start_pos().line_col();
+
+        Self {
+            span: value.span,
+            error_code: value.error_code,
+            error_message: value.error_message,
+            recovered: value.recovered.map(|v| Spanned {
+                line: span.0,
+                column: span.1,
+                item: v,
+            }),
+        }
     }
 }

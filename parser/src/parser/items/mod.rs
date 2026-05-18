@@ -21,10 +21,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevel {
         let attributes = collect_recovered(inner.next().unwrap().into_inner());
 
         ast_expr!(TopLevel(
-            inner
-                .next()
-                .map(TopLevelKind::try_from)
-                .unwrap_or(Ok(TopLevelKind::ModAttribute)),
+            inner.next().map(Spanned::try_from).unwrap(),
             attributes,
         ))
     }

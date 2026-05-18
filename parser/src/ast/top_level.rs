@@ -22,7 +22,7 @@ pub enum Attribute {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct TopLevel(pub TopLevelKind, pub Vec<Attribute>);
+pub struct TopLevel(pub Spanned<TopLevelKind>, pub Vec<Attribute>);
 
 #[derive(Debug, Clone, Serialize)]
 pub enum TopLevelKind {
