@@ -39,24 +39,16 @@ impl<'a, T: TryFrom<pest::iterators::Pair<'a, Rule>, Error = AstError<'a, T>>>
         Ok(Self {
             line: span.0,
             column: span.1,
-            item: pair.try_into()?,
+            item: pair.try_into().map_err(|err: AstError<'_, T>| AstError {
+                span: err.span,
+                error_code: err.error_code,
+                error_message: err.error_message,
+                recovered: err.recovered.map(|v| Spanned {
+                    line: span.0,
+                    column: span.1,
+                    item: v,
+                }),
+            })?,
         })
-    }
-}
-
-impl<'a, T> From<AstError<'a, T>> for AstError<'a, Spanned<T>> {
-    fn from(value: AstError<'a, T>) -> Self {
-        let span = value.span.start_pos().line_col();
-
-        Self {
-            span: value.span,
-            error_code: value.error_code,
-            error_message: value.error_message,
-            recovered: value.recovered.map(|v| Spanned {
-                line: span.0,
-                column: span.1,
-                item: v,
-            }),
-        }
     }
 }

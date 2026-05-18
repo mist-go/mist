@@ -1,8 +1,8 @@
 use mist_parser::ast::{
     Attribute, BinaryOp, Block, ClassItem, EnumItem, ExprPath, ExprPathSegment, Expression,
     FieldDecl, FunctionDecl, Generic, GenericDecl, Generics, GenericsDecl, Identifier, ImplDecl,
-    Literal, Path, Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind,
-    TypeExpr, TypeExprKind, TypePostfix, VarDecl, VarDeclStmt, Visibility,
+    Literal, Path, Pattern, Postfix, Prefix, Spanned, Statement, StatementBranch, TopLevel,
+    TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -87,6 +87,17 @@ impl Default for RustCodegen {
 // ---------------------------------------------------------------------------
 // GetRust — pure string production (expressions, types)
 // ---------------------------------------------------------------------------
+
+impl<T: GetRust> GetRust for Spanned<T> {
+    fn get_rust(self) -> String {
+        format!(
+            "/* {}:{} */ {}",
+            self.line,
+            self.column,
+            self.item.get_rust()
+        )
+    }
+}
 
 impl GetRust for TypeExpr {
     fn get_rust(self) -> String {
@@ -315,6 +326,13 @@ impl GetRust for Vec<Postfix> {
 // ToRust — output-writing (top-level, statements, blocks)
 // ---------------------------------------------------------------------------
 
+impl<T: ToRust> ToRust for Spanned<T> {
+    fn to_rust(self, cg: &mut RustCodegen) {
+        cg.add_indentedln(&format!("/* {}:{} */", self.line, self.column));
+        self.item.to_rust(cg);
+    }
+}
+
 impl ToRust for Block {
     fn to_rust(self, cg: &mut RustCodegen) {
         for stmt in self.0 {
@@ -325,16 +343,13 @@ impl ToRust for Block {
 
 impl ToRust for TopLevel {
     fn to_rust(self, cg: &mut RustCodegen) {
-        match self.0 {
-            TopLevelKind::ModAttribute => {
-                for attr in self.1 {
-                    cg.addln(&format!("#![{}]", attr.get_rust()));
-                }
+        if let TopLevelKind::ModAttribute = self.0.item {
+            for attr in self.1 {
+                cg.addln(&format!("#![{}]", attr.get_rust()));
             }
-            _ => {
-                for attr in self.1 {
-                    cg.addln(&format!("#[{}]", attr.get_rust()));
-                }
+        } else {
+            for attr in self.1 {
+                cg.addln(&format!("#[{}]", attr.get_rust()));
             }
         }
 
