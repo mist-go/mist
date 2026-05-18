@@ -7,10 +7,10 @@ use pest_derive::Parser;
 #[grammar = "./src/rev_mapper/grammar.pest"]
 pub struct MistMapperParser;
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MistMap(pub usize, pub usize);
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RustMap(pub usize, pub usize);
 
 pub fn get_mapping(input: &str) -> HashSet<(RustMap, MistMap)> {
@@ -34,4 +34,15 @@ pub fn get_mapping(input: &str) -> HashSet<(RustMap, MistMap)> {
     }
 
     mapping
+}
+
+pub fn find_mapping(
+    mapping: &HashSet<(RustMap, MistMap)>,
+    target: &RustMap,
+) -> Option<(RustMap, MistMap)> {
+    mapping
+        .iter()
+        .copied()
+        .filter(|(rust, _)| rust <= target)
+        .max_by_key(|(rust, _)| *rust)
 }
