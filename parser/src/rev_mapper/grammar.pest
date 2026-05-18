@@ -1,0 +1,9 @@
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+
+integer = @{ ASCII_DIGIT+ }
+
+map = { "/*" ~ integer ~ ":" ~ integer ~ "*/" }
+
+non_map = { (!map ~ ANY)+ }
+
+mapping = { map | non_map }
