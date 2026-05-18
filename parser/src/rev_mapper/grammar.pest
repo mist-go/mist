@@ -2,8 +2,10 @@ WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 
 integer = @{ ASCII_DIGIT+ }
 
-map = { "/*" ~ integer ~ ":" ~ integer ~ "*/" }
+next_line = { "+" }
+
+map = { "/*" ~ integer ~ ":" ~ integer ~ next_line? ~ "*/" }
 
 non_map = { (!map ~ ANY)+ }
 
-mapping = { map | non_map }
+mapping = { SOI ~ (map | non_map)* ~ EOI }

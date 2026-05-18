@@ -16,18 +16,31 @@ pub struct RustMap(pub usize, pub usize);
 pub fn get_mapping(input: &str) -> HashSet<(RustMap, MistMap)> {
     let mut mapping = HashSet::new();
 
-    let pairs = MistMapperParser::parse(Rule::mapping, input).unwrap();
+    let pairs = MistMapperParser::parse(Rule::mapping, input)
+        .unwrap()
+        .next()
+        .unwrap()
+        .into_inner();
 
     for pair in pairs {
         if pair.as_rule() == Rule::map {
             let rs = pair.as_span().start_pos().line_col();
             let mut inner = pair.into_inner();
 
+            let (line, col) = (
+                inner.next().unwrap().as_str().parse().unwrap(),
+                inner.next().unwrap().as_str().parse().unwrap(),
+            );
+
             mapping.insert((
                 RustMap(rs.0, rs.1),
                 MistMap(
-                    inner.next().unwrap().as_str().parse().unwrap(),
-                    inner.next().unwrap().as_str().parse().unwrap(),
+                    if inner.next().is_some() {
+                        line
+                    } else {
+                        line - 1
+                    },
+                    col,
                 ),
             ));
         }
