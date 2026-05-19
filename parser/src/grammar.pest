@@ -314,7 +314,7 @@ block = {
 }
 
 statement = _{
-    expr_stmt
+    var_decl_statement
   | match_stmt
   | assign_statement
   | if_stmt
@@ -325,9 +325,9 @@ statement = _{
   | break_stmt
   | continue_stmt
   | block
-  | var_decl_statement
   | increment_statement
   | decrement_statement
+  | expr_stmt
 }
 
 // ------------------------------------------------------
