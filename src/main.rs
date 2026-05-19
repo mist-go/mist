@@ -1,5 +1,6 @@
-use std::process::{self, Command};
+use std::process::{self};
 
+pub mod builder;
 pub mod codegen;
 pub mod transpiler;
 
@@ -14,7 +15,7 @@ fn main() {
     match args[1].as_str() {
         "run" | "build" | "r" | "b" => {
             transpiler::build();
-            Command::new("cargo").args(&args[1..]).status().unwrap();
+            builder::build(args).unwrap();
         }
         "transpile" | "t" => transpiler::build(),
         "version" | "--version" | "-v" => {
