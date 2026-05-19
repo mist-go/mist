@@ -131,7 +131,7 @@ pub fn print_diagnostics(diagnostics: &Vec<MistDiagnostic>) {
                 println!(
                     "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}",
                     msg.file_name,
-                    msg.line + 1,
+                    msg.line,
                     msg.column,
                     msg.message,
                     line.unwrap_or_default(),
@@ -144,7 +144,7 @@ pub fn print_diagnostics(diagnostics: &Vec<MistDiagnostic>) {
                 println!(
                     "\n{}:{}:{}\n \x1b[33mWarning\x1b[0m: {}\n\t{}",
                     msg.file_name,
-                    msg.line + 1,
+                    msg.line,
                     msg.column,
                     msg.message,
                     line.unwrap_or_default(),
