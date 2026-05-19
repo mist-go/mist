@@ -40,13 +40,13 @@ pub fn build(mut args: Vec<String>, config: Config, root: PathBuf) -> bool {
         .spawn()
         .unwrap();
 
-    let reader = std::io::BufReader::new(command.stdout.take().unwrap());
+    let mut reader = std::io::BufReader::new(command.stdout.take().unwrap());
 
     let mut diagnostics = Vec::new();
 
     let mut mapping = HashMap::new();
 
-    for message in cargo_metadata::Message::parse_stream(reader) {
+    for message in cargo_metadata::Message::parse_stream(&mut reader) {
         match message {
             Ok(Message::CompilerMessage(msg)) => {
                 for span in &msg.message.spans {
@@ -101,8 +101,17 @@ pub fn build(mut args: Vec<String>, config: Config, root: PathBuf) -> bool {
 
             Ok(Message::BuildFinished(finish)) => {
                 print_diagnostics(&diagnostics);
+
+                let mut raw_reader = reader.into_inner();
+                let mut stdout = std::io::stdout();
+
+                std::io::copy(&mut raw_reader, &mut stdout).unwrap();
+
+                command.wait().unwrap();
+
                 return finish.success;
             }
+
             Ok(Message::TextLine(text)) => println!("{text}"),
             _ => {}
         }
