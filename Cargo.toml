@@ -9,6 +9,12 @@ readme = "README.md"
 keywords = ["compiler", "language", "mist"]
 categories = ["compilers"]
 default-run = "mist"
+include = [
+    "src/**",
+    "build/**",
+    "Cargo.toml",
+    "README.md",
+]
 
 [dependencies]
 serde = { version = "1.0.228", features = ["serde_derive"] }
@@ -19,7 +25,6 @@ cargo_metadata = "0.23.1"
 [[bin]]
 name = "mist"
 path = "build/main.rs"
-
 
 [[bin]]
 name = "mist-lang"
