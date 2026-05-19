@@ -9,12 +9,12 @@ use mist_parser::error::ParseError;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
-struct Config {
-    src: String,
-    output: String,
+pub struct Config {
+    pub src: String,
+    pub output: String,
 }
 
-pub fn build() {
+pub fn build() -> Config {
     let start = Instant::now();
 
     // 1. find project root
@@ -35,6 +35,8 @@ pub fn build() {
     let elapsed = start.elapsed();
 
     println!("build finished in {:.2?}", elapsed);
+
+    config
 }
 
 fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {

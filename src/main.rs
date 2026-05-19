@@ -14,10 +14,15 @@ fn main() {
 
     match args[1].as_str() {
         "run" | "build" | "r" | "b" => {
-            transpiler::build();
-            builder::build(args).unwrap();
+            let config = transpiler::build();
+            match builder::build(args, config) {
+                Ok(diagnostics) => builder::print_diagnostics(diagnostics),
+                Err(diagnostics) => builder::print_diagnostics(diagnostics),
+            }
         }
-        "transpile" | "t" => transpiler::build(),
+        "transpile" | "t" => {
+            transpiler::build();
+        }
         "version" | "--version" | "-v" => {
             println!("mist {}", env!("CARGO_PKG_VERSION"));
         }

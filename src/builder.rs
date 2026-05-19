@@ -7,6 +7,8 @@ use std::{
 use cargo_metadata::Message;
 use mist_parser::rev_mapper::{MistMap, RustMap, find_mapping, get_mapping};
 
+use crate::transpiler::Config;
+
 #[derive(Debug, Clone)]
 pub struct MistDiagnosticMessage {
     pub message: String,
@@ -20,7 +22,10 @@ pub enum MistDiagnostic {
     Error(MistDiagnosticMessage),
 }
 
-pub fn build(mut args: Vec<String>) -> Result<Vec<MistDiagnostic>, Vec<MistDiagnostic>> {
+pub fn build(
+    mut args: Vec<String>,
+    config: Config,
+) -> Result<Vec<MistDiagnostic>, Vec<MistDiagnostic>> {
     args.remove(0);
     args.insert(1, "--message-format=json".to_string());
 
@@ -49,9 +54,14 @@ pub fn build(mut args: Vec<String>) -> Result<Vec<MistDiagnostic>, Vec<MistDiagn
                     let mist_span =
                         find_mapping(&map, &RustMap(span.line_end, span.column_start)).unwrap();
 
+                    let mist_file = span
+                        .file_name
+                        .replacen(&config.output, &config.src, 1)
+                        .replace(".rs", ".mist");
+
                     diagnostics.push(MistDiagnostic::Error(MistDiagnosticMessage {
                         message: span.label.unwrap_or(msg.message.message.clone()),
-                        src_path: span.file_name,
+                        src_path: mist_file,
                         line: mist_span.1.0,
                         column: mist_span.1.1,
                     }));
@@ -70,4 +80,43 @@ pub fn build(mut args: Vec<String>) -> Result<Vec<MistDiagnostic>, Vec<MistDiagn
     }
 
     Ok(diagnostics)
+}
+
+pub fn print_diagnostics(diagnostics: Vec<MistDiagnostic>) {
+    let mut files = HashMap::new();
+
+    for diag in diagnostics {
+        match diag {
+            MistDiagnostic::Error(msg) => {
+                let line = get_line(&mut files, &msg);
+
+                println!(
+                    "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}",
+                    msg.src_path,
+                    msg.line + 1,
+                    msg.column,
+                    msg.message,
+                    line.unwrap_or_default(),
+                )
+            }
+        }
+    }
+}
+
+pub fn get_line(
+    files: &mut HashMap<String, Vec<String>>,
+    msg: &MistDiagnosticMessage,
+) -> Option<String> {
+    let src_path = msg.src_path.clone();
+
+    let lines = files.entry(src_path.clone()).or_insert_with(|| {
+        fs::read_to_string(src_path)
+            .unwrap()
+            .lines()
+            .into_iter()
+            .map(String::from)
+            .collect()
+    });
+
+    lines.get(msg.line).map(|v| v.trim().to_string())
 }
