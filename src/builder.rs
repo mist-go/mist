@@ -30,7 +30,7 @@ pub fn build(mut args: Vec<String>, config: Config, root: PathBuf) -> bool {
     args.remove(0);
     args.insert(1, "--message-format=json".to_string());
 
-    let is_root = root == env::current_dir().unwrap();
+    let is_root = root == env::current_dir().expect("Failed getting env");
 
     let mut command = Command::new("cargo")
         .args(args)
@@ -38,9 +38,9 @@ pub fn build(mut args: Vec<String>, config: Config, root: PathBuf) -> bool {
         .stderr(Stdio::inherit())
         .stdin(Stdio::inherit())
         .spawn()
-        .unwrap();
+        .expect("Failed to run cargo");
 
-    let mut reader = std::io::BufReader::new(command.stdout.take().unwrap());
+    let mut reader = std::io::BufReader::new(command.stdout.take().expect("Failed to get reader"));
 
     let mut diagnostics = Vec::new();
 
@@ -60,17 +60,21 @@ pub fn build(mut args: Vec<String>, config: Config, root: PathBuf) -> bool {
 
                         let mist_path = root.join(&mist_file);
 
-                        if !fs::exists(&mist_path).unwrap() {
+                        if !fs::exists(&mist_path).expect("Unable to check if mist file exists") {
                             diagnostics.push(MistDiagnostic::Rust(msg));
                             break;
                         }
 
                         let map = mapping.entry(rust_path.clone()).or_insert_with(|| {
-                            get_mapping(&fs::read_to_string(rust_path).unwrap())
+                            get_mapping(
+                                &fs::read_to_string(rust_path)
+                                    .expect("Failed to read file for mapping"),
+                            )
                         });
 
                         let mist_span =
-                            find_mapping(&map, &RustMap(span.line_end, span.column_start)).unwrap();
+                            find_mapping(&map, &RustMap(span.line_end, span.column_start))
+                                .expect("Unable to find mapping");
 
                         let mist_msg = MistDiagnosticMessage {
                             message: span.label.clone().unwrap_or(msg.message.message.clone()),
@@ -105,7 +109,9 @@ pub fn build(mut args: Vec<String>, config: Config, root: PathBuf) -> bool {
                 let mut raw_reader = reader.into_inner();
                 let mut stdout = std::io::stdout();
 
-                std::io::copy(&mut raw_reader, &mut stdout).unwrap();
+                std::io::copy(&mut raw_reader, &mut stdout)
+                    .map_err(|v| v.to_string())
+                    .expect("(Mist) Failed to copy IO");
 
                 command.wait().unwrap();
 
@@ -150,6 +156,7 @@ pub fn print_diagnostics(diagnostics: &Vec<MistDiagnostic>) {
                     line.unwrap_or_default(),
                 )
             }
+
             MistDiagnostic::Rust(rs) => println!("{rs}"),
         }
     }
@@ -163,7 +170,7 @@ pub fn get_line(
 
     let lines = files.entry(src_path.clone()).or_insert_with(|| {
         fs::read_to_string(src_path)
-            .unwrap()
+            .expect("Unable to read mist file")
             .lines()
             .into_iter()
             .map(String::from)
