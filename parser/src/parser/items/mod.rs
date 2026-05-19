@@ -8,7 +8,7 @@ use crate::{
     Rule,
     ast::*,
     ast_expr,
-    error::{AstError, AstResult, IntoErr, collect_recovered},
+    error::{AstError, IntoErr, collect_recovered},
     parser::consume_rule,
 };
 
@@ -113,7 +113,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
 
-                items: Ok(Vec::new()) as AstResult<'_, Vec<_>>,
+                items: collect_recovered(&mut inner),
             }),
 
             _ => AstError::bug_unimplemented(pair),

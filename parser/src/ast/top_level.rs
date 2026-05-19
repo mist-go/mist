@@ -35,7 +35,7 @@ pub enum TopLevelKind {
         name: Identifier,
         generics: GenericsDecl,
         requirements: Vec<TypeExpr>,
-        items: Vec<FunctionDecl>,
+        items: Vec<Spanned<FunctionDecl>>,
     },
     EnumDecl {
         visibility: Visibility,
