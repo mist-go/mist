@@ -15,6 +15,7 @@ fn main() {
     match args[1].as_str() {
         "run" | "build" | "r" | "b" => {
             let (config, root) = transpiler::build();
+            println!("");
             if builder::build(args, config, root) {
                 println!("\x1b[32m\nBuild successful\x1b[0m");
             } else {

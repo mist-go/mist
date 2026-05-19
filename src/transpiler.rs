@@ -17,14 +17,10 @@ pub struct Config {
 pub fn build() -> (Config, PathBuf) {
     let start = Instant::now();
 
-    // 1. find project root
     let root = find_project_root().unwrap_or_else(|| {
         panic!("error: could not find project root (mist.json)");
     });
 
-    println!("mistc build ({})", root.display());
-
-    // 2. load config
     let config = load_config(&root);
 
     let src_dir = root.join(&config.src);
@@ -34,7 +30,7 @@ pub fn build() -> (Config, PathBuf) {
 
     let elapsed = start.elapsed();
 
-    println!("build finished in {:.2?}", elapsed);
+    println!("\x1b[32m\nTranspile successful\x1b[0m in \x1b[34m{:.2?}\x1b[0m", elapsed);
 
     (config, root)
 }
