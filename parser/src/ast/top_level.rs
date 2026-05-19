@@ -105,7 +105,7 @@ pub struct ImplDecl {
     pub generics: GenericsDecl,
     pub target: TypeExpr,
     pub trait_: Option<TypeExpr>,
-    pub methods: Vec<FunctionDecl>,
+    pub methods: Vec<Spanned<FunctionDecl>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
