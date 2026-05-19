@@ -32,17 +32,7 @@ pub fn get_mapping(input: &str) -> HashSet<(RustMap, MistMap)> {
                 inner.next().unwrap().as_str().parse().unwrap(),
             );
 
-            mapping.insert((
-                RustMap(rs.0, rs.1),
-                MistMap(
-                    if inner.next().is_some() {
-                        line
-                    } else {
-                        line - 1
-                    },
-                    col,
-                ),
-            ));
+            mapping.insert((RustMap(rs.0, rs.1), MistMap(line, col)));
         }
     }
 

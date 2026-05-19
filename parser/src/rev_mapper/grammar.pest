@@ -2,9 +2,7 @@ WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 
 integer = @{ ASCII_DIGIT+ }
 
-next_line = { "+" }
-
-map = { "/*" ~ integer ~ ":" ~ integer ~ next_line? ~ "*/" }
+map = { "/*" ~ integer ~ ":" ~ integer ~ "*/" }
 
 non_map = { (!map ~ ANY)+ }
 
