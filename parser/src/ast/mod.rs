@@ -59,3 +59,9 @@ impl From<GenericDecl> for Generic {
         }
     }
 }
+
+impl<T> Spanned<T> {
+    pub fn get_comment(&self) -> String {
+        format!("/* {}:{} */", self.line, self.column)
+    }
+}

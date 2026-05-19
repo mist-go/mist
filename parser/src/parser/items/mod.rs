@@ -54,7 +54,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
 
                 fields: inner
                     .next()
-                    .map(|pair| collect_recovered::<FieldDecl, FieldDecl>(pair.into_inner()))
+                    .map(|pair| collect_recovered(pair.into_inner()))
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
             }),

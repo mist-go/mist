@@ -425,7 +425,7 @@ impl ToRust for TopLevelKind {
                 cg.indent += 1;
 
                 for field in fields {
-                    cg.add_indentedln(&(format!("{}", field.get_rust()) + ","));
+                    cg.add_indentedln(&(field.get_rust() + ","));
                 }
 
                 cg.indent -= 1;
@@ -481,7 +481,8 @@ impl ToRust for TopLevelKind {
                 cg.indent += 1;
 
                 for field in fields.clone() {
-                    cg.add_indentedln(&field.decl.get_rust());
+                    cg.add_indentedln(&field.get_comment());
+                    cg.add_indentedln(&field.item.decl.get_rust());
                 }
 
                 cg.indent -= 1;
@@ -505,6 +506,10 @@ impl ToRust for TopLevelKind {
                 ));
                 cg.indent += 1;
 
+                let constructor_comment = constructor.get_comment();
+
+                let constructor = constructor.item;
+
                 let params_str = constructor
                     .params
                     .0
@@ -515,6 +520,7 @@ impl ToRust for TopLevelKind {
                     .join(", ");
 
                 cg.add_indentedln("#[allow(invalid_value)]");
+                cg.add_indentedln(&constructor_comment);
                 cg.add_indentedln(&format!(
                     "{}fn new{}({}) -> Self {{",
                     constructor.visibility.clone().get_rust(),
@@ -526,10 +532,14 @@ impl ToRust for TopLevelKind {
                 cg.add_indentedln("let mut this: Self = unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
 
                 for field in fields {
-                    if let Some(init) = field.init {
+                    let comment = field.get_comment();
+
+                    if let Some(init) = field.item.init {
+                        cg.add_indentedln(&comment);
+
                         cg.add_indentedln(&format!(
                             "this.{} = {};",
-                            field.decl.name.get_rust(),
+                            field.item.decl.name.get_rust(),
                             init.get_rust()
                         ));
                     }
@@ -552,6 +562,7 @@ impl ToRust for TopLevelKind {
                 cg.add_indentedln("}\n");
 
                 // Constructor function
+                cg.add_indentedln(&constructor_comment);
                 cg.add_indentedln(&format!(
                     "{}fn construct_class{}(&mut self, {}) {{",
                     constructor.visibility.get_rust(),
@@ -580,8 +591,8 @@ impl ToRust for TopLevelKind {
                         ClassItem::ImplDecl(impl_) => {
                             let mut impl_ = impl_.clone();
 
-                            impl_.trait_ = Some(impl_.target);
-                            impl_.target =
+                            impl_.item.trait_ = Some(impl_.item.target);
+                            impl_.item.target =
                                 TypeExpr(TypeExprKind::Path(Path(vec![name.clone()])), Vec::new());
 
                             impl_.to_rust(cg);
