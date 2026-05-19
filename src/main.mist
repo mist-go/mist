@@ -1,22 +1,23 @@
-use std::process::{self};
+use <std::process>;
+use <std::env>;
 
 pub mod builder;
 pub mod codegen;
 pub mod transpiler;
 
-fn main() {
-    let args: Vec<String> = std::env::args().collect();
+void main() {
+    Vec<String> args = env::args().collect();
 
-    if args.len() < 2 {
+    if (args.len() < 2) {
         print_usage();
         process::exit(1);
     }
 
-    match args[1].as_str() {
+    match (args[1].as_str()) {
         "run" | "build" | "check" | "r" | "b" | "c" => {
-            let (config, root) = transpiler::build();
+            var (config, root) = transpiler::build();
             println!("");
-            if builder::build(args, config, root) {
+            if (builder::build(args, config, root)) {
                 println!("\x1b[32m\nBuild successful\x1b[0m");
             } else {
                 println!("\x1b[31m\nBuild failed\x1b[0m");
@@ -39,7 +40,7 @@ fn main() {
     }
 }
 
-fn print_usage() {
+void print_usage() {
     println!("Mist - the mist compiler\n");
     println!("󰖟 View our documentation! \x1b[35mhttps://mist.selimaj.dev\x1b[0m");
     println!(" Follow us on github!    \x1b[35mhttps://github.com/mist-go\x1b[0m\n");

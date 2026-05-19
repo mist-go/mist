@@ -646,7 +646,14 @@ impl ToRust for Statement {
                 cg.indent += 1;
 
                 for itm in match_items {
-                    cg.add_indentedln(&format!("{} =>", itm.0.get_rust()));
+                    cg.add_indentedln(&format!(
+                        "{} =>",
+                        itm.0
+                            .into_iter()
+                            .map(Pattern::get_rust)
+                            .collect::<Vec<_>>()
+                            .join(" | ")
+                    ));
                     cg.add_indentedln("{");
                     cg.indent += 1;
                     itm.1.to_rust(cg);

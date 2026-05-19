@@ -143,7 +143,7 @@ literal = {
 // ======================================================
 
 tuple_pattern = {
-    "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")"
+    "(" ~ (identifier ~ ("," ~ identifier)*) ~ ")"
 }
 
 named_tuple_pattern = {
@@ -446,8 +446,10 @@ for_stmt = {
 // MATCH
 // ------------------------------------------------------
 
+pattern_list = { pattern ~ ("|" ~ pattern)* }
+
 match_item = {
-    pattern ~ "=>" ~ block
+    pattern_list ~ "=>" ~ block
 }
 
 match_stmt = {
@@ -477,7 +479,8 @@ array = {
 // ------------------------------------------------------
 
 macro_inner_v = {
-    "(" ~ macro_inner_v* ~ ")"
+    string_lit
+  | ("(" ~ macro_inner_v* ~ ")")
   | (!("(" | ")") ~ ANY)
 }
 

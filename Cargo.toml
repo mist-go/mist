@@ -1,6 +1,6 @@
 [package]
 name = "mist-lang"
-version = "0.0.3-alpha3"
+version = "0.0.3-alpha4"
 edition = "2024"
 description = "The Mist programming language compiler"
 license = "Apache-2.0"
@@ -8,13 +8,19 @@ repository = "https://github.com/mist-go/mist"
 readme = "README.md"
 keywords = ["compiler", "language", "mist"]
 categories = ["compilers"]
+default-run = "mist"
 
 [dependencies]
 serde = { version = "1.0.228", features = ["serde_derive"] }
 serde_json = "1.0.149"
-mist-parser = { path = "./parser", version = "0.1.3"}
+mist-parser = { path = "./parser", version = "0.1.4"}
 cargo_metadata = "0.23.1"
 
 [[bin]]
 name = "mist"
-path = "src/main.rs"
+path = "build/main.rs"
+
+
+[[bin]]
+name = "mist-lang"
+path = "src/_header.rs"
