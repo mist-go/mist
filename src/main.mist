@@ -14,7 +14,7 @@ void main() {
     }
 
     match (args[1].as_str()) {
-        "run" => {
+        "run" | "build" | "check" | "r" | "b" | "c" => {
             var (config, root) = transpiler::build();
             println!("");
             if (builder::build(args, config, root)) {
@@ -23,13 +23,13 @@ void main() {
                 println!("\x1b[31m\nBuild failed\x1b[0m");
             }
         }
-        "transpile" => {
+        "transpile" | "t" => {
             transpiler::build();
         }
-        "version" => {
+        "version" | "--version" | "-v" => {
             println!("mist {}", env!("CARGO_PKG_VERSION"));
         }
-        "help" => {
+        "help" | "--help" | "-h" => {
             print_usage();
         }
         unknown => {
