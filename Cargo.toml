@@ -8,6 +8,7 @@ repository = "https://github.com/mist-go/mist"
 readme = "README.md"
 keywords = ["compiler", "language", "mist"]
 categories = ["compilers"]
+default-run = "mist"
 
 [dependencies]
 serde = { version = "1.0.228", features = ["serde_derive"] }
@@ -17,4 +18,4 @@ cargo_metadata = "0.23.1"
 
 [[bin]]
 name = "mist"
-path = "src/main.rs"
+path = "build/main.rs"
