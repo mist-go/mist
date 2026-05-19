@@ -1,6 +1,6 @@
 [package]
 name = "mist-lang"
-version = "0.0.3-alpha0"
+version = "0.0.3-alpha2"
 edition = "2024"
 description = "The Mist programming language compiler"
 license = "Apache-2.0"
@@ -12,7 +12,7 @@ categories = ["compilers"]
 [dependencies]
 serde = { version = "1.0.228", features = ["serde_derive"] }
 serde_json = "1.0.149"
-mist-parser = { path = "./parser", version = "0.1.1"}
+mist-parser = { path = "./parser", version = "0.1.2-patch"}
 cargo_metadata = "0.23.1"
 
 [[bin]]
