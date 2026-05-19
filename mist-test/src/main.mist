@@ -11,5 +11,5 @@ void main() {
     // statistics::register(&mut app_instance);
 
     app_instance.boot();
-    app_instance.rund();
+    app_instance.run();
 }

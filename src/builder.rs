@@ -20,6 +20,7 @@ pub struct MistDiagnosticMessage {
 #[derive(Debug, Clone)]
 pub enum MistDiagnostic {
     Error(MistDiagnosticMessage),
+    Warning(MistDiagnosticMessage),
 }
 
 pub fn build(
@@ -51,20 +52,34 @@ pub fn build(
                     .or_insert_with(|| get_mapping(&fs::read_to_string(file_name).unwrap()));
 
                 for span in msg.message.spans {
-                    let mist_span =
-                        find_mapping(&map, &RustMap(span.line_end, span.column_start)).unwrap();
+                    if span.is_primary {
+                        let mist_span =
+                            find_mapping(&map, &RustMap(span.line_end, span.column_start)).unwrap();
 
-                    let mist_file = span
-                        .file_name
-                        .replacen(&config.output, &config.src, 1)
-                        .replace(".rs", ".mist");
+                        let mist_file = span
+                            .file_name
+                            .replacen(&config.output, &config.src, 1)
+                            .replace(".rs", ".mist");
 
-                    diagnostics.push(MistDiagnostic::Error(MistDiagnosticMessage {
-                        message: span.label.unwrap_or(msg.message.message.clone()),
-                        src_path: mist_file,
-                        line: mist_span.1.0,
-                        column: mist_span.1.1,
-                    }));
+                        let mist_msg = MistDiagnosticMessage {
+                            message: span.label.unwrap_or(msg.message.message.clone()),
+                            src_path: mist_file,
+                            line: mist_span.1.0,
+                            column: mist_span.1.1,
+                        };
+
+                        match msg.message.level {
+                            cargo_metadata::diagnostic::DiagnosticLevel::Error => {
+                                diagnostics.push(MistDiagnostic::Error(mist_msg))
+                            }
+
+                            cargo_metadata::diagnostic::DiagnosticLevel::Warning => {
+                                diagnostics.push(MistDiagnostic::Warning(mist_msg))
+                            }
+
+                            _ => {}
+                        }
+                    }
                 }
             }
 
@@ -92,6 +107,19 @@ pub fn print_diagnostics(diagnostics: Vec<MistDiagnostic>) {
 
                 println!(
                     "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}",
+                    msg.src_path,
+                    msg.line + 1,
+                    msg.column,
+                    msg.message,
+                    line.unwrap_or_default(),
+                )
+            }
+
+            MistDiagnostic::Warning(msg) => {
+                let line = get_line(&mut files, &msg);
+
+                println!(
+                    "\n{}:{}:{}\n \x1b[33mWarning\x1b[0m: {}\n\t{}",
                     msg.src_path,
                     msg.line + 1,
                     msg.column,
