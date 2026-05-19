@@ -26,11 +26,7 @@ pub enum MistDiagnostic {
     Rust(CompilerMessage),
 }
 
-pub fn build(
-    mut args: Vec<String>,
-    config: Config,
-    root: PathBuf,
-) -> Result<Vec<MistDiagnostic>, Vec<MistDiagnostic>> {
+pub fn build(mut args: Vec<String>, config: Config, root: PathBuf) -> bool {
     args.remove(0);
     args.insert(1, "--message-format=json".to_string());
 
@@ -39,6 +35,8 @@ pub fn build(
     let mut command = Command::new("cargo")
         .args(args)
         .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .stdin(Stdio::inherit())
         .spawn()
         .unwrap();
 
@@ -102,20 +100,18 @@ pub fn build(
             }
 
             Ok(Message::BuildFinished(finish)) => {
-                if finish.success {
-                    return Ok(diagnostics);
-                } else {
-                    return Err(diagnostics);
-                }
+                print_diagnostics(&diagnostics);
+                return finish.success;
             }
+            Ok(Message::TextLine(text)) => println!("{text}"),
             _ => {}
         }
     }
 
-    Ok(diagnostics)
+    false
 }
 
-pub fn print_diagnostics(diagnostics: Vec<MistDiagnostic>) {
+pub fn print_diagnostics(diagnostics: &Vec<MistDiagnostic>) {
     let mut files = HashMap::new();
 
     for diag in diagnostics {

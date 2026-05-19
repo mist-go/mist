@@ -15,10 +15,10 @@ fn main() {
     match args[1].as_str() {
         "run" | "build" | "r" | "b" => {
             let (config, root) = transpiler::build();
-
-            match builder::build(args, config, root) {
-                Ok(diagnostics) => builder::print_diagnostics(diagnostics),
-                Err(diagnostics) => builder::print_diagnostics(diagnostics),
+            if builder::build(args, config, root) {
+                println!("\x1b[32m\nBuild successful\x1b[0m");
+            } else {
+                println!("\x1b[31m\nBuild failed\x1b[0m");
             }
         }
         "transpile" | "t" => {
