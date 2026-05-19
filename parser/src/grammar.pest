@@ -9,7 +9,32 @@ COMMENT    = _{ "//" ~ (!"\n" ~ ANY)* }
 // PRIMITIVES
 // ------------------------------------------------------
 
-identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+keyword = {
+    "if"
+  | "else"
+  | "for"
+  | "while"
+  | "match"
+  | "return"
+  | "break"
+  | "continue"
+  | "struct"
+  | "enum"
+  | "class"
+  | "trait"
+  | "impl"
+  | "pub"
+  | "mut"
+  | "var"
+  | "true"
+  | "false"
+  | "dyn"
+  | "self"
+}
+
+identifier = @{
+    !keyword ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*
+}
 
 integer = @{ ASCII_DIGIT+ }
 
@@ -319,7 +344,6 @@ block = {
 
 statement = _{
     match_stmt
-  | assign_statement
   | if_stmt
   | while_stmt
   | c_for_stmt
@@ -331,6 +355,7 @@ statement = _{
   | increment_statement
   | decrement_statement
   | var_decl_statement
+  | assign_statement
   | expr_stmt
 }
 
