@@ -100,7 +100,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                     .map(|match_itms| {
                         let mut match_inner = match_itms.into_inner();
                         Ok((
-                            Pattern::try_from(match_inner.next().unwrap()).get()?,
+                            collect_recovered(match_inner.next().unwrap().into_inner()).get()?,
                             Block::try_from(match_inner.next().unwrap()).get()?,
                         ))
                     })

@@ -446,8 +446,10 @@ for_stmt = {
 // MATCH
 // ------------------------------------------------------
 
+pattern_list = { pattern ~ ("|" ~ pattern)* }
+
 match_item = {
-    pattern ~ "=>" ~ block
+    pattern_list ~ "=>" ~ block
 }
 
 match_stmt = {
