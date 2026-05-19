@@ -1,0 +1,45 @@
+use <std::process>;
+use <std::env>;
+
+pub mod builder;
+pub mod codegen;
+pub mod transpiler;
+
+void main() {
+    Vec<String> args = env::args().collect();
+
+    if (args.len() < 2) {
+        var _ = print_usage();
+        process::exit(1);
+    }
+
+    match (args[1].as_str()) {
+        "run" => {
+            var (config, root) = transpiler::build();
+            println!("");
+            if (builder::build(args, config, root)) {
+                var _ = println!("\x1b[32m\nBuild successful\x1b[0m");
+            } else {
+                var _ = println!("\x1b[31m\nBuild failed\x1b[0m");
+            }
+        }
+        "transpile" => {
+            var _ = transpiler::build();
+        }
+        "version" => {
+            var _ = println!("mist {}", env!("CARGO_PKG_VERSION"));
+        }
+        "help" => {
+            var _ = print_usage();
+        }
+        unknown => {
+            var _ = eprintln!("error: unknown command '{}'\n", unknown);
+            var _ = print_usage();
+            var _ = process::exit(1);
+        }
+    }
+}
+
+void print_usage() {
+    var _ = println!("Mist - the mist compiler\n");
+}
