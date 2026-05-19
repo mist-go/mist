@@ -828,6 +828,7 @@ impl GetRust for TypePostfix {
             TypePostfix::RefMut => format!("&mut "),
             TypePostfix::RefLifetime(lifetime) => format!("&'{} ", lifetime.get_rust()),
             TypePostfix::RefMutLifetime(lifetime) => format!("&'{} mut ", lifetime.get_rust()),
+            TypePostfix::Dyn => format!("dyn "),
         }
     }
 }

@@ -26,6 +26,7 @@ pub enum TypePostfix {
     RefMut,
     RefLifetime(Identifier),
     RefMutLifetime(Identifier),
+    Dyn,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -36,6 +36,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypePostfix {
                 })
             }
 
+            Rule::dyn_type => Ok(TypePostfix::Dyn),
+
             _ => AstError::bug_unimplemented(pair),
         }
     }

@@ -85,8 +85,12 @@ ref_type = {
     mutable? ~ lifetime? ~ "*"
 }
 
+dyn_type = {
+    "dyn"
+}
+
 type_expr = {
-    (path_type | tuple_type) ~ ref_type*
+    (path_type | tuple_type) ~ (ref_type | dyn_type)*
 }
 
 lifetime = {
