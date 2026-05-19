@@ -19,3 +19,8 @@ cargo_metadata = "0.23.1"
 [[bin]]
 name = "mist"
 path = "build/main.rs"
+
+
+[[bin]]
+name = "mist-lang"
+path = "src/_header.rs"
