@@ -1,7 +1,7 @@
 use std::process::{self, Command};
 
 pub mod codegen;
-pub mod compiler;
+pub mod transpiler;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -13,10 +13,10 @@ fn main() {
 
     match args[1].as_str() {
         "run" | "build" | "r" | "b" => {
-            compiler::build();
+            transpiler::build();
             Command::new("cargo").args(&args[1..]).status().unwrap();
         }
-        "transpile" | "t" => compiler::build(),
+        "transpile" | "t" => transpiler::build(),
         "version" | "--version" | "-v" => {
             println!("mist {}", env!("CARGO_PKG_VERSION"));
         }
