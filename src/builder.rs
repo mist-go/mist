@@ -13,7 +13,7 @@ use crate::transpiler::Config;
 #[derive(Debug, Clone)]
 pub struct MistDiagnosticMessage {
     pub message: String,
-    pub file_path: String,
+    pub file_path: PathBuf,
     pub file_name: String,
     pub line: usize,
     pub column: usize,
@@ -76,12 +76,12 @@ pub fn build(
 
                         let mist_msg = MistDiagnosticMessage {
                             message: span.label.clone().unwrap_or(msg.message.message.clone()),
-                            file_path: mist_path.to_string_lossy().to_string(),
                             file_name: if is_root {
                                 mist_file
                             } else {
                                 mist_path.to_string_lossy().to_string()
                             },
+                            file_path: mist_path,
                             line: mist_span.1.0,
                             column: mist_span.1.1,
                         };
@@ -151,7 +151,7 @@ pub fn print_diagnostics(diagnostics: Vec<MistDiagnostic>) {
 }
 
 pub fn get_line(
-    files: &mut HashMap<String, Vec<String>>,
+    files: &mut HashMap<PathBuf, Vec<String>>,
     msg: &MistDiagnosticMessage,
 ) -> Option<String> {
     let src_path = msg.file_path.clone();
