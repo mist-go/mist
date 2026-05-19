@@ -1,12 +1,12 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     env, fs,
     path::PathBuf,
     process::{Command, Stdio},
 };
 
 use cargo_metadata::{CompilerMessage, Message};
-use mist_parser::rev_mapper::{MistMap, RustMap, find_mapping, get_mapping};
+use mist_parser::rev_mapper::{RustMap, find_mapping, get_mapping};
 
 use crate::transpiler::Config;
 
@@ -46,14 +46,14 @@ pub fn build(
 
     let mut diagnostics = Vec::new();
 
-    let mut mapping: HashMap<String, HashSet<(RustMap, MistMap)>> = HashMap::new();
+    let mut mapping = HashMap::new();
 
     for message in cargo_metadata::Message::parse_stream(reader) {
         match message {
             Ok(Message::CompilerMessage(msg)) => {
                 for span in &msg.message.spans {
                     if span.is_primary {
-                        let file_name = span.file_name.clone();
+                        let rust_path = root.join(&span.file_name);
 
                         let mist_file = span
                             .file_name
@@ -67,8 +67,8 @@ pub fn build(
                             break;
                         }
 
-                        let map = mapping.entry(file_name.clone()).or_insert_with(|| {
-                            get_mapping(&fs::read_to_string(file_name).unwrap())
+                        let map = mapping.entry(rust_path.clone()).or_insert_with(|| {
+                            get_mapping(&fs::read_to_string(rust_path).unwrap())
                         });
 
                         let mist_span =

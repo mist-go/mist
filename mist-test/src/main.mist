@@ -7,6 +7,8 @@ pub mod event;
 void main() {
     var mut app_instance = new app::Application("mist-app");
 
+    i32 bro;
+
     // greeting::register(&mut app_instance);
     // statistics::register(&mut app_instance);
 
