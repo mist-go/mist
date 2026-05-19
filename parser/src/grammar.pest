@@ -143,7 +143,7 @@ literal = {
 // ======================================================
 
 tuple_pattern = {
-    "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")"
+    "(" ~ (identifier ~ ("," ~ identifier)*) ~ ")"
 }
 
 named_tuple_pattern = {

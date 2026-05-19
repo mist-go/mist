@@ -9,7 +9,7 @@ void main() {
     Vec<String> args = env::args().collect();
 
     if (args.len() < 2) {
-        var _ = print_usage();
+        print_usage();
         process::exit(1);
     }
 
@@ -18,28 +18,28 @@ void main() {
             var (config, root) = transpiler::build();
             println!("");
             if (builder::build(args, config, root)) {
-                var _ = println!("\x1b[32m\nBuild successful\x1b[0m");
+                println!("\x1b[32m\nBuild successful\x1b[0m");
             } else {
-                var _ = println!("\x1b[31m\nBuild failed\x1b[0m");
+                println!("\x1b[31m\nBuild failed\x1b[0m");
             }
         }
         "transpile" => {
-            var _ = transpiler::build();
+            transpiler::build();
         }
         "version" => {
-            var _ = println!("mist {}", env!("CARGO_PKG_VERSION"));
+            println!("mist {}", env!("CARGO_PKG_VERSION"));
         }
         "help" => {
-            var _ = print_usage();
+            print_usage();
         }
         unknown => {
-            var _ = eprintln!("error: unknown command '{}'\n", unknown);
-            var _ = print_usage();
-            var _ = process::exit(1);
+            eprintln!("error: unknown command '{}'\n", unknown);
+            print_usage();
+            process::exit(1);
         }
     }
 }
 
 void print_usage() {
-    var _ = println!("Mist - the mist compiler\n");
+    println!("Mist - the mist compiler\n");
 }
