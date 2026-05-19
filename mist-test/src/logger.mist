@@ -2,7 +2,7 @@ use <std::fmt::Formatter>;
 use <std::fmt>;
 
 pub trait TestLogging<T: fmt::Display>: fmt::Display {
-    String get();
+    String get(self*);
 }
 
 pub enum LogLevel {
@@ -26,6 +26,12 @@ impl fmt::Display for LogLevel {
                 return write!(f, "[ERROR]");
             }
         }
+    }
+}
+
+impl TestLogging<LogLevel> for LogLevel {
+    String get(self*) {
+        return format!("{self}");
     }
 }
 
@@ -55,7 +61,7 @@ pub class Logger {
             }
 
             LogLevel::Warning => {
-                println!("{level} {} {}", self.prefix, message);
+                println!("{} {} {}", level.get(), self.prefix, message);
             }
 
             LogLevel::Error => {

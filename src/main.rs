@@ -1,7 +1,8 @@
-use std::process::{self, Command};
+use std::process::{self};
 
+pub mod builder;
 pub mod codegen;
-pub mod compiler;
+pub mod transpiler;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -12,11 +13,18 @@ fn main() {
     }
 
     match args[1].as_str() {
-        "run" | "build" | "r" | "b" => {
-            compiler::build();
-            Command::new("cargo").args(&args[1..]).status().unwrap();
+        "run" | "build" | "check" | "r" | "b" | "c" => {
+            let (config, root) = transpiler::build();
+            println!("");
+            if builder::build(args, config, root) {
+                println!("\x1b[32m\nBuild successful\x1b[0m");
+            } else {
+                println!("\x1b[31m\nBuild failed\x1b[0m");
+            }
         }
-        "transpile" | "t" => compiler::build(),
+        "transpile" | "t" => {
+            transpiler::build();
+        }
         "version" | "--version" | "-v" => {
             println!("mist {}", env!("CARGO_PKG_VERSION"));
         }
@@ -36,12 +44,15 @@ fn print_usage() {
     println!("󰖟 View our documentation! \x1b[35mhttps://mist.selimaj.dev\x1b[0m");
     println!(" Follow us on github!    \x1b[35mhttps://github.com/mist-go\x1b[0m\n");
     println!("usage:");
-    println!(" \x1b[36m mist run\x1b[0m               run the project in the current directory\n");
+    println!(" \x1b[36m mist run\x1b[0m,\x1b[36m r\x1b[0m            run the project in the current directory\n");
     println!(
-        " \x1b[36m mist build\x1b[0m             build the project in the current directory\n"
+        " \x1b[36m mist build\x1b[0m,\x1b[36m b\x1b[0m          build the project in the current directory\n"
     );
     println!(
-        " \x1b[36m mist transpile\x1b[0m         transpile the project in the current directory\n"
+        " \x1b[36m mist transpile\x1b[0m,\x1b[36m t\x1b[0m      transpile the project in the current directory\n"
+    );
+    println!(
+        " \x1b[36m mist check\x1b[0m,\x1b[36m c\x1b[0m          check the project in the current directory\n"
     );
     println!(" \x1b[36m mist version \x1b[0m          print the compiler version\n");
     println!(" \x1b[36m mist help\x1b[0m              print this message\n");

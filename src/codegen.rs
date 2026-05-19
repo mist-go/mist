@@ -1,8 +1,8 @@
 use mist_parser::ast::{
     Attribute, BinaryOp, Block, ClassItem, EnumItem, ExprPath, ExprPathSegment, Expression,
     FieldDecl, FunctionDecl, Generic, GenericDecl, Generics, GenericsDecl, Identifier, ImplDecl,
-    Literal, Path, Pattern, Postfix, Prefix, Statement, StatementBranch, TopLevel, TopLevelKind,
-    TypeExpr, TypeExprKind, TypePostfix, VarDecl, VarDeclStmt, Visibility,
+    Literal, Path, Pattern, Postfix, Prefix, Spanned, Statement, StatementBranch, TopLevel,
+    TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -87,6 +87,17 @@ impl Default for RustCodegen {
 // ---------------------------------------------------------------------------
 // GetRust — pure string production (expressions, types)
 // ---------------------------------------------------------------------------
+
+impl<T: GetRust> GetRust for Spanned<T> {
+    fn get_rust(self) -> String {
+        format!(
+            "/* {}:{} */ {}",
+            self.line,
+            self.column,
+            self.item.get_rust()
+        )
+    }
+}
 
 impl GetRust for TypeExpr {
     fn get_rust(self) -> String {
@@ -315,6 +326,13 @@ impl GetRust for Vec<Postfix> {
 // ToRust — output-writing (top-level, statements, blocks)
 // ---------------------------------------------------------------------------
 
+impl<T: ToRust> ToRust for Spanned<T> {
+    fn to_rust(self, cg: &mut RustCodegen) {
+        cg.add_indentedln(&format!("/* {}:{} */", self.line, self.column));
+        self.item.to_rust(cg);
+    }
+}
+
 impl ToRust for Block {
     fn to_rust(self, cg: &mut RustCodegen) {
         for stmt in self.0 {
@@ -325,16 +343,13 @@ impl ToRust for Block {
 
 impl ToRust for TopLevel {
     fn to_rust(self, cg: &mut RustCodegen) {
-        match self.0 {
-            TopLevelKind::ModAttribute => {
-                for attr in self.1 {
-                    cg.addln(&format!("#![{}]", attr.get_rust()));
-                }
+        if let TopLevelKind::ModAttribute = self.0.item {
+            for attr in self.1 {
+                cg.addln(&format!("#![{}]", attr.get_rust()));
             }
-            _ => {
-                for attr in self.1 {
-                    cg.addln(&format!("#[{}]", attr.get_rust()));
-                }
+        } else {
+            for attr in self.1 {
+                cg.addln(&format!("#[{}]", attr.get_rust()));
             }
         }
 
@@ -369,9 +384,9 @@ impl ToRust for TopLevelKind {
         match self {
             Self::ModAttribute => {}
             Self::Import(vis, path) => {
-                cg.addln(&format!("{} use {};", vis.get_rust(), path.get_rust()))
+                cg.addln(&format!("{}use {};", vis.get_rust(), path.get_rust()))
             }
-            Self::Mod(vis, id) => cg.addln(&format!("{} mod {};", vis.get_rust(), id.get_rust())),
+            Self::Mod(vis, id) => cg.addln(&format!("{}mod {};", vis.get_rust(), id.get_rust())),
             Self::FunctionDecl(decl) => decl.to_rust(cg),
             Self::ImplDecl(impl_) => impl_.to_rust(cg),
             Self::StructDecl {
@@ -410,7 +425,7 @@ impl ToRust for TopLevelKind {
                 cg.indent += 1;
 
                 for field in fields {
-                    cg.add_indentedln(&(format!("{}", field.get_rust()) + ","));
+                    cg.add_indentedln(&(field.get_rust() + ","));
                 }
 
                 cg.indent -= 1;
@@ -466,7 +481,8 @@ impl ToRust for TopLevelKind {
                 cg.indent += 1;
 
                 for field in fields.clone() {
-                    cg.add_indentedln(&field.decl.get_rust());
+                    cg.add_indentedln(&field.get_comment());
+                    cg.add_indentedln(&field.item.decl.get_rust());
                 }
 
                 cg.indent -= 1;
@@ -490,6 +506,10 @@ impl ToRust for TopLevelKind {
                 ));
                 cg.indent += 1;
 
+                let constructor_comment = constructor.get_comment();
+
+                let constructor = constructor.item;
+
                 let params_str = constructor
                     .params
                     .0
@@ -500,6 +520,7 @@ impl ToRust for TopLevelKind {
                     .join(", ");
 
                 cg.add_indentedln("#[allow(invalid_value)]");
+                cg.add_indentedln(&constructor_comment);
                 cg.add_indentedln(&format!(
                     "{}fn new{}({}) -> Self {{",
                     constructor.visibility.clone().get_rust(),
@@ -511,10 +532,14 @@ impl ToRust for TopLevelKind {
                 cg.add_indentedln("let mut this: Self = unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
 
                 for field in fields {
-                    if let Some(init) = field.init {
+                    let comment = field.get_comment();
+
+                    if let Some(init) = field.item.init {
+                        cg.add_indentedln(&comment);
+
                         cg.add_indentedln(&format!(
                             "this.{} = {};",
-                            field.decl.name.get_rust(),
+                            field.item.decl.name.get_rust(),
                             init.get_rust()
                         ));
                     }
@@ -537,6 +562,7 @@ impl ToRust for TopLevelKind {
                 cg.add_indentedln("}\n");
 
                 // Constructor function
+                cg.add_indentedln(&constructor_comment);
                 cg.add_indentedln(&format!(
                     "{}fn construct_class{}(&mut self, {}) {{",
                     constructor.visibility.get_rust(),
@@ -565,8 +591,8 @@ impl ToRust for TopLevelKind {
                         ClassItem::ImplDecl(impl_) => {
                             let mut impl_ = impl_.clone();
 
-                            impl_.trait_ = Some(impl_.target);
-                            impl_.target =
+                            impl_.item.trait_ = Some(impl_.item.target);
+                            impl_.item.target =
                                 TypeExpr(TypeExprKind::Path(Path(vec![name.clone()])), Vec::new());
 
                             impl_.to_rust(cg);

@@ -18,6 +18,9 @@ pub struct Identifier(pub String);
 pub struct ParamList(pub Vec<VarDecl>);
 
 #[derive(Debug, Clone, Serialize)]
+pub struct TypeExpr(pub TypeExprKind, pub Vec<TypePostfix>);
+
+#[derive(Debug, Clone, Serialize)]
 pub enum TypePostfix {
     Ref,
     RefMut,
@@ -34,7 +37,11 @@ pub enum TypeExprKind {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct TypeExpr(pub TypeExprKind, pub Vec<TypePostfix>);
+pub struct Spanned<T> {
+    pub line: usize,
+    pub column: usize,
+    pub item: T,
+}
 
 impl TypeExpr {
     pub fn no_px(kind: TypeExprKind) -> Self {
@@ -50,5 +57,11 @@ impl From<GenericDecl> for Generic {
                 Generic::Type(TypeExpr(TypeExprKind::Path(Path(vec![ty])), Vec::new()))
             }
         }
+    }
+}
+
+impl<T> Spanned<T> {
+    pub fn get_comment(&self) -> String {
+        format!("/* {}:{} */", self.line, self.column)
     }
 }

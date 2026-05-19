@@ -22,7 +22,7 @@ pub enum Attribute {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct TopLevel(pub TopLevelKind, pub Vec<Attribute>);
+pub struct TopLevel(pub Spanned<TopLevelKind>, pub Vec<Attribute>);
 
 #[derive(Debug, Clone, Serialize)]
 pub enum TopLevelKind {
@@ -35,35 +35,35 @@ pub enum TopLevelKind {
         name: Identifier,
         generics: GenericsDecl,
         requirements: Vec<TypeExpr>,
-        items: Vec<FunctionDecl>,
+        items: Vec<Spanned<FunctionDecl>>,
     },
     EnumDecl {
         visibility: Visibility,
         name: Identifier,
         generics: GenericsDecl,
-        fields: Vec<EnumItem>,
+        fields: Vec<Spanned<EnumItem>>,
     },
     StructDecl {
         visibility: Visibility,
         name: Identifier,
         generics: GenericsDecl,
-        fields: Vec<FieldDecl>,
+        fields: Vec<Spanned<FieldDecl>>,
     },
     FunctionDecl(FunctionDecl),
     ClassDecl {
         visibility: Visibility,
         name: Identifier,
         generics: GenericsDecl,
-        fields: Vec<FieldDeclStmt>,
-        constructor: ClassConstructor,
+        fields: Vec<Spanned<FieldDeclStmt>>,
+        constructor: Spanned<ClassConstructor>,
         items: Vec<ClassItem>,
     },
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub enum ClassItem {
-    Method(FunctionDecl),
-    ImplDecl(ImplDecl),
+    Method(Spanned<FunctionDecl>),
+    ImplDecl(Spanned<ImplDecl>),
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -105,7 +105,7 @@ pub struct ImplDecl {
     pub generics: GenericsDecl,
     pub target: TypeExpr,
     pub trait_: Option<TypeExpr>,
-    pub methods: Vec<FunctionDecl>,
+    pub methods: Vec<Spanned<FunctionDecl>>,
 }
 
 #[derive(Debug, Clone, Serialize)]

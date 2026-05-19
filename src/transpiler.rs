@@ -9,22 +9,18 @@ use mist_parser::error::ParseError;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
-struct Config {
-    src: String,
-    output: String,
+pub struct Config {
+    pub src: String,
+    pub output: String,
 }
 
-pub fn build() {
+pub fn build() -> (Config, PathBuf) {
     let start = Instant::now();
 
-    // 1. find project root
     let root = find_project_root().unwrap_or_else(|| {
         panic!("error: could not find project root (mist.json)");
     });
 
-    println!("mistc build ({})", root.display());
-
-    // 2. load config
     let config = load_config(&root);
 
     let src_dir = root.join(&config.src);
@@ -34,7 +30,12 @@ pub fn build() {
 
     let elapsed = start.elapsed();
 
-    println!("build finished in {:.2?}", elapsed);
+    println!(
+        "\x1b[32m\nTranspile successful\x1b[0m in \x1b[34m{:.2?}\x1b[0m",
+        elapsed
+    );
+
+    (config, root)
 }
 
 fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
@@ -71,12 +72,29 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
 
         let relative = path.strip_prefix(base_src).unwrap();
 
+        // Handle non-mist files with a cache check
         if path.extension().and_then(|e| e.to_str()) != Some("mist") {
-            fs::copy(&path, out_dir.join(relative)).expect("Failed to copy non-mist file");
+            let dest_path = out_dir.join(relative);
+
+            // Create parent directories for static assets if needed
+            if let Some(parent) = dest_path.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+
+            if should_skip(&path, &dest_path) {
+                continue;
+            }
+
+            fs::copy(&path, dest_path).expect("Failed to copy non-mist file");
             continue;
         }
 
         let output_path = out_dir.join(relative).with_extension("rs");
+
+        // Cache layer: Skip if the generated .rs file is newer than the .mist source
+        if should_skip(&path, &output_path) {
+            continue;
+        }
 
         // create parent directories
         if let Some(parent) = output_path.parent() {
@@ -145,6 +163,15 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
             process::exit(1);
         }
     }
+}
+
+fn should_skip(source: &Path, output: &Path) -> bool {
+    if let (Ok(src_meta), Ok(out_meta)) = (fs::metadata(source), fs::metadata(output)) {
+        if let (Ok(src_time), Ok(out_time)) = (src_meta.modified(), out_meta.modified()) {
+            return out_time >= src_time;
+        }
+    }
+    false
 }
 
 pub fn find_project_root() -> Option<PathBuf> {

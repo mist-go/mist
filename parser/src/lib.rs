@@ -4,6 +4,7 @@ use pest_derive::Parser;
 pub mod ast;
 pub mod error;
 pub mod parser;
+pub mod rev_mapper;
 
 use ast::*;
 

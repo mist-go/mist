@@ -8,7 +8,7 @@ use crate::{
     Rule,
     ast::*,
     ast_expr,
-    error::{AstError, AstResult, IntoErr, collect_recovered},
+    error::{AstError, IntoErr, collect_recovered},
     parser::consume_rule,
 };
 
@@ -21,10 +21,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevel {
         let attributes = collect_recovered(inner.next().unwrap().into_inner());
 
         ast_expr!(TopLevel(
-            inner
-                .next()
-                .map(TopLevelKind::try_from)
-                .unwrap_or(Ok(TopLevelKind::ModAttribute)),
+            inner.next().map(Spanned::try_from).unwrap(),
             attributes,
         ))
     }
@@ -57,7 +54,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
 
                 fields: inner
                     .next()
-                    .map(|pair| collect_recovered::<FieldDecl, FieldDecl>(pair.into_inner()))
+                    .map(|pair| collect_recovered(pair.into_inner()))
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
             }),
@@ -116,7 +113,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
 
-                items: Ok(Vec::new()) as AstResult<'_, Vec<_>>,
+                items: collect_recovered(&mut inner),
             }),
 
             _ => AstError::bug_unimplemented(pair),
