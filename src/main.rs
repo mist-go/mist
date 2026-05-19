@@ -14,8 +14,9 @@ fn main() {
 
     match args[1].as_str() {
         "run" | "build" | "r" | "b" => {
-            let config = transpiler::build();
-            match builder::build(args, config) {
+            let (config, root) = transpiler::build();
+
+            match builder::build(args, config, root) {
                 Ok(diagnostics) => builder::print_diagnostics(diagnostics),
                 Err(diagnostics) => builder::print_diagnostics(diagnostics),
             }

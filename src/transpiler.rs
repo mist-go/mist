@@ -14,7 +14,7 @@ pub struct Config {
     pub output: String,
 }
 
-pub fn build() -> Config {
+pub fn build() -> (Config, PathBuf) {
     let start = Instant::now();
 
     // 1. find project root
@@ -36,7 +36,7 @@ pub fn build() -> Config {
 
     println!("build finished in {:.2?}", elapsed);
 
-    config
+    (config, root)
 }
 
 fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {

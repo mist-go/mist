@@ -1,10 +1,11 @@
 use std::{
     collections::{HashMap, HashSet},
-    fs,
+    env, fs,
+    path::PathBuf,
     process::{Command, Stdio},
 };
 
-use cargo_metadata::Message;
+use cargo_metadata::{CompilerMessage, Message};
 use mist_parser::rev_mapper::{MistMap, RustMap, find_mapping, get_mapping};
 
 use crate::transpiler::Config;
@@ -12,7 +13,8 @@ use crate::transpiler::Config;
 #[derive(Debug, Clone)]
 pub struct MistDiagnosticMessage {
     pub message: String,
-    pub src_path: String,
+    pub file_path: String,
+    pub file_name: String,
     pub line: usize,
     pub column: usize,
 }
@@ -21,14 +23,18 @@ pub struct MistDiagnosticMessage {
 pub enum MistDiagnostic {
     Error(MistDiagnosticMessage),
     Warning(MistDiagnosticMessage),
+    Rust(CompilerMessage),
 }
 
 pub fn build(
     mut args: Vec<String>,
     config: Config,
+    root: PathBuf,
 ) -> Result<Vec<MistDiagnostic>, Vec<MistDiagnostic>> {
     args.remove(0);
     args.insert(1, "--message-format=json".to_string());
+
+    let is_root = root == env::current_dir().unwrap();
 
     let mut command = Command::new("cargo")
         .args(args)
@@ -45,25 +51,37 @@ pub fn build(
     for message in cargo_metadata::Message::parse_stream(reader) {
         match message {
             Ok(Message::CompilerMessage(msg)) => {
-                let file_name = msg.target.src_path.as_str().to_string().clone();
-
-                let map = mapping
-                    .entry(file_name.clone())
-                    .or_insert_with(|| get_mapping(&fs::read_to_string(file_name).unwrap()));
-
-                for span in msg.message.spans {
+                for span in &msg.message.spans {
                     if span.is_primary {
-                        let mist_span =
-                            find_mapping(&map, &RustMap(span.line_end, span.column_start)).unwrap();
+                        let file_name = span.file_name.clone();
 
                         let mist_file = span
                             .file_name
                             .replacen(&config.output, &config.src, 1)
                             .replace(".rs", ".mist");
 
+                        let mist_path = root.join(&mist_file);
+
+                        if !fs::exists(&mist_path).unwrap() {
+                            diagnostics.push(MistDiagnostic::Rust(msg));
+                            break;
+                        }
+
+                        let map = mapping.entry(file_name.clone()).or_insert_with(|| {
+                            get_mapping(&fs::read_to_string(file_name).unwrap())
+                        });
+
+                        let mist_span =
+                            find_mapping(&map, &RustMap(span.line_end, span.column_start)).unwrap();
+
                         let mist_msg = MistDiagnosticMessage {
-                            message: span.label.unwrap_or(msg.message.message.clone()),
-                            src_path: mist_file,
+                            message: span.label.clone().unwrap_or(msg.message.message.clone()),
+                            file_path: mist_path.to_string_lossy().to_string(),
+                            file_name: if is_root {
+                                mist_file
+                            } else {
+                                mist_path.to_string_lossy().to_string()
+                            },
                             line: mist_span.1.0,
                             column: mist_span.1.1,
                         };
@@ -107,7 +125,7 @@ pub fn print_diagnostics(diagnostics: Vec<MistDiagnostic>) {
 
                 println!(
                     "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}",
-                    msg.src_path,
+                    msg.file_name,
                     msg.line + 1,
                     msg.column,
                     msg.message,
@@ -120,13 +138,14 @@ pub fn print_diagnostics(diagnostics: Vec<MistDiagnostic>) {
 
                 println!(
                     "\n{}:{}:{}\n \x1b[33mWarning\x1b[0m: {}\n\t{}",
-                    msg.src_path,
+                    msg.file_name,
                     msg.line + 1,
                     msg.column,
                     msg.message,
                     line.unwrap_or_default(),
                 )
             }
+            MistDiagnostic::Rust(rs) => println!("{rs}"),
         }
     }
 }
@@ -135,7 +154,7 @@ pub fn get_line(
     files: &mut HashMap<String, Vec<String>>,
     msg: &MistDiagnosticMessage,
 ) -> Option<String> {
-    let src_path = msg.src_path.clone();
+    let src_path = msg.file_path.clone();
 
     let lines = files.entry(src_path.clone()).or_insert_with(|| {
         fs::read_to_string(src_path)
