@@ -7,3 +7,7 @@ license = "Apache-2.0"
 repository = "https://github.com/mist-go/mist"
 keywords = ["language-server", "language", "mist"]
 categories = ["language-servers"]
+
+[dependencies]
+tokio = { version = "1.52.3", features = ["full", "macros", "rt", "rt-multi-thread"] }
+tower-lsp = "0.20.0"
