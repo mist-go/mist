@@ -2,7 +2,7 @@
 name = "mist-analyzer"
 version = "0.0.1"
 edition = "2024"
-description = "The Mist programming language Analzyer LSP"
+description = "The Mist programming language Analyzer LSP"
 license = "Apache-2.0"
 repository = "https://github.com/mist-go/mist"
 keywords = ["language-server", "language", "mist"]
