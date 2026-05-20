@@ -1,0 +1,14 @@
+[package]
+name = "mist-analyzer"
+version = "0.0.1"
+edition = "2024"
+description = "The Mist programming language Analyzer LSP"
+license = "Apache-2.0"
+repository = "https://github.com/mist-go/mist"
+keywords = ["language-server", "language", "mist"]
+categories = ["language-servers"]
+
+[dependencies]
+dashmap = "6.2.1"
+tokio = { version = "1.52.3", features = ["full", "macros", "rt", "rt-multi-thread"] }
+tower-lsp = "0.20.0"

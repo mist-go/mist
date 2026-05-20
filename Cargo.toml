@@ -20,6 +20,7 @@ include = [
 serde = { version = "1.0.228", features = ["serde_derive"] }
 serde_json = "1.0.149"
 mist-parser = { path = "./parser", version = "0.1.4"}
+mist-analyzer = { path = "./analyzer", version = "0.0.1"}
 cargo_metadata = "0.23.1"
 
 [[bin]]
@@ -27,5 +28,9 @@ name = "mist"
 path = "build/main.rs"
 
 [[bin]]
-name = "mist-lang"
+name = "mist-header"
 path = "src/_header.rs"
+
+[[bin]]
+name = "mist-analyzer"
+path = "build/analyzer.rs"
