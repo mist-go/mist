@@ -31,7 +31,7 @@ void main() {
             transpiler::build();
         }
         "init" => {
-            init_project();
+            init_project(args);
         }
         "version" | "--version" | "-v" => {
             println!("mist {}", env!("CARGO_PKG_VERSION"));
@@ -66,16 +66,42 @@ void print_usage() {
     println!(" \x1b[36m mist help\x1b[0m              print this message\n");
 }
 
-void init_project(Vec<String> args) {
+void init_project(Vec<String> mut args) {
+    args.remove(0);
+
     new process::Command("cargo")
         .args(args)
-        .stdout(process::Stdio::piped())
-        .stderr(process::Stdio::piped())
-        .stdin(process::Stdio::piped())
+        .stdout(process::Stdio::inherit())
+        .stderr(process::Stdio::inherit())
+        .stdin(process::Stdio::inherit())
         .spawn()
-        .expect("Failed to run cargo");
-    
-    fs::remove("src/main.rs").expect("Failed to remove src/main.rs");
+        .expect("Failed to run cargo").wait().expect("Unable to wait");
 
-    fs::write("src/main.mist", "void main() {\n    println!(\"Hello, World!\")\n}").expect("Failed to create src/main.mist");
+    bool is_lib = fs::metadata("src/lib.rs").is_ok();
+
+    if (is_lib) {
+        fs::remove_file("src/lib.rs").expect("Failed to remove src/lib.rs");
+        fs::write("src/lib.mist", "void test() {\n}").expect("Failed to create src/lib.mist");
+    } else {
+        fs::remove_file("src/main.rs").expect("Failed to remove src/main.rs");
+        fs::write("src/main.mist", "void main() {\n    println!(\"Hello, World!\");\n}\n").expect("Failed to create src/main.mist");
+    }
+
+    inject_mist_target(is_lib);
+
+    println!("\n\x1b[34minfo\x1b[0m: Please open Cargo.toml and adjust `\x1b[35mname\x1b[0m = ` as needed, Thank you for using Mist!\n");
+}
+
+void inject_mist_target(bool is_lib) {
+    String toml_content = fs::read_to_string("Cargo.toml").expect("Failed to read Cargo.toml");
+
+    str* inject;
+
+    if (is_lib) {
+        inject = "\n[lib]\nname = \"my_lib\"\npath = \".mist/src/lib.rs\"\n";
+    } else {
+        inject = "\n[[bin]]\nname = \"my_bin\"\npath = \".mist/src/main.rs\"\n";
+    }
+
+    fs::write("Cargo.toml", toml_content+inject).expect("Failed to create src/main.mist");
 }

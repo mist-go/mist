@@ -143,11 +143,11 @@ literal = {
 // ======================================================
 
 tuple_pattern = {
-    "(" ~ (identifier ~ ("," ~ identifier)*) ~ ")"
+    "[" ~ (identifier ~ ("," ~ identifier)*) ~ "]"
 }
 
 named_tuple_pattern = {
-    static_path ~ "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")"
+    static_path ~ "[" ~ (identifier ~ ("," ~ identifier)*)? ~ "]"
 }
 
 struct_pattern = {
