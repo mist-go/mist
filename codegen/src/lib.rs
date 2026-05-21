@@ -57,13 +57,17 @@ impl RustCodegen {
         self.add(&line);
     }
 
-    // pub fn generate(&mut self, toplevels: Vec<TopLevel>) -> String {
-    //     for tl in toplevels {
-    //         tl.gen_rust(self);
-    //     }
+    pub fn generate(&mut self, toplevels: Vec<TopLevel>) -> String {
+        let mut ctx = Context {
+            expr_ensure_semicolon: true,
+        };
 
-    //     self.output.clone()
-    // }
+        for tl in toplevels {
+            tl.gen_rust(&mut ctx, self);
+        }
+
+        self.output.clone()
+    }
 
     pub fn ensure_brackets(&mut self, ctx: &mut Context, stmt: &Box<Statement>) {
         match &**stmt {
@@ -74,6 +78,28 @@ impl RustCodegen {
                 stmt.gen_rust(ctx, self);
                 self.indent -= 1;
                 self.add("}");
+            }
+        }
+    }
+}
+
+impl GenRust for Attribute {
+    fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
+        match self {
+            Self::Path(path) => cg.add(&path.get_rust()),
+            Self::NameValue { path, value } => {
+                cg.add(&format!("{} =", path.get_rust()));
+                value.gen_rust(ctx, cg);
+            }
+            Self::List { path, items } => {
+                cg.add(&path.get_rust());
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        cg.add(", ");
+                    }
+
+                    item.gen_rust(ctx, cg);
+                }
             }
         }
     }

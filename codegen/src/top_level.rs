@@ -150,6 +150,26 @@ impl GenRust for ParamList {
     }
 }
 
+impl GenRust for TopLevel {
+    fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
+        if let TopLevelKind::ModAttribute = self.0.item {
+            for attr in &self.1 {
+                cg.add("#![");
+                attr.gen_rust(ctx, cg);
+                cg.addln("]");
+            }
+        } else {
+            for attr in &self.1 {
+                cg.add("#[");
+                attr.gen_rust(ctx, cg);
+                cg.addln("]");
+            }
+        }
+
+        self.0.gen_rust(ctx, cg);
+    }
+}
+
 impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &ClassConstructor) {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         cg.add_indentedln(&format!(
