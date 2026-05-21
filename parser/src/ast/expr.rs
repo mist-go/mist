@@ -3,33 +3,10 @@ use serde::Serialize;
 use super::*;
 
 #[derive(Debug, Clone, Serialize)]
-pub enum BinaryOp {
-    Plus,
-    Minus,
-    Multiply,
-    Divide,
-    Modulo,
-    Equal,
-    NotEqual,
-    LessThan,
-    GreaterThan,
-    LessThanOrEqual,
-    GreaterThanOrEqual,
-    And,
-    Or,
-    ShiftLeft,
-    ShiftRight,
-    RangeInclusive,
-    RangeExclusive,
-    BitAnd,
-    BitOr,
-    BitXor,
-}
-
-#[derive(Debug, Clone, Serialize)]
 pub enum Expression {
     Literal(Literal),
     Path(ExprPath),
+    Statement(Box<Statement>),
     Fix {
         initial: Box<Expression>,
         prefixes: Vec<Prefix>,
@@ -37,7 +14,7 @@ pub enum Expression {
     },
     Binary {
         lhs: Box<Expression>,
-        op: BinaryOp,
+        op: String,
         rhs: Box<Expression>,
     },
 }
@@ -69,8 +46,11 @@ pub enum Postfix {
     Call(Vec<Expression>),
     MacroCall(String),
     StructCall(Vec<(Identifier, Expression)>),
+    Assign(String, Box<Expression>),
     Index(Expression),
     As(TypeExpr),
+    Increment,
+    Decrement,
     Try,
 }
 

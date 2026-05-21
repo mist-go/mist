@@ -3,19 +3,15 @@ use serde::Serialize;
 use super::*;
 
 #[derive(Debug, Clone, Serialize, Default)]
-pub struct Block(pub Vec<Spanned<Statement>>);
+pub struct Block(
+    pub Vec<Spanned<Expression>>,
+    pub Option<Spanned<Expression>>,
+);
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Statement {
-    Expression(Expression),
     Block(Block),
-
     VarDecl(VarDeclStmt),
-    Assign {
-        target: Expression,
-        compound: String,
-        value: Expression,
-    },
     If {
         initial: StatementBranch,
         else_if: Vec<StatementBranch>,
@@ -39,9 +35,6 @@ pub enum Statement {
     Return(Option<Expression>),
     Break,
     Continue,
-
-    Increment(Expression),
-    Decrement(Expression),
 }
 
 #[derive(Debug, Clone, Serialize)]

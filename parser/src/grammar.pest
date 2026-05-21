@@ -29,11 +29,10 @@ keyword = {
   | "true"
   | "false"
   | "dyn"
-  | "self"
 }
 
 identifier = @{
-    !keyword ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*
+    !(keyword ~ !(ASCII_ALPHANUMERIC | "_")) ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*
 }
 
 integer = @{ ASCII_DIGIT+ }
@@ -76,14 +75,6 @@ program = {
 visibility = { "pub" ~ ("(" ~ static_path ~ ")")? }
 mutable    = { "mut" }
 var        = { "var" }
-
-// ======================================================
-// ERROR RECOVERY
-// ======================================================
-
-unexpected_statement = {
-    (!(semicolon | "}" | statement) ~ ANY)+
-}
 
 // ======================================================
 // GENERICS
@@ -143,11 +134,11 @@ literal = {
 // ======================================================
 
 tuple_pattern = {
-    "(" ~ (identifier ~ ("," ~ identifier)*) ~ ")"
+    "[" ~ (identifier ~ ("," ~ identifier)*) ~ "]"
 }
 
 named_tuple_pattern = {
-    static_path ~ "(" ~ (identifier ~ ("," ~ identifier)*)? ~ ")"
+    static_path ~ "[" ~ (identifier ~ ("," ~ identifier)*)? ~ "]"
 }
 
 struct_pattern = {
@@ -339,78 +330,57 @@ top_level = {
 // ======================================================
 
 block = {
-    "{" ~ (statement | unexpected_statement)* ~ "}"
+    "{" ~ statement_list ~ expr? ~ "}"
+}
+
+statement_list = {
+    statement*
 }
 
 statement = _{
-    match_stmt
-  | if_stmt
-  | while_stmt
-  | c_for_stmt
-  | for_stmt
-  | return_stmt
-  | break_stmt
-  | continue_stmt
-  | block
-  | increment_statement
-  | decrement_statement
-  | var_decl_statement
-  | assign_statement
-  | expr_stmt
+    control_flow
+  | (expr ~ semicolon)
 }
 
 // ------------------------------------------------------
 // BASIC STATEMENTS
 // ------------------------------------------------------
 
-expr_stmt = {
-    expr ~ semicolon
+basic_stmt = {
+    return_stmt
+  | break_stmt
+  | continue_stmt
+  | var_decl_statement
 }
 
 return_stmt = {
-    "return" ~ expr? ~ semicolon
+    "return" ~ expr?
 }
 
 break_stmt = {
-    "break" ~ semicolon
+    "break"
 }
 
 continue_stmt = {
-    "continue" ~ semicolon
+    "continue"
 }
 
 var_decl_statement = {
-    var_decl ~ ("=" ~ expr)? ~ semicolon
-}
-
-increment_statement = {
-    expr ~ "++" ~ semicolon
-}
-
-decrement_statement = {
-    expr ~ "--" ~ semicolon
-}
-
-compound_assign = {
-    "="
-  | "+="
-  | "-="
-  | "/="
-  | "%="
-  | "&="
-  | "|="
-  | "^="
-  | "<<="
-  | ">>="
-}
-
-assign_statement = {
-    expr ~ compound_assign ~ expr ~ semicolon
+    var_decl ~ ("=" ~ expr)?
 }
 
 // ------------------------------------------------------
 // CONDITIONALS
 // ------------------------------------------------------
+
+control_flow = {
+    if_stmt
+  | while_stmt
+  | c_for_stmt
+  | for_stmt
+  | match_stmt
+  | block
+}
 
 statement_branch = { "(" ~ expr ~ ")" ~ statement }
 
@@ -478,7 +448,7 @@ array = {
 // MACROS
 // ------------------------------------------------------
 
-macro_inner_v = {
+macro_inner_v = @{
     string_lit
   | ("(" ~ macro_inner_v* ~ ")")
   | (!("(" | ")") ~ ANY)
@@ -497,7 +467,9 @@ expr_path = {
 }
 
 primary = {
-    literal
+    control_flow
+  | basic_stmt
+  | literal
   | expr_path
   | tuple
   | array
@@ -539,6 +511,14 @@ try_px = {
     "?"
 }
 
+increment = {
+    "++"
+}
+
+decrement = {
+    "--"
+}
+
 postfix = {
     field_px
   | call_px
@@ -547,6 +527,8 @@ postfix = {
   | index_px
   | as_px
   | try_px
+  | increment
+  | decrement
 }
 
 // ------------------------------------------------------
@@ -570,51 +552,40 @@ prefix = {
 }
 
 // ------------------------------------------------------
-// OPERATORS (Arranged carefully for PEG priority matching)
+// OPERATORS
 // ------------------------------------------------------
 
-shl       = { "<<" }
-shr       = { ">>" }
-range_inc = { "..=" }
-range_exc = { ".." }
-lte       = { "<=" }
-gte       = { ">=" }
-eq        = { "==" }
-neq       = { "!=" }
-and       = { "&&" }
-or        = { "||" }
-add       = { "+" }
-sub       = { "-" }
-mul       = { "*" }
-div       = { "/" }
-rem       = { "%" }
-lt        = { "<" }
-gt        = { ">" }
-bitand    = { "&" }
-bitor     = { "|" }
-bitxor    = { "^" }
-
-bin_op = _{
-    shl
-  | shr
-  | range_inc
-  | range_exc
-  | lte
-  | gte
-  | eq
-  | neq
-  | and
-  | or
-  | lt
-  | gt
-  | add
-  | sub
-  | mul
-  | div
-  | rem
-  | bitand
-  | bitor
-  | bitxor
+bin_op = {
+    "+="
+  | "-="
+  | "/="
+  | "%="
+  | "&="
+  | "|="
+  | "^="
+  | "<<="
+  | ">>="
+  | "<<"
+  | ">>"
+  | "..="
+  | ".."
+  | "<="
+  | ">="
+  | "=="
+  | "!="
+  | "&&"
+  | "||"
+  | "+"
+  | "-"
+  | "*"
+  | "/"
+  | "%"
+  | "<"
+  | ">"
+  | "&"
+  | "|"
+  | "^"
+  | "="
 }
 
 // ------------------------------------------------------

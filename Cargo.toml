@@ -25,7 +25,7 @@ cargo_metadata = "0.23.1"
 
 [[bin]]
 name = "mist"
-path = "build/main.rs"
+path = ".mist/src/main.rs"
 
 [[bin]]
 name = "mist-header"
@@ -33,4 +33,4 @@ path = "src/_header.rs"
 
 [[bin]]
 name = "mist-analyzer"
-path = "build/analyzer.rs"
+path = ".mist/src/analyzer.rs"

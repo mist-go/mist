@@ -1,8 +1,8 @@
 use mist_parser::ast::{
-    Attribute, BinaryOp, Block, ClassItem, EnumItem, ExprPath, ExprPathSegment, Expression,
-    FieldDecl, FunctionDecl, Generic, GenericDecl, Generics, GenericsDecl, Identifier, ImplDecl,
-    Literal, Path, Pattern, Postfix, Prefix, Spanned, Statement, StatementBranch, TopLevel,
-    TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarDecl, VarDeclStmt, Visibility,
+    Attribute, Block, ClassItem, EnumItem, ExprPath, ExprPathSegment, Expression, FieldDecl,
+    FunctionDecl, Generic, GenericDecl, Generics, GenericsDecl, Identifier, ImplDecl, Literal,
+    Path, Pattern, Postfix, Prefix, Spanned, Statement, StatementBranch, TopLevel, TopLevelKind,
+    TypeExpr, TypeExprKind, TypePostfix, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -169,6 +169,12 @@ impl GetRust for Expression {
         match self {
             Expression::Path(path) => path.get_rust(),
             Expression::Literal(literal) => literal.get_rust(),
+            Expression::Statement(stmt) => {
+                let mut cg = RustCodegen::new();
+                cg.indent += 1;
+                stmt.to_rust(&mut cg);
+                cg.output
+            }
             Expression::Fix {
                 initial,
                 prefixes,
@@ -181,29 +187,7 @@ impl GetRust for Expression {
             }
             // Safely integrated to handle the tree structure built by the Pratt Parser
             Expression::Binary { lhs, op, rhs } => {
-                let op_str = match op {
-                    BinaryOp::Plus => "+",
-                    BinaryOp::Minus => "-",
-                    BinaryOp::Multiply => "*",
-                    BinaryOp::Divide => "/",
-                    BinaryOp::Modulo => "%",
-                    BinaryOp::Equal => "==",
-                    BinaryOp::NotEqual => "!=",
-                    BinaryOp::LessThan => "<",
-                    BinaryOp::GreaterThan => ">",
-                    BinaryOp::LessThanOrEqual => "<=",
-                    BinaryOp::GreaterThanOrEqual => ">=",
-                    BinaryOp::And => "&&",
-                    BinaryOp::Or => "||",
-                    BinaryOp::ShiftLeft => "<<",
-                    BinaryOp::ShiftRight => ">>",
-                    BinaryOp::RangeInclusive => "..=",
-                    BinaryOp::RangeExclusive => "..",
-                    BinaryOp::BitAnd => "&",
-                    BinaryOp::BitOr => "|",
-                    BinaryOp::BitXor => "^",
-                };
-                format!("{} {} {}", lhs.get_rust(), op_str, rhs.get_rust())
+                format!("{} {} {}", lhs.get_rust(), op, rhs.get_rust())
             }
         }
     }
@@ -313,6 +297,10 @@ impl GetRust for Postfix {
             Postfix::As(ty) => format!(" as {}", ty.get_rust()),
 
             Postfix::Try => String::from("?"),
+
+            Postfix::Assign(cmp, expr) => format!("{cmp} {}", expr.get_rust()),
+            Postfix::Increment => "+=1".to_string(),
+            Postfix::Decrement => "-=1".to_string(),
         }
     }
 }
@@ -336,7 +324,11 @@ impl<T: ToRust> ToRust for Spanned<T> {
 impl ToRust for Block {
     fn to_rust(self, cg: &mut RustCodegen) {
         for stmt in self.0 {
-            stmt.to_rust(cg);
+            cg.add_indentedln(&(stmt.get_rust() + ";"));
+        }
+
+        if let Some(soft_return) = self.1 {
+            cg.add_indentedln(&soft_return.get_rust());
         }
     }
 }
@@ -608,10 +600,6 @@ impl ToRust for TopLevelKind {
 impl ToRust for Statement {
     fn to_rust(self, cg: &mut RustCodegen) {
         match self {
-            Statement::Expression(expr) => {
-                cg.add_indentedln(&format!("{};", expr.get_rust()));
-            }
-
             Statement::Block(block) => {
                 cg.add_indentedln("{");
                 cg.indent += 1;
@@ -625,20 +613,7 @@ impl ToRust for Statement {
                     .map(|e| format!(" = {}", e.get_rust()))
                     .unwrap_or_default();
 
-                cg.add_indentedln(&format!("let {}{};", decl.get_rust(), init));
-            }
-
-            Statement::Assign {
-                target,
-                compound,
-                value,
-            } => {
-                cg.add_indentedln(&format!(
-                    "{} {} {};",
-                    target.get_rust(),
-                    compound,
-                    value.get_rust(),
-                ));
+                cg.add_indentedln(&format!("let {}{}", decl.get_rust(), init));
             }
 
             Statement::Match(expr, match_items) => {
@@ -733,14 +708,11 @@ impl ToRust for Statement {
 
             Statement::Return(expr) => {
                 let val = expr.map(|e| e.get_rust()).unwrap_or_default();
-                cg.add_indentedln(&format!("return {};", val));
+                cg.add_indentedln(&format!("return {}", val));
             }
 
-            Statement::Break => cg.add_indentedln("break;"),
-            Statement::Continue => cg.add_indentedln("continue;"),
-
-            Statement::Increment(e) => cg.add_indentedln(&format!("{}+=1;", e.get_rust())),
-            Statement::Decrement(e) => cg.add_indentedln(&format!("{}-=1;", e.get_rust())),
+            Statement::Break => cg.add_indentedln("break"),
+            Statement::Continue => cg.add_indentedln("continue"),
         }
     }
 }

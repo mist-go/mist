@@ -15,7 +15,6 @@ pub class Application {
 
     pub constructor(str* name) {
         self.name = name.to_string();
-
         self.tasks = new Vec();
         self.plugins = new Vec();
 
@@ -79,15 +78,15 @@ pub class Application {
                 self.logger.info("shutdown event");
             }
 
-            event::Event::PluginLoaded(name) => {
+            event::Event::PluginLoaded[name] => {
                 println!("plugin loaded: {}", name);
             }
 
-            event::Event::TaskExecuted(name) => {
+            event::Event::TaskExecuted[name] => {
                 println!("task executed: {}", name);
             }
 
-            event::Event::Error(message) => {
+            event::Event::Error[message] => {
                 self.logger.error(&message);
             }
         }

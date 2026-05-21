@@ -2,7 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_ensure, ast_expr,
-    error::{AstError, AstResult, ErrorCode, IntoErr, collect_recovered},
+    error::{AstError, AstResult, IntoErr, collect_recovered},
     parser::listen_rule,
 };
 
@@ -10,8 +10,10 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
     type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        let mut inner = pair.clone().into_inner();
+
         ast_ensure!(pair, Rule::block => {
-            ast_expr!(Block(collect_recovered(pair.into_inner())))
+            ast_expr!(Block(collect_recovered(inner.next().unwrap().into_inner()), inner.next().map(Spanned::try_from).transpose()))
         })
     }
 }
@@ -39,10 +41,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
         let mut inner = pair.clone().into_inner();
 
         match rule {
-            Rule::statement => Statement::try_from(inner.next().unwrap()),
-
-            Rule::expr_stmt => {
-                ast_expr!(Statement::Expression(inner.next().unwrap().try_into()))
+            Rule::statement | Rule::basic_stmt | Rule::control_flow => {
+                Statement::try_from(inner.next().unwrap())
             }
 
             Rule::block => ast_expr!(Statement::Block(pair.try_into())),
@@ -88,12 +88,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                 body: inner.next().unwrap().try_into().map(Box::new),
             }),
 
-            Rule::assign_statement => ast_expr!(Statement::Assign {
-                target: inner.next().unwrap().try_into(),
-                compound: Ok(inner.next().unwrap().as_str().trim().to_string())
-                    as AstResult<'_, String>,
-                value: inner.next().unwrap().try_into(),
-            }),
             Rule::match_stmt => ast_expr!(Statement::Match(
                 inner.next().unwrap().try_into(),
                 inner
@@ -106,23 +100,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                     })
                     .collect::<AstResult<'a, Vec<_>>>(),
             )),
-
-            Rule::increment_statement => {
-                ast_expr!(Statement::Increment(inner.next().unwrap().try_into()))
-            }
-
-            Rule::decrement_statement => {
-                ast_expr!(Statement::Decrement(inner.next().unwrap().try_into()))
-            }
-
-            Rule::unexpected_statement => {
-                return Err(AstError {
-                    span: pair.as_span(),
-                    error_code: ErrorCode::InvalidStatement,
-                    error_message: "Invalid Statement".to_string(),
-                    recovered: None,
-                });
-            }
 
             _ => AstError::bug_unimplemented(pair),
         }

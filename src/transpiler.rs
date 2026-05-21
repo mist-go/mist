@@ -6,25 +6,16 @@ use std::{
 };
 
 use mist_parser::error::ParseError;
-use serde::Deserialize;
 
-#[derive(Deserialize)]
-pub struct Config {
-    pub src: String,
-    pub output: String,
-}
-
-pub fn build() -> (Config, PathBuf) {
+pub fn build() -> PathBuf {
     let start = Instant::now();
 
-    let root = find_project_root().unwrap_or_else(|| {
-        panic!("error: could not find project root (mist.json)");
-    });
+    let root = std::env::current_dir()
+        .ok()
+        .expect("Unable to find project root");
 
-    let config = load_config(&root);
-
-    let src_dir = root.join(&config.src);
-    let out_dir = root.join(&config.output);
+    let src_dir = root.join("src");
+    let out_dir = root.join(".mist/src");
 
     build_dir(&root, &src_dir, &src_dir, &out_dir);
 
@@ -35,7 +26,7 @@ pub fn build() -> (Config, PathBuf) {
         elapsed
     );
 
-    (config, root)
+    root
 }
 
 fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
@@ -172,24 +163,4 @@ fn should_skip(source: &Path, output: &Path) -> bool {
         }
     }
     false
-}
-
-pub fn find_project_root() -> Option<PathBuf> {
-    let mut dir = std::env::current_dir().ok()?;
-
-    loop {
-        if dir.join("mist.json").exists() {
-            return Some(dir);
-        }
-
-        if !dir.pop() {
-            return None;
-        }
-    }
-}
-
-fn load_config(root: &Path) -> Config {
-    let content = fs::read_to_string(root.join("mist.json")).expect("failed to read mist.json");
-
-    serde_json::from_str(&content).expect("invalid mist.json format")
 }
