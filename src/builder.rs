@@ -8,8 +8,6 @@ use std::{
 use cargo_metadata::{CompilerMessage, Message};
 use mist_parser::rev_mapper::{RustMap, find_mapping, get_mapping};
 
-use crate::transpiler::Config;
-
 #[derive(Debug, Clone)]
 pub struct MistDiagnosticMessage {
     pub message: String,
@@ -26,7 +24,7 @@ pub enum MistDiagnostic {
     Rust(CompilerMessage),
 }
 
-pub fn build(mut args: Vec<String>, config: Config, root: PathBuf) -> bool {
+pub fn build(mut args: Vec<String>, root: PathBuf) -> bool {
     args.remove(0);
     args.insert(1, "--message-format=json".to_string());
 
@@ -55,7 +53,7 @@ pub fn build(mut args: Vec<String>, config: Config, root: PathBuf) -> bool {
 
                         let mist_file = span
                             .file_name
-                            .replacen(&config.output, &config.src, 1)
+                            .replacen(".mist/src", "src", 1)
                             .replace(".rs", ".mist");
 
                         let mist_path = root.join(&mist_file);

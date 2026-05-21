@@ -15,9 +15,12 @@ void main() {
 
     match (args[1].as_str()) {
         "run" | "build" | "check" | "r" | "b" | "c" => {
-            var (config, root) = transpiler::build();
+
+            var root = transpiler::build();
+
             println!("");
-            if (builder::build(args, config, root)) {
+
+            if (builder::build(args, root)) {
                 println!("\x1b[32m\nBuild successful\x1b[0m");
             } else {
                 println!("\x1b[31m\nBuild failed\x1b[0m");
