@@ -30,7 +30,7 @@ pub enum Statement {
         iterator: Expression,
         body: Box<Statement>,
     },
-    Match(Expression, Vec<(Vec<Pattern>, Block)>),
+    Match(Expression, Vec<(Vec<Pattern>, Expression)>),
 
     Return(Option<Expression>),
     Break,

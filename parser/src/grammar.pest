@@ -419,7 +419,7 @@ for_stmt = {
 pattern_list = { pattern ~ ("|" ~ pattern)* }
 
 match_item = {
-    pattern_list ~ "=>" ~ block
+    pattern_list ~ "=>" ~ statement
 }
 
 match_stmt = {
