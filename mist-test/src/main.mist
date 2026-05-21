@@ -9,5 +9,9 @@ void main() {
         println!("Yes!");
     }
 
+    i32 y = if (x == 3) { 1 } else { 0 };
+
     println!("hello, world {x}");
+
+    println!("{y}")
 }

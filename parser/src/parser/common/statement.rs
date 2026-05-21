@@ -10,8 +10,10 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
     type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        let mut inner = pair.clone().into_inner();
+
         ast_ensure!(pair, Rule::block => {
-            ast_expr!(Block(collect_recovered(pair.into_inner())))
+            ast_expr!(Block(collect_recovered(inner.next().unwrap().into_inner()), inner.next().map(Spanned::try_from).transpose()))
         })
     }
 }
@@ -39,7 +41,9 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
         let mut inner = pair.clone().into_inner();
 
         match rule {
-            Rule::statement | Rule::basic_stmt | Rule::control_flow => Statement::try_from(inner.next().unwrap()),
+            Rule::statement | Rule::basic_stmt | Rule::control_flow => {
+                Statement::try_from(inner.next().unwrap())
+            }
 
             Rule::block => ast_expr!(Statement::Block(pair.try_into())),
 

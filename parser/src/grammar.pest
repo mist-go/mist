@@ -339,7 +339,11 @@ top_level = {
 // ======================================================
 
 block = {
-    "{" ~ (statement | unexpected_statement)* ~ "}"
+    "{" ~ statement_list ~ expr? ~ "}"
+}
+
+statement_list = {
+    (statement | (!expr ~ unexpected_statement))*
 }
 
 statement = _{
@@ -472,7 +476,8 @@ expr_path = {
 }
 
 primary = {
-    basic_stmt
+    control_flow
+  | basic_stmt
   | literal
   | expr_path
   | tuple

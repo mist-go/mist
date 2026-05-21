@@ -326,6 +326,10 @@ impl ToRust for Block {
         for stmt in self.0 {
             cg.add_indentedln(&(stmt.get_rust() + ";"));
         }
+
+        if let Some(soft_return) = self.1 {
+            cg.add_indentedln(&soft_return.get_rust());
+        }
     }
 }
 
