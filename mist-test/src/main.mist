@@ -1,17 +1,12 @@
+pub mod app;
+pub mod task;
+pub mod plugin;
+pub mod logger;
+pub mod event;
+
 void main() {
-    i32 mut x = 10;
+    var mut app_instance = new app::Application("mist-app");
 
-    x = 1 + 1;
-
-    x++;
-
-    if (1 == 1) {
-        println!("Yes!");
-    }
-
-    i32 y = if (x == 3) { 1 } else { 0 };
-
-    println!("hello, world {x}");
-
-    println!("{y}")
+    app_instance.boot();
+    app_instance.run();
 }

@@ -78,7 +78,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
             Rule::static_path => ast_expr!(Expression::Path(pair.try_into())),
             Rule::literal => ast_expr!(Expression::Literal(pair.try_into())),
             Rule::expr_path => ast_expr!(Expression::Path(pair.try_into())),
-            Rule::statement | Rule::basic_stmt | Rule::control_flow => ast_expr!(
+            Rule::statement | Rule::basic_stmt | Rule::control_flow | Rule::unexpected_statement => ast_expr!(
                 Expression::Statement(pair.try_into().get_map(Box::new).map(Box::new))
             ),
 

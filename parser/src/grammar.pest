@@ -29,7 +29,6 @@ keyword = {
   | "true"
   | "false"
   | "dyn"
-  | "self"
 }
 
 identifier = @{
@@ -343,7 +342,7 @@ block = {
 }
 
 statement_list = {
-    (statement | (!expr ~ unexpected_statement))*
+    (statement | (unexpected_statement))*
 }
 
 statement = _{

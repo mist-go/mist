@@ -1,0 +1,95 @@
+use <super::task>;
+use <super::logger>;
+use <super::event>;
+
+pub class Application {
+    String name;
+
+    Vec<task::Task> tasks;
+    Vec<String> plugins;
+
+    logger::Logger logger;
+
+    bool running;
+    i32 ticks;
+
+    pub constructor(str* name) {
+        self.name;
+
+        self.tasks = new Vec();
+        self.plugins = new Vec();
+
+        self.logger = new logger::Logger("app");
+
+        self.running = false;
+        self.ticks = 0;
+    }
+
+    pub void boot(self mut*) {
+        self.logger.info("booting application");
+
+        self.running = true;
+
+        self.emit(event::Event::Startup);
+    }
+
+    pub void run(self mut*) {
+        while(self.running) {
+            self.tick();
+
+            if(self.ticks >= 5) {
+                self.shutdown();
+            }
+        }
+    }
+
+    void tick(self mut*) {
+        self.logger.info("tick");
+
+        self.ticks++;
+
+        var task = task::create_task("background-job");
+
+        self.tasks.push(task);
+
+        println!("tasks: {}", self.tasks.len());
+    }
+
+    pub void shutdown(self mut*) {
+        self.emit(event::Event::Shutdown);
+
+        self.logger.warning("shutdown");
+
+        self.running = false;
+    }
+
+    pub void register_plugin(self mut*, String name) {
+        self.plugins.push(name.clone());
+
+        self.emit(event::Event::PluginLoaded(name));
+    }
+
+    void emit(self*, event::Event event) {
+        match(event) {
+            event::Event::Startup => {
+                self.logger.info("startup event");
+            }
+
+            event::Event::Shutdown => {
+                self.logger.info("shutdown event");
+            }
+
+            event::Event::PluginLoaded[name] => {
+                println!("plugin loaded: {}", name);
+            }
+
+            event::Event::TaskExecuted[name] => {
+                println!("task executed: {}", name);
+            }
+
+            event::Event::Error[message] => {
+                self.logger.error(&message);
+            }
+        }
+    }
+}
