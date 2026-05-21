@@ -119,6 +119,7 @@ impl<T: GetRust> GetRust for Spanned<T> {
 impl<T: GenRust> GenRust for Spanned<T> {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         cg.add_indentedln(&format!("/* {}:{} */", self.line, self.column));
+        cg.add_indented("");
         self.item.gen_rust(ctx, cg);
     }
 }

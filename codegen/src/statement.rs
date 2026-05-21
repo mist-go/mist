@@ -6,29 +6,29 @@ use crate::{GenRust, GetRust, RustCodegen};
 
 impl GenRust for Block {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
+        cg.addln("{");
+        cg.indent += 1;
+
         for stmt in &self.0 {
             ctx.expr_ensure_semicolon = true;
-            cg.add_indented("");
             stmt.gen_rust(ctx, cg);
+            cg.addln("");
         }
 
         if let Some(soft_return) = &self.1 {
             ctx.expr_ensure_semicolon = false;
             soft_return.gen_rust(ctx, cg);
         }
+
+        cg.indent -= 1;
+        cg.add_indentedln("}");
     }
 }
 
 impl GenRust for Statement {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         match self {
-            Statement::Block(block) => {
-                cg.add_indentedln("{");
-                cg.indent += 1;
-                block.gen_rust(ctx, cg);
-                cg.indent -= 1;
-                cg.add_indentedln("}");
-            }
+            Statement::Block(block) => block.gen_rust(ctx, cg),
 
             Statement::VarDecl(VarDeclStmt { decl, init }) => {
                 cg.add("let ");
@@ -48,6 +48,8 @@ impl GenRust for Statement {
 
                 for (pat, body) in match_items {
                     for (i, p) in pat.iter().enumerate() {
+                        cg.addln("");
+                        cg.add_indented("");
                         if i > 0 {
                             cg.add(" | ");
                         }
@@ -55,7 +57,7 @@ impl GenRust for Statement {
                         p.gen_rust(ctx, cg);
                     }
 
-                    cg.add("=> {");
+                    cg.add(" => {");
                     cg.indent += 1;
 
                     body.gen_rust(ctx, cg);

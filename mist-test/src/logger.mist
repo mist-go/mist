@@ -19,7 +19,6 @@ impl fmt::Display for LogLevel {
             LogLevel::Warning => write!(f, "[WARN]");
 
             LogLevel::Error => write!(f, "[ERROR]");
-            
         }
     }
 }

@@ -73,7 +73,7 @@ impl GenRust for ImplDecl {
 
 impl GenRust for FunctionDecl {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
-        cg.add_indentedln(&format!(
+        cg.add(&format!(
             "{}fn {}{}(",
             self.visibility.get_rust(),
             self.name.get_rust(),
@@ -82,7 +82,7 @@ impl GenRust for FunctionDecl {
 
         for (i, param) in self.params.0.iter().enumerate() {
             if i > 0 {
-                cg.add(",");
+                cg.add(", ");
             }
 
             param.gen_rust(ctx, cg);
@@ -92,11 +92,8 @@ impl GenRust for FunctionDecl {
         cg.add(&self.return_type.get_rust());
 
         if let Some(body) = &self.body {
-            cg.add_indentedln(" {\n");
-            cg.indent += 1;
+            cg.add(" ");
             body.gen_rust(ctx, cg);
-            cg.indent -= 1;
-            cg.add_indentedln("}\n");
         } else {
             cg.add(";");
         }
@@ -170,17 +167,17 @@ impl GenRust for TopLevel {
     }
 }
 
-impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &ClassConstructor) {
+impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &Spanned<ClassConstructor>) {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
-        cg.add_indentedln(&format!(
+        cg.add_indented(&format!(
             "{}fn new{}(",
-            self.1.visibility.get_rust(),
-            self.1.generics.get_rust()
+            self.1.item.visibility.get_rust(),
+            self.1.item.generics.get_rust()
         ));
 
-        self.1.params.gen_rust(ctx, cg);
+        self.1.item.params.gen_rust(ctx, cg);
 
-        cg.add(") -> Self {");
+        cg.addln(") -> Self {");
         cg.indent += 1;
 
         cg.add_indentedln("let mut this: Self = unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
@@ -197,9 +194,9 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &ClassConstructor) {
             }
         }
 
-        cg.add_indentedln(&format!("this.constructor("));
+        cg.add_indented(&format!("this.constructor("));
 
-        for (i, param) in self.1.params.0.iter().enumerate() {
+        for (i, param) in self.1.item.params.0.iter().enumerate() {
             if i > 0 {
                 cg.add(", ");
             }
@@ -207,7 +204,7 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &ClassConstructor) {
             param.name.gen_rust(ctx, cg);
         }
 
-        cg.add(");");
+        cg.addln(");");
 
         cg.add_indentedln("this");
 
@@ -223,15 +220,19 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &ClassConstructor) {
             )),
         }];
 
-        constructor_params.append(&mut self.1.params.0.clone());
+        constructor_params.append(&mut self.1.item.params.0.clone());
 
-        FunctionDecl {
-            visibility: self.1.visibility.clone(),
-            name: Identifier(String::from("constructor")),
-            generics: self.1.generics.clone(),
-            params: ParamList(constructor_params),
-            return_type: TypeExpr::no_px(TypeExprKind::Tuple(Vec::new())),
-            body: Some(self.1.body.clone()),
+        Spanned {
+            line: self.1.line,
+            column: self.1.column,
+            item: FunctionDecl {
+                visibility: self.1.item.visibility.clone(),
+                name: Identifier(String::from("constructor")),
+                generics: self.1.item.generics.clone(),
+                params: ParamList(constructor_params),
+                return_type: TypeExpr::no_px(TypeExprKind::Tuple(Vec::new())),
+                body: Some(self.1.item.body.clone()),
+            },
         }
         .gen_rust(ctx, cg);
     }
@@ -369,7 +370,7 @@ impl GenRust for TopLevelKind {
                 cg.add_indentedln("#[allow(invalid_value)]");
                 cg.add_indentedln(&constructor_comment);
 
-                (fields, &constructor.item).gen_rust(ctx, cg);
+                (fields, constructor).gen_rust(ctx, cg);
 
                 for item in items.clone() {
                     match item {
