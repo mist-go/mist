@@ -4,6 +4,10 @@ pub mod top_level;
 
 use mist_parser::ast::*;
 
+pub fn get_mutable(mutable: bool) -> String {
+    if mutable { "mut " } else { "" }.to_string()
+}
+
 pub struct Context {
     pub expr_ensure_semicolon: bool,
 }
@@ -43,6 +47,11 @@ impl RustCodegen {
         self.add("\n");
     }
 
+    fn add_indented(&mut self, s: &str) {
+        let line = format!("{}{}", self.indent_str(), s);
+        self.add(&line);
+    }
+
     fn add_indentedln(&mut self, s: &str) {
         let line = format!("{}{}\n", self.indent_str(), s);
         self.add(&line);
@@ -56,18 +65,18 @@ impl RustCodegen {
     //     self.output.clone()
     // }
 
-    // pub fn ensure_brackets(&mut self, stmt: Box<Statement>) {
-    //     match *stmt {
-    //         Statement::Block(_) => stmt.gen_rust(self),
-    //         _ => {
-    //             self.add_indentedln("{");
-    //             self.indent += 1;
-    //             stmt.gen_rust(self);
-    //             self.indent -= 1;
-    //             self.add_indentedln("}");
-    //         }
-    //     }
-    // }
+    pub fn ensure_brackets(&mut self, ctx: &mut Context, stmt: &Box<Statement>) {
+        match &**stmt {
+            Statement::Block(_) => stmt.gen_rust(ctx, self),
+            _ => {
+                self.add("{");
+                self.indent += 1;
+                stmt.gen_rust(ctx, self);
+                self.indent -= 1;
+                self.add("}");
+            }
+        }
+    }
 }
 
 impl<T: GetRust> GetRust for Spanned<T> {
@@ -175,6 +184,41 @@ impl GetRust for TypeExprKind {
     }
 }
 
-pub fn get_mutable(mutable: bool) -> String {
-    if mutable { "mut " } else { "" }.to_string()
+impl GenRust for Pattern {
+    fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
+        match self {
+            Self::Id(id) => cg.add(&id.get_rust()),
+            Self::Path(path) => cg.add(&path.get_rust()),
+            Self::Literal(lit) => lit.gen_rust(ctx, cg),
+
+            Self::Struct(path, ids) => {
+                cg.add(&path.get_rust());
+                cg.add(" {");
+                for id in ids {
+                    cg.add(&id.get_rust());
+                    cg.add(",");
+                }
+                cg.add("}");
+            }
+
+            Self::NamedTuple(path, ids) => {
+                cg.add(&path.get_rust());
+                cg.add(" (");
+                for id in ids {
+                    cg.add(&id.get_rust());
+                    cg.add(",");
+                }
+                cg.add(")");
+            }
+
+            Self::Tuple(ids) => {
+                cg.add("(");
+                for id in ids {
+                    cg.add(&id.get_rust());
+                    cg.add(",");
+                }
+                cg.add(")");
+            }
+        }
+    }
 }
