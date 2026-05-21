@@ -31,7 +31,7 @@ impl LanguageServer for Backend {
             .await;
     }
 
-    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+    async fn completion(&self, _params: CompletionParams) -> Result<Option<CompletionResponse>> {
         self.client
             .log_message(MessageType::INFO, "getting completion")
             .await;

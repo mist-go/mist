@@ -141,7 +141,7 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
 
         // semantic::walk_ast(semantic::scope::Scope::from_top(root, &ast), &mut ast);
 
-        let mut gc = crate::codegen::RustCodegen::new();
+        let mut gc = mist_codegen::RustCodegen::new();
         let output = gc.generate(ast);
 
         if let Err(e) = fs::write(&output_path, output) {

@@ -4,6 +4,29 @@ use crate::Context;
 
 use crate::{GenRust, GetRust, RustCodegen};
 
+impl GetRust for ExprPath {
+    fn get_rust(&self) -> String {
+        self.0
+            .iter()
+            .map(ExprPathSegment::get_rust)
+            .collect::<Vec<_>>()
+            .join("::")
+    }
+}
+
+impl GetRust for ExprPathSegment {
+    fn get_rust(&self) -> String {
+        format!(
+            "{}{}",
+            self.ident.get_rust(),
+            self.generics
+                .as_ref()
+                .map(|v| format!("::{}", v.get_rust()))
+                .unwrap_or_default()
+        )
+    }
+}
+
 impl GenRust for Literal {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         match self {
@@ -46,8 +69,8 @@ impl GenRust for Literal {
 impl GenRust for Expression {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         match self {
-            Expression::Path(path) => unimplemented!(),
-            Expression::Literal(literal) => unimplemented!(),
+            Expression::Path(path) => cg.add(&path.get_rust()),
+            Expression::Literal(literal) => literal.gen_rust(ctx, cg),
             Expression::Statement(stmt) => stmt.gen_rust(ctx, cg),
             Expression::Fix {
                 initial,

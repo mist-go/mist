@@ -3,7 +3,6 @@ use <std::env>;
 use <std::fs>;
 
 pub mod builder;
-pub mod codegen;
 pub mod transpiler;
 
 void main() {
