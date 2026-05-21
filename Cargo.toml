@@ -21,6 +21,7 @@ serde = { version = "1.0.228", features = ["serde_derive"] }
 serde_json = "1.0.149"
 mist-parser = { path = "./parser", version = "0.1.4"}
 mist-analyzer = { path = "./analyzer", version = "0.0.1"}
+mist-codegen = { path = "./codegen", version = "0.1.0"}
 cargo_metadata = "0.23.1"
 
 [[bin]]
