@@ -191,6 +191,9 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
 
             Rule::try_px => Ok(Postfix::Try),
 
+            Rule::increment => Ok(Postfix::Increment),
+            Rule::decrement => Ok(Postfix::Decrement),
+
             _ => AstError::bug_unimplemented(pair),
         }
     }

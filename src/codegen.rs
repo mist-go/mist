@@ -319,6 +319,10 @@ impl GetRust for Postfix {
             Postfix::As(ty) => format!(" as {}", ty.get_rust()),
 
             Postfix::Try => String::from("?"),
+
+            Postfix::Assign(cmp, expr) => format!("{cmp} {}", expr.get_rust()),
+            Postfix::Increment => "+=1".to_string(),
+            Postfix::Decrement => "-=1".to_string(),
         }
     }
 }
@@ -630,19 +634,6 @@ impl ToRust for Statement {
                 cg.add_indentedln(&format!("let {}{};", decl.get_rust(), init));
             }
 
-            Statement::Assign {
-                target,
-                compound,
-                value,
-            } => {
-                cg.add_indentedln(&format!(
-                    "{} {} {};",
-                    target.get_rust(),
-                    compound,
-                    value.get_rust(),
-                ));
-            }
-
             Statement::Match(expr, match_items) => {
                 cg.add_indentedln(&format!("match {} {{", expr.get_rust()));
                 cg.indent += 1;
@@ -740,9 +731,6 @@ impl ToRust for Statement {
 
             Statement::Break => cg.add_indentedln("break;"),
             Statement::Continue => cg.add_indentedln("continue;"),
-
-            Statement::Increment(e) => cg.add_indentedln(&format!("{}+=1;", e.get_rust())),
-            Statement::Decrement(e) => cg.add_indentedln(&format!("{}-=1;", e.get_rust())),
         }
     }
 }

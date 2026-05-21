@@ -70,8 +70,11 @@ pub enum Postfix {
     Call(Vec<Expression>),
     MacroCall(String),
     StructCall(Vec<(Identifier, Expression)>),
+    Assign(String, Box<Expression>),
     Index(Expression),
     As(TypeExpr),
+    Increment,
+    Decrement,
     Try,
 }
 

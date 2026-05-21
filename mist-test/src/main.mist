@@ -1,5 +1,7 @@
 void main() {
-    i32 x;
+    i32 mut x = 10;
 
-    println!("hello, world");
+    x++;
+
+    println!("hello, world {x}");
 }

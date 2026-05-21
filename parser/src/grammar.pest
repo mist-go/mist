@@ -343,7 +343,7 @@ block = {
 }
 
 statement = _{
-    ((expr | basic_stmt_left_recurse) ~ semicolon)
+    (expr ~ semicolon)
 }
 
 // ------------------------------------------------------
@@ -355,12 +355,6 @@ basic_stmt = {
   | break_stmt
   | continue_stmt
   | var_decl_statement
-}
-
-basic_stmt_left_recurse = {
-    increment_statement
-  | decrement_statement
-  | assign_statement
 }
 
 return_stmt = {
@@ -377,31 +371,6 @@ continue_stmt = {
 
 var_decl_statement = {
     var_decl ~ ("=" ~ expr)?
-}
-
-increment_statement = {
-    expr ~ "++"
-}
-
-decrement_statement = {
-    expr ~ "--"
-}
-
-compound_assign = {
-    "="
-  | "+="
-  | "-="
-  | "/="
-  | "%="
-  | "&="
-  | "|="
-  | "^="
-  | "<<="
-  | ">>="
-}
-
-assign_statement = {
-    expr ~ compound_assign ~ expr ~ semicolon
 }
 
 // ------------------------------------------------------
@@ -536,6 +505,31 @@ try_px = {
     "?"
 }
 
+increment = {
+    "++"
+}
+
+decrement = {
+    "--"
+}
+
+compound_assign = {
+    "="
+  | "+="
+  | "-="
+  | "/="
+  | "%="
+  | "&="
+  | "|="
+  | "^="
+  | "<<="
+  | ">>="
+}
+
+assign = {
+    compound_assign ~ expr
+}
+
 postfix = {
     field_px
   | call_px
@@ -544,6 +538,9 @@ postfix = {
   | index_px
   | as_px
   | try_px
+  | increment
+  | decrement
+  | assign
 }
 
 // ------------------------------------------------------
