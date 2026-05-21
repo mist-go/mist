@@ -30,6 +30,7 @@ pub enum BinaryOp {
 pub enum Expression {
     Literal(Literal),
     Path(ExprPath),
+    Statement(Box<Statement>),
     Fix {
         initial: Box<Expression>,
         prefixes: Vec<Prefix>,

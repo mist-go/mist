@@ -117,6 +117,12 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
             Rule::static_path => ast_expr!(Expression::Path(pair.try_into())),
             Rule::literal => ast_expr!(Expression::Literal(pair.try_into())),
             Rule::expr_path => ast_expr!(Expression::Path(pair.try_into())),
+            Rule::statement => ast_expr!(Expression::Statement(
+                pair.try_into().get_map(Box::new).map(Box::new)
+            )),
+            Rule::basic_stmt => ast_expr!(Expression::Statement(
+                pair.try_into().get_map(Box::new).map(Box::new)
+            )),
 
             _ => AstError::bug_unimplemented(pair),
         }

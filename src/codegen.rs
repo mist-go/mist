@@ -169,6 +169,12 @@ impl GetRust for Expression {
         match self {
             Expression::Path(path) => path.get_rust(),
             Expression::Literal(literal) => literal.get_rust(),
+            Expression::Statement(stmt) => {
+                let mut cg = RustCodegen::new();
+                cg.indent += 1;
+                stmt.to_rust(&mut cg);
+                cg.output
+            }
             Expression::Fix {
                 initial,
                 prefixes,
@@ -336,7 +342,7 @@ impl<T: ToRust> ToRust for Spanned<T> {
 impl ToRust for Block {
     fn to_rust(self, cg: &mut RustCodegen) {
         for stmt in self.0 {
-            stmt.to_rust(cg);
+            cg.add_indentedln(&(stmt.get_rust() + ";"));
         }
     }
 }
@@ -608,10 +614,6 @@ impl ToRust for TopLevelKind {
 impl ToRust for Statement {
     fn to_rust(self, cg: &mut RustCodegen) {
         match self {
-            Statement::Expression(expr) => {
-                cg.add_indentedln(&format!("{};", expr.get_rust()));
-            }
-
             Statement::Block(block) => {
                 cg.add_indentedln("{");
                 cg.indent += 1;

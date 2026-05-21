@@ -342,8 +342,8 @@ block = {
     "{" ~ (statement | unexpected_statement)* ~ "}"
 }
 
-statement = {
-    (expr | basic_stmt_left_recurse) ~ semicolon
+statement = _{
+    ((expr | basic_stmt_left_recurse) ~ semicolon)
 }
 
 // ------------------------------------------------------
