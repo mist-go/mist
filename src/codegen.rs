@@ -1,8 +1,8 @@
 use mist_parser::ast::{
-    Attribute, BinaryOp, Block, ClassItem, EnumItem, ExprPath, ExprPathSegment, Expression,
-    FieldDecl, FunctionDecl, Generic, GenericDecl, Generics, GenericsDecl, Identifier, ImplDecl,
-    Literal, Path, Pattern, Postfix, Prefix, Spanned, Statement, StatementBranch, TopLevel,
-    TopLevelKind, TypeExpr, TypeExprKind, TypePostfix, VarDecl, VarDeclStmt, Visibility,
+    Attribute, Block, ClassItem, EnumItem, ExprPath, ExprPathSegment, Expression, FieldDecl,
+    FunctionDecl, Generic, GenericDecl, Generics, GenericsDecl, Identifier, ImplDecl, Literal,
+    Path, Pattern, Postfix, Prefix, Spanned, Statement, StatementBranch, TopLevel, TopLevelKind,
+    TypeExpr, TypeExprKind, TypePostfix, VarDecl, VarDeclStmt, Visibility,
 };
 
 // ---------------------------------------------------------------------------
@@ -187,29 +187,7 @@ impl GetRust for Expression {
             }
             // Safely integrated to handle the tree structure built by the Pratt Parser
             Expression::Binary { lhs, op, rhs } => {
-                let op_str = match op {
-                    BinaryOp::Plus => "+",
-                    BinaryOp::Minus => "-",
-                    BinaryOp::Multiply => "*",
-                    BinaryOp::Divide => "/",
-                    BinaryOp::Modulo => "%",
-                    BinaryOp::Equal => "==",
-                    BinaryOp::NotEqual => "!=",
-                    BinaryOp::LessThan => "<",
-                    BinaryOp::GreaterThan => ">",
-                    BinaryOp::LessThanOrEqual => "<=",
-                    BinaryOp::GreaterThanOrEqual => ">=",
-                    BinaryOp::And => "&&",
-                    BinaryOp::Or => "||",
-                    BinaryOp::ShiftLeft => "<<",
-                    BinaryOp::ShiftRight => ">>",
-                    BinaryOp::RangeInclusive => "..=",
-                    BinaryOp::RangeExclusive => "..",
-                    BinaryOp::BitAnd => "&",
-                    BinaryOp::BitOr => "|",
-                    BinaryOp::BitXor => "^",
-                };
-                format!("{} {} {}", lhs.get_rust(), op_str, rhs.get_rust())
+                format!("{} {} {}", lhs.get_rust(), op, rhs.get_rust())
             }
         }
     }

@@ -18,57 +18,18 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
             Rule::expr => {
                 static PRATT_PARSER: OnceLock<PrattParser<Rule>> = OnceLock::new();
                 let pratt = PRATT_PARSER.get_or_init(|| {
-                    use Rule::*;
                     use pest::pratt_parser::{Assoc::*, Op};
 
-                    PrattParser::new()
-                        .op(Op::infix(range_inc, Left) | Op::infix(range_exc, Left))
-                        .op(Op::infix(or, Left))
-                        .op(Op::infix(and, Left))
-                        .op(Op::infix(bitor, Left))
-                        .op(Op::infix(bitxor, Left))
-                        .op(Op::infix(bitand, Left))
-                        .op(Op::infix(eq, Left) | Op::infix(neq, Left))
-                        .op(Op::infix(lt, Left)
-                            | Op::infix(lte, Left)
-                            | Op::infix(gt, Left)
-                            | Op::infix(gte, Left))
-                        .op(Op::infix(shl, Left) | Op::infix(shr, Left))
-                        .op(Op::infix(add, Left) | Op::infix(sub, Left))
-                        .op(Op::infix(mul, Left) | Op::infix(div, Left) | Op::infix(rem, Left))
+                    PrattParser::new().op(Op::infix(Rule::bin_op, Left))
                 });
 
                 pratt
                     .map_primary(|primary_pair| Expression::try_from(primary_pair))
-                    .map_infix(|lhs, op, rhs| {
-                        let bin_op = match op.as_rule() {
-                            Rule::shl => BinaryOp::ShiftLeft,
-                            Rule::shr => BinaryOp::ShiftRight,
-                            Rule::range_inc => BinaryOp::RangeInclusive,
-                            Rule::range_exc => BinaryOp::RangeExclusive,
-                            Rule::lte => BinaryOp::LessThanOrEqual,
-                            Rule::gte => BinaryOp::GreaterThanOrEqual,
-                            Rule::eq => BinaryOp::Equal,
-                            Rule::neq => BinaryOp::NotEqual,
-                            Rule::and => BinaryOp::And,
-                            Rule::or => BinaryOp::Or,
-                            Rule::add => BinaryOp::Plus,
-                            Rule::sub => BinaryOp::Minus,
-                            Rule::mul => BinaryOp::Multiply,
-                            Rule::div => BinaryOp::Divide,
-                            Rule::rem => BinaryOp::Modulo,
-                            Rule::lt => BinaryOp::LessThan,
-                            Rule::gt => BinaryOp::GreaterThan,
-                            Rule::bitand => BinaryOp::BitAnd,
-                            Rule::bitor => BinaryOp::BitOr,
-                            Rule::bitxor => BinaryOp::BitXor,
-                            _ => return AstError::bug_unimplemented(op),
-                        };
-
+                    .map_infix(|expr, op, rhs| {
                         ast_expr!(Expression::Binary {
-                            lhs: lhs.map(Box::new),
-                            op: Ok(bin_op) as AstResult<'_, BinaryOp>,
-                            rhs: rhs.map(Box::new),
+                            lhs: expr.map(Box::new).get_map(Box::new),
+                            op: Ok(op.as_str().to_string()) as AstResult<'_, String>,
+                            rhs: rhs.map(Box::new).get_map(Box::new),
                         })
                     })
                     .parse(inner)

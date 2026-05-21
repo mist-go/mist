@@ -1,6 +1,8 @@
 void main() {
     i32 mut x = 10;
 
+    x = 1 + 1;
+
     x++;
 
     println!("hello, world {x}");

@@ -3,30 +3,6 @@ use serde::Serialize;
 use super::*;
 
 #[derive(Debug, Clone, Serialize)]
-pub enum BinaryOp {
-    Plus,
-    Minus,
-    Multiply,
-    Divide,
-    Modulo,
-    Equal,
-    NotEqual,
-    LessThan,
-    GreaterThan,
-    LessThanOrEqual,
-    GreaterThanOrEqual,
-    And,
-    Or,
-    ShiftLeft,
-    ShiftRight,
-    RangeInclusive,
-    RangeExclusive,
-    BitAnd,
-    BitOr,
-    BitXor,
-}
-
-#[derive(Debug, Clone, Serialize)]
 pub enum Expression {
     Literal(Literal),
     Path(ExprPath),
@@ -38,7 +14,7 @@ pub enum Expression {
     },
     Binary {
         lhs: Box<Expression>,
-        op: BinaryOp,
+        op: String,
         rhs: Box<Expression>,
     },
 }
