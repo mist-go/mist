@@ -32,7 +32,7 @@ keyword = {
 }
 
 identifier = @{
-    !keyword ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*
+    !(keyword ~ !(ASCII_ALPHANUMERIC | "_")) ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")*
 }
 
 integer = @{ ASCII_DIGIT+ }
@@ -342,7 +342,7 @@ block = {
 }
 
 statement_list = {
-    (statement | (unexpected_statement))*
+    statement*
 }
 
 statement = _{
@@ -456,7 +456,7 @@ array = {
 // MACROS
 // ------------------------------------------------------
 
-macro_inner_v = {
+macro_inner_v = @{
     string_lit
   | ("(" ~ macro_inner_v* ~ ")")
   | (!("(" | ")") ~ ANY)
