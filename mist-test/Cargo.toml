@@ -5,6 +5,6 @@ edition = "2024"
 
 [[bin]]
 name = "main"
-path = "build/main.rs"
+path = ".mist/src/main.rs"
 
 [dependencies]

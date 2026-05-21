@@ -41,10 +41,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
         match rule {
             Rule::statement => Statement::try_from(inner.next().unwrap()),
 
-            Rule::expr_stmt => {
-                ast_expr!(Statement::Expression(inner.next().unwrap().try_into()))
-            }
-
             Rule::block => ast_expr!(Statement::Block(pair.try_into())),
 
             Rule::var_decl_statement => ast_expr!(Statement::VarDecl(pair.try_into())),

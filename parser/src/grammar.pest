@@ -342,53 +342,49 @@ block = {
     "{" ~ (statement | unexpected_statement)* ~ "}"
 }
 
-statement = _{
-    match_stmt
-  | if_stmt
-  | while_stmt
-  | c_for_stmt
-  | for_stmt
-  | return_stmt
-  | break_stmt
-  | continue_stmt
-  | block
-  | increment_statement
-  | decrement_statement
-  | var_decl_statement
-  | assign_statement
-  | expr_stmt
+statement = {
+    (expr | basic_stmt_left_recurse) ~ semicolon
 }
 
 // ------------------------------------------------------
 // BASIC STATEMENTS
 // ------------------------------------------------------
 
-expr_stmt = {
-    expr ~ semicolon
+basic_stmt = {
+    return_stmt
+  | break_stmt
+  | continue_stmt
+  | var_decl_statement
+}
+
+basic_stmt_left_recurse = {
+    increment_statement
+  | decrement_statement
+  | assign_statement
 }
 
 return_stmt = {
-    "return" ~ expr? ~ semicolon
+    "return" ~ expr?
 }
 
 break_stmt = {
-    "break" ~ semicolon
+    "break"
 }
 
 continue_stmt = {
-    "continue" ~ semicolon
+    "continue"
 }
 
 var_decl_statement = {
-    var_decl ~ ("=" ~ expr)? ~ semicolon
+    var_decl ~ ("=" ~ expr)?
 }
 
 increment_statement = {
-    expr ~ "++" ~ semicolon
+    expr ~ "++"
 }
 
 decrement_statement = {
-    expr ~ "--" ~ semicolon
+    expr ~ "--"
 }
 
 compound_assign = {
@@ -497,7 +493,8 @@ expr_path = {
 }
 
 primary = {
-    literal
+    basic_stmt
+  | literal
   | expr_path
   | tuple
   | array
