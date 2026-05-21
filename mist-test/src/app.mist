@@ -14,8 +14,7 @@ pub class Application {
     i32 ticks;
 
     pub constructor(str* name) {
-        self.name;
-
+        self.name = name.to_string();
         self.tasks = new Vec();
         self.plugins = new Vec();
 

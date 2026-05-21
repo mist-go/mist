@@ -2,7 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_ensure, ast_expr,
-    error::{AstError, AstResult, ErrorCode, IntoErr, collect_recovered},
+    error::{AstError, AstResult, IntoErr, collect_recovered},
     parser::listen_rule,
 };
 
@@ -100,15 +100,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                     })
                     .collect::<AstResult<'a, Vec<_>>>(),
             )),
-
-            Rule::unexpected_statement => {
-                return Err(AstError {
-                    span: pair.as_span(),
-                    error_code: ErrorCode::InvalidStatement,
-                    error_message: "Invalid Statement".to_string(),
-                    recovered: None,
-                });
-            }
 
             _ => AstError::bug_unimplemented(pair),
         }

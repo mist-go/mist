@@ -77,14 +77,6 @@ mutable    = { "mut" }
 var        = { "var" }
 
 // ======================================================
-// ERROR RECOVERY
-// ======================================================
-
-unexpected_statement = {
-    (!(semicolon | "}" | statement) ~ ANY)+
-}
-
-// ======================================================
 // GENERICS
 // ======================================================
 generic_decl  = { lifetime | (identifier ~ (":" ~ type_expr_param ~ ("+" ~ type_expr_param)*)?) }
