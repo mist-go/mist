@@ -343,7 +343,8 @@ block = {
 }
 
 statement = _{
-    (expr ~ semicolon)
+    control_flow
+  | (expr ~ semicolon)
 }
 
 // ------------------------------------------------------
@@ -376,6 +377,15 @@ var_decl_statement = {
 // ------------------------------------------------------
 // CONDITIONALS
 // ------------------------------------------------------
+
+control_flow = {
+    if_stmt
+  | while_stmt
+  | c_for_stmt
+  | for_stmt
+  | match_stmt
+  | block
+}
 
 statement_branch = { "(" ~ expr ~ ")" ~ statement }
 

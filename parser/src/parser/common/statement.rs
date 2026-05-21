@@ -39,7 +39,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
         let mut inner = pair.clone().into_inner();
 
         match rule {
-            Rule::statement | Rule::basic_stmt => Statement::try_from(inner.next().unwrap()),
+            Rule::statement | Rule::basic_stmt | Rule::control_flow => Statement::try_from(inner.next().unwrap()),
 
             Rule::block => ast_expr!(Statement::Block(pair.try_into())),
 
