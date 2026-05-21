@@ -62,6 +62,9 @@ void print_usage() {
     println!(
         " \x1b[36m mist check\x1b[0m,\x1b[36m c\x1b[0m          check the project in the current directory\n"
     );
+    println!(
+        " \x1b[36m mist init\x1b[0m              initialize a project in the current folder\n"
+    );
     println!(" \x1b[36m mist version \x1b[0m          print the compiler version\n");
     println!(" \x1b[36m mist help\x1b[0m              print this message\n");
 }
