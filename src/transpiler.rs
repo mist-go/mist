@@ -10,9 +10,9 @@ use mist_parser::error::ParseError;
 pub fn build() -> PathBuf {
     let start = Instant::now();
 
-    let root = find_project_root().unwrap_or_else(|| {
-        panic!("error: could not find project root (mist.json)");
-    });
+    let root = std::env::current_dir()
+        .ok()
+        .expect("Unable to find project root");
 
     let src_dir = root.join("src");
     let out_dir = root.join(".mist/src");
@@ -163,18 +163,4 @@ fn should_skip(source: &Path, output: &Path) -> bool {
         }
     }
     false
-}
-
-pub fn find_project_root() -> Option<PathBuf> {
-    let mut dir = std::env::current_dir().ok()?;
-
-    loop {
-        if dir.join("mist.json").exists() {
-            return Some(dir);
-        }
-
-        if !dir.pop() {
-            return None;
-        }
-    }
 }

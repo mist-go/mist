@@ -1,5 +1,6 @@
 use <std::process>;
 use <std::env>;
+use <std::fs>;
 
 pub mod builder;
 pub mod codegen;
@@ -28,6 +29,9 @@ void main() {
         }
         "transpile" | "t" => {
             transpiler::build();
+        }
+        "init" => {
+            init_project();
         }
         "version" | "--version" | "-v" => {
             println!("mist {}", env!("CARGO_PKG_VERSION"));
@@ -60,4 +64,18 @@ void print_usage() {
     );
     println!(" \x1b[36m mist version \x1b[0m          print the compiler version\n");
     println!(" \x1b[36m mist help\x1b[0m              print this message\n");
+}
+
+void init_project(Vec<String> args) {
+    new process::Command("cargo")
+        .args(args)
+        .stdout(process::Stdio::piped())
+        .stderr(process::Stdio::piped())
+        .stdin(process::Stdio::piped())
+        .spawn()
+        .expect("Failed to run cargo");
+    
+    fs::remove("src/main.rs").expect("Failed to remove src/main.rs");
+
+    fs::write("src/main.mist", "void main() {\n    println!(\"Hello, World!\")\n}").expect("Failed to create src/main.mist");
 }
