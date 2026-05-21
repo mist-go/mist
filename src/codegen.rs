@@ -613,7 +613,7 @@ impl ToRust for Statement {
                     .map(|e| format!(" = {}", e.get_rust()))
                     .unwrap_or_default();
 
-                cg.add_indentedln(&format!("let {}{};", decl.get_rust(), init));
+                cg.add_indentedln(&format!("let {}{}", decl.get_rust(), init));
             }
 
             Statement::Match(expr, match_items) => {
@@ -708,11 +708,11 @@ impl ToRust for Statement {
 
             Statement::Return(expr) => {
                 let val = expr.map(|e| e.get_rust()).unwrap_or_default();
-                cg.add_indentedln(&format!("return {};", val));
+                cg.add_indentedln(&format!("return {}", val));
             }
 
-            Statement::Break => cg.add_indentedln("break;"),
-            Statement::Continue => cg.add_indentedln("continue;"),
+            Statement::Break => cg.add_indentedln("break"),
+            Statement::Continue => cg.add_indentedln("continue"),
         }
     }
 }
