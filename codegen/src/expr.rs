@@ -87,6 +87,7 @@ impl GenRust for Expression {
             } => {
                 cg.add(&prefixes.get_rust());
                 initial.gen_rust(ctx, cg);
+                cg.add(&Some(prefixes).get_rust());
                 for postfix in postfixes {
                     postfix.gen_rust(ctx, cg);
                 }
@@ -126,7 +127,7 @@ impl GetRust for Vec<Prefix> {
     }
 }
 
-impl GetRust for Option<Vec<Prefix>> {
+impl GetRust for Option<&Vec<Prefix>> {
     fn get_rust(&self) -> String {
         if let Some(prefixes) = self {
             prefixes

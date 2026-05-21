@@ -197,7 +197,7 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &ClassConstructor) {
             }
         }
 
-        cg.add_indentedln(&format!("this.construct_class("));
+        cg.add_indentedln(&format!("this.constructor("));
 
         for (i, param) in self.1.params.0.iter().enumerate() {
             if i > 0 {
@@ -207,22 +207,30 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &ClassConstructor) {
             param.name.gen_rust(ctx, cg);
         }
 
-        cg.add(")");
+        cg.add(");");
 
         cg.add_indentedln("this");
 
         cg.indent -= 1;
         cg.add_indentedln("}\n");
 
+        let mut constructor_params = vec![VarDecl {
+            mutable: false,
+            name: Pattern::Id(Identifier(String::from("self"))),
+            type_: Some(TypeExpr(
+                TypeExprKind::Path(Path(vec![Identifier(String::from("Self"))])),
+                vec![TypePostfix::RefMut],
+            )),
+        }];
+
+        constructor_params.append(&mut self.1.params.0.clone());
+
         FunctionDecl {
             visibility: self.1.visibility.clone(),
             name: Identifier(String::from("constructor")),
             generics: self.1.generics.clone(),
-            params: self.1.params.clone(),
-            return_type: TypeExpr(
-                TypeExprKind::Path(Path(vec![Identifier(String::from("Self"))])),
-                Vec::new(),
-            ),
+            params: ParamList(constructor_params),
+            return_type: TypeExpr::no_px(TypeExprKind::Tuple(Vec::new())),
             body: Some(self.1.body.clone()),
         }
         .gen_rust(ctx, cg);
