@@ -12,9 +12,9 @@ pub struct Task {
 }
 
 pub Task create_task(str* name) {
-    return Task {
+    Task {
         name: name.to_string(),
         state: TaskState::Pending,
         executions: 0,
-    };
+    }
 }

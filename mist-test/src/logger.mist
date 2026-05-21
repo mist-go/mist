@@ -13,18 +13,12 @@ pub enum LogLevel {
 
 impl fmt::Display for LogLevel {
     fmt::Result fmt(self*, Formatter<'_> mut* f) {
-        match (self) {
-            LogLevel::Info => {
-                return write!(f, "[INFO]");
-            }
+        return match (self) {
+            LogLevel::Info => write!(f, "[INFO]");
 
-            LogLevel::Warning => {
-                return write!(f, "[WARN]");
-            }
+            LogLevel::Warning => write!(f, "[WARN]");
 
-            LogLevel::Error => {
-                return write!(f, "[ERROR]");
-            }
+            LogLevel::Error => write!(f, "[ERROR]");
         }
     }
 }

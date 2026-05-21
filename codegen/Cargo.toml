@@ -1,0 +1,12 @@
+[package]
+name = "mist-codegen"
+version = "0.1.0"
+edition = "2024"
+description = "The Mist programming language Rust code generator"
+license = "Apache-2.0"
+repository = "https://github.com/mist-go/mist"
+keywords = ["compiler", "language", "mist"]
+categories = ["compilers"]
+
+[dependencies]
+mist-parser = { path = "../parser", version = "0.1.4"}

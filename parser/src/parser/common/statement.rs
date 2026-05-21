@@ -95,7 +95,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                         let mut match_inner = match_itms.into_inner();
                         Ok((
                             collect_recovered(match_inner.next().unwrap().into_inner()).get()?,
-                            Block::try_from(match_inner.next().unwrap()).get()?,
+                            Expression::try_from(match_inner.next().unwrap()).get()?,
                         ))
                     })
                     .collect::<AstResult<'a, Vec<_>>>(),
