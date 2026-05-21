@@ -68,6 +68,14 @@ impl GenRust for Literal {
 
 impl GenRust for Expression {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
+        let ensure_semicolon = if ctx.expr_ensure_semicolon {
+            ctx.expr_ensure_semicolon = false;
+
+            true
+        } else {
+            false
+        };
+
         match self {
             Expression::Path(path) => cg.add(&path.get_rust()),
             Expression::Literal(literal) => literal.gen_rust(ctx, cg),
@@ -89,6 +97,11 @@ impl GenRust for Expression {
                 cg.add(op);
                 rhs.gen_rust(ctx, cg);
             }
+        }
+
+        if ensure_semicolon {
+            ctx.expr_ensure_semicolon = true;
+            cg.add(";");
         }
     }
 }
@@ -175,6 +188,8 @@ impl GenRust for Postfix {
                     expr.gen_rust(ctx, cg);
                     cg.add(",");
                 }
+
+                cg.add("}");
             }
 
             Postfix::Index(idx) => {

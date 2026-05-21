@@ -92,7 +92,7 @@ impl GenRust for FunctionDecl {
         cg.add(&self.return_type.get_rust());
 
         if let Some(body) = &self.body {
-            cg.add_indentedln("{\n");
+            cg.add_indentedln(" {\n");
             cg.indent += 1;
             body.gen_rust(ctx, cg);
             cg.indent -= 1;
@@ -362,9 +362,6 @@ impl GenRust for TopLevelKind {
                 cg.add_indentedln(&constructor_comment);
 
                 (fields, &constructor.item).gen_rust(ctx, cg);
-
-                cg.indent -= 1;
-                cg.add_indentedln("}\n");
 
                 for item in items.clone() {
                     match item {
