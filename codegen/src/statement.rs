@@ -98,6 +98,11 @@ impl GenRust for Statement {
                 cg.ensure_brackets(ctx, body);
             }
 
+            Statement::Loop(body) => {
+                cg.add("loop ");
+                cg.ensure_brackets_expr(ctx, body);
+            }
+
             Statement::CStyleFor {
                 init,
                 condition,

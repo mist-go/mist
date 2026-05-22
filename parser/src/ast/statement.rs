@@ -16,6 +16,7 @@ pub enum Statement {
         else_if: Vec<StatementBranch>,
         else_branch: Option<Box<Statement>>,
     },
+    Loop(Expression),
     While(StatementBranch),
     CStyleFor {
         init: Expression,

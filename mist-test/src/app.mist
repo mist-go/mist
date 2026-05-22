@@ -101,8 +101,14 @@ pub class Application {
             println!("{i}");
         }
 
-        while (true) {
+        var i = 0;
+
+        while (i == 0) {
             println!("hi");
+        }
+
+        loop {
+            println!("loop!");
         }
     }
 }

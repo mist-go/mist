@@ -29,6 +29,7 @@ keyword = {
   | "true"
   | "false"
   | "dyn"
+  | "loop"
 }
 
 identifier = @{
@@ -379,6 +380,7 @@ control_flow = {
   | c_for_stmt
   | for_stmt
   | match_stmt
+  | loop_stmt
   | block
 }
 
@@ -410,6 +412,10 @@ c_for_stmt = {
 
 for_stmt = {
     "for" ~ "(" ~ mutable? ~ pattern ~ ":" ~ expr ~ ")" ~ statement
+}
+
+loop_stmt = {
+    "loop" ~ statement
 }
 
 // ------------------------------------------------------
