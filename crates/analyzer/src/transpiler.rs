@@ -75,7 +75,7 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
     }
 }
 
-fn transpile_file(path: &Path, output_path: &Path) {
+pub fn transpile_file(path: &Path, output_path: &Path) {
     // create parent directories
     if let Some(parent) = output_path.parent() {
         if let Err(e) = fs::create_dir_all(parent) {
