@@ -102,5 +102,5 @@ void inject_mist_target(bool is_lib) {
         "\n[[bin]]\nname = \"my_bin\"\npath = \".mist/src/main.rs\"\n"
     };
 
-    fs::write("Cargo.toml", toml_content+inject).expect("Failed to create src/main.mist");
+    fs::write("Cargo.toml", toml_content+inject).expect("Failed to inject to Cargo.toml");
 }
