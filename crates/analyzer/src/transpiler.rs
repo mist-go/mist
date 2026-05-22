@@ -1,0 +1,152 @@
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process,
+};
+
+use mist_parser::error::ParseError;
+
+pub fn build(root: &PathBuf) {
+    let src_dir = root.join("src");
+    let out_dir = root.join(".mist/lsp");
+
+    build_dir(&root, &src_dir, &src_dir, &out_dir);
+}
+
+fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
+    let entries = match fs::read_dir(current_dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            eprintln!(
+                "error: failed to read directory {}\n  {}",
+                current_dir.display(),
+                e
+            );
+
+            process::exit(1);
+        }
+    };
+
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(e) => {
+                eprintln!("error: failed to read directory entry\n  {}", e);
+
+                process::exit(1);
+            }
+        };
+
+        let path = entry.path();
+
+        // recurse into nested directories
+        if path.is_dir() {
+            build_dir(root, base_src, &path, out_dir);
+            continue;
+        }
+
+        let relative = path.strip_prefix(base_src).unwrap();
+
+        // Handle non-mist files with a cache check
+        if path.extension().and_then(|e| e.to_str()) != Some("mist") {
+            let dest_path = out_dir.join(relative);
+
+            // Create parent directories for static assets if needed
+            if let Some(parent) = dest_path.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+
+            if should_skip(&path, &dest_path) {
+                continue;
+            }
+
+            fs::copy(&path, dest_path).expect("Failed to copy non-mist file");
+            continue;
+        }
+
+        let output_path = out_dir.join(relative).with_extension("rs");
+
+        // Cache layer: Skip if the generated .rs file is newer than the .mist source
+        if should_skip(&path, &output_path) {
+            continue;
+        }
+
+        transpile_file(&path, &output_path);
+    }
+}
+
+fn transpile_file(path: &Path, output_path: &Path) {
+    // create parent directories
+    if let Some(parent) = output_path.parent() {
+        if let Err(e) = fs::create_dir_all(parent) {
+            eprintln!(
+                "error: failed to create output directory {}\n  {}",
+                parent.display(),
+                e
+            );
+
+            process::exit(1);
+        }
+    }
+
+    // read source
+    let source = match fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("error: failed to read file {}\n  {}", path.display(), e);
+
+            process::exit(1);
+        }
+    };
+
+    let parser_result = mist_parser::parse(&source).map_err(|e| match e {
+        ParseError::Ast(e) => {
+            let start_pos = e.span.start_pos().line_col();
+
+            let span = e.span.as_str();
+
+            format!(
+                "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}{}\t{}",
+                path.as_os_str().display(),
+                start_pos.0,
+                start_pos.1,
+                e.error_message,
+                span,
+                if span.ends_with("\n") { "" } else { "\n" },
+                "^".repeat(span.trim().len()),
+            )
+        }
+        ParseError::PreAst(e) => format!("{e}"),
+    });
+
+    let ast = match parser_result {
+        Ok(ast) => ast,
+        Err(e) => {
+            eprintln!("error: parse failed in {}\n{}", path.display(), e);
+
+            process::exit(1);
+        }
+    };
+
+    let mut gc = mist_codegen::RustCodegen::new();
+    let output = gc.generate(ast);
+
+    if let Err(e) = fs::write(&output_path, output) {
+        eprintln!(
+            "error: failed to write output {}\n  {}",
+            output_path.display(),
+            e
+        );
+
+        process::exit(1);
+    }
+}
+
+fn should_skip(source: &Path, output: &Path) -> bool {
+    if let (Ok(src_meta), Ok(out_meta)) = (fs::metadata(source), fs::metadata(output)) {
+        if let (Ok(src_time), Ok(out_time)) = (src_meta.modified(), out_meta.modified()) {
+            return out_time >= src_time;
+        }
+    }
+    false
+}
