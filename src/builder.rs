@@ -179,5 +179,5 @@ pub fn get_line(
             .collect()
     });
 
-    lines.get(msg.line).map(|v| v.trim().to_string())
+    lines.get(msg.line - 1).map(|v| v.trim().to_string())
 }
