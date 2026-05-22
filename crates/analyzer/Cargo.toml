@@ -15,3 +15,4 @@ mist-codegen = { workspace = true }
 dashmap = "6.2.1"
 tokio = { version = "1.52.3", features = ["full", "macros", "rt", "rt-multi-thread"] }
 tower-lsp = "0.20.0"
+cargo_metadata = "0.23.1"

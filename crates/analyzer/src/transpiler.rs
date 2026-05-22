@@ -1,7 +1,6 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    process,
 };
 
 use mist_parser::error::ParseError;
@@ -10,42 +9,50 @@ pub fn build(root: &PathBuf) {
     let src_dir = root.join("src");
     let out_dir = root.join(".mist/lsp");
 
-    build_dir(&root, &src_dir, &src_dir, &out_dir);
+    if let Err(e) = build_dir(root, &src_dir, &src_dir, &out_dir) {
+        eprintln!("Warning: Build directory run aborted safely: {e}");
+    }
 }
 
-fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
-    let entries = match fs::read_dir(current_dir) {
-        Ok(entries) => entries,
-        Err(e) => {
-            eprintln!(
-                "error: failed to read directory {}\n  {}",
-                current_dir.display(),
-                e
-            );
-
-            process::exit(1);
-        }
-    };
+fn build_dir(
+    root: &Path,
+    base_src: &Path,
+    current_dir: &Path,
+    out_dir: &Path,
+) -> Result<(), String> {
+    let entries = fs::read_dir(current_dir)
+        .map_err(|e| format!("failed to read directory {}: {}", current_dir.display(), e))?;
 
     for entry in entries {
         let entry = match entry {
             Ok(entry) => entry,
             Err(e) => {
-                eprintln!("error: failed to read directory entry\n  {}", e);
-
-                process::exit(1);
+                eprintln!("Warning: Skipping invalid directory entry: {e}");
+                continue; // Skip corrupted entry instead of crashing
             }
         };
 
         let path = entry.path();
 
-        // recurse into nested directories
+        // Recurse into nested directories
         if path.is_dir() {
-            build_dir(root, base_src, &path, out_dir);
+            if let Err(e) = build_dir(root, base_src, &path, out_dir) {
+                eprintln!("Warning: Nested build directory failed: {e}");
+            }
             continue;
         }
 
-        let relative = path.strip_prefix(base_src).unwrap();
+        // Safe prefix stripping fallback
+        let relative = match path.strip_prefix(base_src) {
+            Ok(p) => p,
+            Err(_) => {
+                eprintln!(
+                    "Warning: Path {} is outside base source directory",
+                    path.display()
+                );
+                continue;
+            }
+        };
 
         // Handle non-mist files with a cache check
         if path.extension().and_then(|e| e.to_str()) != Some("mist") {
@@ -60,7 +67,13 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
                 continue;
             }
 
-            fs::copy(&path, dest_path).expect("Failed to copy non-mist file");
+            if let Err(e) = fs::copy(&path, &dest_path) {
+                eprintln!(
+                    "Warning: Failed to copy non-mist file {}: {}",
+                    path.display(),
+                    e
+                );
+            }
             continue;
         }
 
@@ -71,75 +84,64 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
             continue;
         }
 
-        transpile_file(&path, &output_path);
-    }
-}
-
-pub fn transpile_file(path: &Path, output_path: &Path) {
-    // create parent directories
-    if let Some(parent) = output_path.parent() {
-        if let Err(e) = fs::create_dir_all(parent) {
+        if let Err(e) = transpile_file(&path, &output_path) {
             eprintln!(
-                "error: failed to create output directory {}\n  {}",
-                parent.display(),
+                "Warning: Transpilation failed for {}: {}",
+                path.display(),
                 e
             );
-
-            process::exit(1);
         }
     }
 
-    // read source
-    let source = match fs::read_to_string(&path) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("error: failed to read file {}\n  {}", path.display(), e);
+    Ok(())
+}
 
-            process::exit(1);
-        }
-    };
+pub fn transpile_file(path: &Path, output_path: &Path) -> Result<(), String> {
+    // Create parent directories
+    if let Some(parent) = output_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| {
+            format!(
+                "failed to create output directory {}: {}",
+                parent.display(),
+                e
+            )
+        })?;
+    }
+
+    // Read source
+    let source = fs::read_to_string(path)
+        .map_err(|e| format!("failed to read file {}: {}", path.display(), e))?;
 
     let parser_result = mist_parser::parse(&source).map_err(|e| match e {
         ParseError::Ast(e) => {
+            // Using components carefully to prevent out-of-bounds or zero layout crashes
             let start_pos = e.span.start_pos().line_col();
-
             let span = e.span.as_str();
 
             format!(
-                "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}{}\t{}",
-                path.as_os_str().display(),
+                "\n{}:{}:{}\n Error: {}\n\t{}{}\t{}",
+                path.display(),
                 start_pos.0,
                 start_pos.1,
                 e.error_message,
                 span,
-                if span.ends_with("\n") { "" } else { "\n" },
+                if span.ends_with('\n') { "" } else { "\n" },
                 "^".repeat(span.trim().len()),
             )
         }
         ParseError::PreAst(e) => format!("{e}"),
     });
 
-    let ast = match parser_result {
-        Ok(ast) => ast,
-        Err(e) => {
-            eprintln!("error: parse failed in {}\n{}", path.display(), e);
-
-            process::exit(1);
-        }
-    };
+    // If parsing fails, return the error string back gracefully so the LSP can show it
+    let ast = parser_result.map_err(|e| format!("parse failed in {}:\n{}", path.display(), e))?;
 
     let mut gc = mist_codegen::RustCodegen::new();
     let output = gc.generate(ast);
 
-    if let Err(e) = fs::write(&output_path, output) {
-        eprintln!(
-            "error: failed to write output {}\n  {}",
-            output_path.display(),
-            e
-        );
+    fs::write(output_path, output)
+        .map_err(|e| format!("failed to write output {}: {}", output_path.display(), e))?;
 
-        process::exit(1);
-    }
+    Ok(())
 }
 
 fn should_skip(source: &Path, output: &Path) -> bool {
