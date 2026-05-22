@@ -13,7 +13,7 @@ pub enum LogLevel {
 
 impl fmt::Display for LogLevel {
     fmt::Result fmt(self*, Formatter<'_> mut* f) {
-        return match (self) {
+        match (self) {
             LogLevel::Info => write!(f, "[INFO]");
 
             LogLevel::Warning => write!(f, "[WARN]");
@@ -66,7 +66,7 @@ pub class Logger {
 
     impl fmt::Display {
         fmt::Result fmt(self*, Formatter<'_> mut* f) {
-            return write!(f, "logger ({})", self.prefix);
+            write!(f, "logger ({})", self.prefix)
         }
     }
 }

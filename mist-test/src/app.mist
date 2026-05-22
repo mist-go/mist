@@ -97,7 +97,7 @@ pub class Application {
             println!("{x}");
         }
 
-        for (usize i = 0; i < 10; i++) {
+        for (var mut i = 0; i < 10; i++) {
             println!("{i}");
         }
 

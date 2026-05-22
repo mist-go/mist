@@ -11,7 +11,6 @@ pub struct Block(
 #[derive(Debug, Clone, Serialize)]
 pub enum Statement {
     Block(Block),
-    VarDecl(VarDeclStmt),
     If {
         initial: StatementBranch,
         else_if: Vec<StatementBranch>,
@@ -32,6 +31,7 @@ pub enum Statement {
     },
     Match(Expression, Vec<(Vec<Pattern>, Expression)>),
 
+    VarDecl(VarDeclStmt),
     Return(Option<Expression>),
     Break,
     Continue,
@@ -54,4 +54,13 @@ pub struct VarDeclStmt {
 pub struct StatementBranch {
     pub condition: Expression,
     pub body: Box<Statement>,
+}
+
+impl Statement {
+    pub fn is_block(&self) -> bool {
+        match self {
+            Self::VarDecl(_) | Self::Return(_) | Self::Break | Self::Continue => false,
+            _ => true,
+        }
+    }
 }

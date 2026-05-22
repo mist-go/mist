@@ -100,9 +100,16 @@ impl GenRust for Expression {
             }
         }
 
-        if ensure_semicolon {
-            ctx.expr_ensure_semicolon = true;
-            cg.add(";");
+        if let Expression::Statement(stmt) = self {
+            if !stmt.is_block() && ensure_semicolon {
+                ctx.expr_ensure_semicolon = true;
+                cg.add(";");
+            }
+        } else {
+            if ensure_semicolon {
+                ctx.expr_ensure_semicolon = true;
+                cg.add(";");
+            }
         }
     }
 }
