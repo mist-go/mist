@@ -442,9 +442,11 @@ dependencies = [
 
 [[package]]
 name = "mist-analyzer"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "dashmap 6.2.1",
+ "mist-codegen",
+ "mist-parser",
  "tokio",
  "tower-lsp",
 ]

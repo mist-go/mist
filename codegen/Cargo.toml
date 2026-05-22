@@ -9,4 +9,4 @@ keywords = ["compiler", "language", "mist"]
 categories = ["compilers"]
 
 [dependencies]
-mist-parser = { path = "../parser", version = "0.1.4"}
+mist-parser = { workspace = true }
