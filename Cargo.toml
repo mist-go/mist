@@ -24,10 +24,21 @@ serde = { version = "1.0.228", features = ["serde_derive"] }
 serde_json = "1.0.149"
 cargo_metadata = "0.23.1"
 
+[workspace]
+members = [
+    "crates/parser",
+    "crates/analyzer",
+    "crates/codegen",
+]
+
+exclude = [
+    "mist-test",
+]
+
 [workspace.dependencies]
-mist-parser = { path = "./parser", version = "0.1.5" }
-mist-analyzer = { path = "./analyzer", version = "0.0.2" }
-mist-codegen = { path = "./codegen", version = "0.1.1" }
+mist-parser = { path = "crates/parser", version = "0.1.5" }
+mist-analyzer = { path = "crates/analyzer", version = "0.0.2" }
+mist-codegen = { path = "crates/codegen", version = "0.1.1" }
 
 [[bin]]
 name = "mist"
