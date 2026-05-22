@@ -94,6 +94,7 @@ impl GenRust for Statement {
             Statement::While(StatementBranch { condition, body }) => {
                 cg.add("while ");
                 condition.gen_rust(ctx, cg);
+                cg.add(" ");
                 cg.ensure_brackets(ctx, body);
             }
 
@@ -103,17 +104,25 @@ impl GenRust for Statement {
                 update,
                 body,
             } => {
-                cg.add_indentedln("{");
+                cg.addln("{");
                 cg.indent += 1;
+
+                ctx.expr_ensure_semicolon = true;
+
+                cg.add_indented("");
 
                 init.gen_rust(ctx, cg);
 
-                cg.add("while ");
+                cg.addln("");
 
+                cg.add_indented("while ");
+
+                ctx.expr_ensure_semicolon = false;
                 condition.gen_rust(ctx, cg);
 
-                cg.add("{");
+                cg.add(" ");
 
+                cg.add("{");
                 cg.indent += 1;
 
                 ctx.expr_ensure_semicolon = true;
@@ -122,11 +131,13 @@ impl GenRust for Statement {
 
                 update.gen_rust(ctx, cg);
 
+                cg.addln("");
+
                 cg.indent -= 1;
                 cg.add_indentedln("}");
 
                 cg.indent -= 1;
-                cg.add_indentedln("}");
+                cg.add_indented("}");
             }
 
             Statement::For {

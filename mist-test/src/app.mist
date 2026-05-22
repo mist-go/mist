@@ -91,4 +91,18 @@ pub class Application {
             }
         }
     }
+
+    pub void loops_test() {
+        for (x : 0..10) {
+            println!("{x}");
+        }
+
+        for (usize i = 0; i < 10; i++) {
+            println!("{i}");
+        }
+
+        while (true) {
+            println!("hi");
+        }
+    }
 }

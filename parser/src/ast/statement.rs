@@ -19,10 +19,10 @@ pub enum Statement {
     },
     While(StatementBranch),
     CStyleFor {
-        init: Box<Statement>,
+        init: Expression,
         condition: Expression,
-        update: Box<Statement>,
-        body: Box<Statement>,
+        update: Expression,
+        body: Expression,
     },
     For {
         mutable: bool,

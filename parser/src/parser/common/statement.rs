@@ -75,10 +75,10 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
             Rule::while_stmt => ast_expr!(Statement::While(inner.next().unwrap().try_into())),
 
             Rule::c_for_stmt => ast_expr!(Statement::CStyleFor {
-                init: inner.next().unwrap().try_into().map(Box::new),
+                init: inner.next().unwrap().try_into(),
                 condition: inner.next().unwrap().try_into(),
-                update: inner.next().unwrap().try_into().map(Box::new),
-                body: inner.next().unwrap().try_into().map(Box::new),
+                update: inner.next().unwrap().try_into(),
+                body: inner.next().unwrap().try_into(),
             }),
 
             Rule::for_stmt => ast_expr!(Statement::For {
