@@ -6,8 +6,8 @@ description = "The Mist programming language compiler"
 license = "Apache-2.0"
 repository = "https://github.com/mist-go/mist"
 readme = "README.md"
-keywords = ["compiler", "language", "mist"]
-categories = ["compilers"]
+keywords = ["compiler", "language", "mist", "lang"]
+categories = ["compilers", "command-line-interface", "development-tools", "development-tools::build-utils"]
 default-run = "mist"
 include = [
     ".mist/src/**",

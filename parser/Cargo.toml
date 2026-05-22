@@ -6,7 +6,7 @@ description = "The Mist programming language parser"
 license = "Apache-2.0"
 repository = "https://github.com/mist-go/mist"
 keywords = ["compiler", "language", "mist"]
-categories = ["compilers"]
+categories = ["compilers", "parser-implementations", "parsing"]
 
 [dependencies]
 pest = "2.8.6"
