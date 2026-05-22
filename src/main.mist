@@ -15,7 +15,7 @@ void main() {
 
     match (args[1].as_str()) {
         "run" | "build" | "check" | "r" | "b" | "c" => {
-            var root = transpiler::build();
+            var root = transpiler::build(false);
 
             println!("");
 
@@ -26,7 +26,7 @@ void main() {
             }
         }
         "transpile" | "t" => {
-            transpiler::build();
+            transpiler::build(args.get(2).is_some());
         }
         "init" => {
             init_project(args);
