@@ -1,6 +1,6 @@
 [package]
 name = "mist-lang"
-version = "0.0.3-alpha4"
+version = "0.0.4-alpha0"
 edition = "2024"
 description = "The Mist programming language compiler"
 license = "Apache-2.0"
