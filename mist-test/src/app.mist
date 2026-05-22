@@ -92,7 +92,7 @@ pub class Application {
         }
     }
 
-    pub void loops_test() {
+    pub i32 loops_test() {
         for (x : 0..10) {
             println!("{x}");
         }
@@ -110,5 +110,14 @@ pub class Application {
         loop {
             println!("loop!");
         }
+
+        if (x == 0) bro();
+        else bro();
+
+        0
     }
 }
+
+pub i32 bro() {
+        0
+    }

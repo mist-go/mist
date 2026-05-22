@@ -65,7 +65,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                     else_if: collect_recovered(inner.next().unwrap().into_inner()),
                     else_branch: inner
                         .next()
-                        .map(Statement::try_from)
+                        .map(Expression::try_from)
                         .transpose()
                         .map(|v| v.map(Box::new))
                         .get_map(|v| { Some(Box::new(v)) }),

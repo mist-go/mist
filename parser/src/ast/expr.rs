@@ -81,3 +81,13 @@ pub enum Generic {
     Lifetime(Identifier),
     Type(TypeExpr),
 }
+
+impl Expression {
+    pub fn is_block(&self) -> bool {
+        if let Expression::Statement(stmt) = self {
+            stmt.is_block()
+        } else {
+            false
+        }
+    }
+}

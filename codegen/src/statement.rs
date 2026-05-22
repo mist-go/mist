@@ -76,18 +76,18 @@ impl GenRust for Statement {
                 cg.add("if ");
                 initial.condition.gen_rust(ctx, cg);
                 cg.add(" ");
-                cg.ensure_brackets(ctx, &initial.body);
+                cg.ensure_brackets_expr(ctx, &initial.body);
 
                 for else_if_branch in else_if {
                     cg.add("else if");
                     else_if_branch.condition.gen_rust(ctx, cg);
                     cg.add(" ");
-                    cg.ensure_brackets(ctx, &else_if_branch.body);
+                    cg.ensure_brackets_expr(ctx, &else_if_branch.body);
                 }
 
                 if let Some(else_br) = else_branch {
                     cg.add(" else ");
-                    cg.ensure_brackets(ctx, else_br);
+                    cg.ensure_brackets_expr(ctx, else_br);
                 }
             }
 
@@ -95,7 +95,7 @@ impl GenRust for Statement {
                 cg.add("while ");
                 condition.gen_rust(ctx, cg);
                 cg.add(" ");
-                cg.ensure_brackets(ctx, body);
+                cg.ensure_brackets_expr(ctx, body);
             }
 
             Statement::Loop(body) => {
@@ -156,7 +156,7 @@ impl GenRust for Statement {
                 pattern.gen_rust(ctx, cg);
                 cg.add(" in ");
                 iterator.gen_rust(ctx, cg);
-                cg.ensure_brackets(ctx, body);
+                cg.ensure_brackets_expr(ctx, body);
             }
 
             Statement::Return(expr) => {
