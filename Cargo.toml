@@ -10,8 +10,7 @@ keywords = ["compiler", "language", "mist"]
 categories = ["compilers"]
 default-run = "mist"
 include = [
-    "src/**",
-    "build/**",
+    ".mist/src/**",
     "Cargo.toml",
     "README.md",
 ]
