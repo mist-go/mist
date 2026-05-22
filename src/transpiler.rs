@@ -7,7 +7,7 @@ use std::{
 
 use mist_parser::error::ParseError;
 
-pub fn build() -> PathBuf {
+pub fn build(force: bool) -> PathBuf {
     let start = Instant::now();
 
     let root = std::env::current_dir()
@@ -17,7 +17,7 @@ pub fn build() -> PathBuf {
     let src_dir = root.join("src");
     let out_dir = root.join(".mist/src");
 
-    build_dir(&root, &src_dir, &src_dir, &out_dir);
+    build_dir(&root, &src_dir, &src_dir, &out_dir, force);
 
     let elapsed = start.elapsed();
 
@@ -29,7 +29,7 @@ pub fn build() -> PathBuf {
     root
 }
 
-fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
+fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path, force: bool) {
     let entries = match fs::read_dir(current_dir) {
         Ok(entries) => entries,
         Err(e) => {
@@ -57,7 +57,7 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
 
         // recurse into nested directories
         if path.is_dir() {
-            build_dir(root, base_src, &path, out_dir);
+            build_dir(root, base_src, &path, out_dir, force);
             continue;
         }
 
@@ -72,7 +72,7 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
                 let _ = fs::create_dir_all(parent);
             }
 
-            if should_skip(&path, &dest_path) {
+            if !force && should_skip(&path, &dest_path) {
                 continue;
             }
 
@@ -83,7 +83,7 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path) {
         let output_path = out_dir.join(relative).with_extension("rs");
 
         // Cache layer: Skip if the generated .rs file is newer than the .mist source
-        if should_skip(&path, &output_path) {
+        if !force && should_skip(&path, &output_path) {
             continue;
         }
 

@@ -92,3 +92,32 @@ pub class Application {
         }
     }
 }
+
+i32 test_stmt() {
+    if (0 == 0) {
+        0
+    }
+    else {
+        1
+    }
+}
+
+void loops_test() {
+    for (x : 0..10) {
+        println!("{x}");
+    }
+
+    for (var mut i = 0; i < 10; i++) {
+        println!("{i}");
+    }
+
+    var i = 0;
+
+    while (i == 1) {
+        println!("hi");
+    }
+
+    loop {
+        println!("loop!");
+    }
+}

@@ -81,6 +81,19 @@ impl RustCodegen {
             }
         }
     }
+
+    pub fn ensure_brackets_expr(&mut self, ctx: &mut Context, expr: &Expression) {
+        match expr {
+            Expression::Statement(stmt) => self.ensure_brackets(ctx, stmt),
+            _ => {
+                self.add("{");
+                self.indent += 1;
+                expr.gen_rust(ctx, self);
+                self.indent -= 1;
+                self.add("}");
+            }
+        }
+    }
 }
 
 impl GenRust for Attribute {

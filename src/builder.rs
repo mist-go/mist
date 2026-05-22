@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     env, fs,
-    path::PathBuf,
+    path::{MAIN_SEPARATOR, PathBuf},
     process::{Command, Stdio},
 };
 
@@ -44,6 +44,8 @@ pub fn build(mut args: Vec<String>, root: PathBuf) -> bool {
 
     let mut mapping = HashMap::new();
 
+    let mist_src = format!(".mist{MAIN_SEPARATOR}src");
+
     for message in cargo_metadata::Message::parse_stream(&mut reader) {
         match message {
             Ok(Message::CompilerMessage(msg)) => {
@@ -53,8 +55,10 @@ pub fn build(mut args: Vec<String>, root: PathBuf) -> bool {
 
                         let mist_file = span
                             .file_name
-                            .replacen(".mist/src", "src", 1)
-                            .replace(".rs", ".mist");
+                            .replacen(&mist_src, "src", 1)
+                            .trim_end_matches(".rs")
+                            .to_string()
+                            + ".mist";
 
                         let mist_path = root.join(&mist_file);
 

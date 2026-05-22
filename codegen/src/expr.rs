@@ -102,7 +102,10 @@ impl GenRust for Expression {
 
         if ensure_semicolon {
             ctx.expr_ensure_semicolon = true;
-            cg.add(";");
+
+            if !self.is_block() {
+                cg.add(";");
+            }
         }
     }
 }
@@ -166,9 +169,12 @@ impl GenRust for Postfix {
             Postfix::Call(args) => {
                 cg.add("(");
 
-                for arg in args {
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        cg.add(", ");
+                    }
+
                     arg.gen_rust(ctx, cg);
-                    cg.add(", ");
                 }
 
                 cg.add(")");

@@ -18,10 +18,11 @@ impl GenRust for Block {
         if let Some(soft_return) = &self.1 {
             ctx.expr_ensure_semicolon = false;
             soft_return.gen_rust(ctx, cg);
+            cg.addln("");
         }
 
         cg.indent -= 1;
-        cg.add_indentedln("}");
+        cg.add_indented("}");
     }
 }
 
@@ -57,17 +58,14 @@ impl GenRust for Statement {
                         p.gen_rust(ctx, cg);
                     }
 
-                    cg.add(" => {");
-                    cg.indent += 1;
+                    cg.add(" => ");
 
-                    body.gen_rust(ctx, cg);
-
-                    cg.indent -= 1;
-                    cg.add_indentedln("}");
+                    cg.ensure_brackets_expr(ctx, body);
                 }
 
                 cg.indent -= 1;
-                cg.add_indentedln("}");
+                cg.addln("");
+                cg.add_indented("}");
             }
 
             Statement::If {
@@ -77,24 +75,32 @@ impl GenRust for Statement {
             } => {
                 cg.add("if ");
                 initial.condition.gen_rust(ctx, cg);
-                cg.ensure_brackets(ctx, &initial.body);
+                cg.add(" ");
+                cg.ensure_brackets_expr(ctx, &initial.body);
 
                 for else_if_branch in else_if {
                     cg.add("else if");
                     else_if_branch.condition.gen_rust(ctx, cg);
-                    cg.ensure_brackets(ctx, &else_if_branch.body);
+                    cg.add(" ");
+                    cg.ensure_brackets_expr(ctx, &else_if_branch.body);
                 }
 
                 if let Some(else_br) = else_branch {
-                    cg.add("else");
-                    cg.ensure_brackets(ctx, else_br);
+                    cg.add(" else ");
+                    cg.ensure_brackets_expr(ctx, else_br);
                 }
             }
 
             Statement::While(StatementBranch { condition, body }) => {
                 cg.add("while ");
                 condition.gen_rust(ctx, cg);
-                cg.ensure_brackets(ctx, body);
+                cg.add(" ");
+                cg.ensure_brackets_expr(ctx, body);
+            }
+
+            Statement::Loop(body) => {
+                cg.add("loop ");
+                cg.ensure_brackets_expr(ctx, body);
             }
 
             Statement::CStyleFor {
@@ -103,28 +109,40 @@ impl GenRust for Statement {
                 update,
                 body,
             } => {
-                cg.add_indentedln("{");
+                cg.addln("{");
                 cg.indent += 1;
+
+                ctx.expr_ensure_semicolon = true;
+
+                cg.add_indented("");
 
                 init.gen_rust(ctx, cg);
 
-                cg.add("while ");
+                cg.addln("");
 
+                cg.add_indented("while ");
+
+                ctx.expr_ensure_semicolon = false;
                 condition.gen_rust(ctx, cg);
 
-                cg.add("{");
+                cg.add(" ");
 
+                cg.add("{");
                 cg.indent += 1;
 
-                cg.ensure_brackets(ctx, body);
+                ctx.expr_ensure_semicolon = true;
+
+                body.gen_rust(ctx, cg);
 
                 update.gen_rust(ctx, cg);
 
+                cg.addln("");
+
                 cg.indent -= 1;
                 cg.add_indentedln("}");
 
                 cg.indent -= 1;
-                cg.add_indentedln("}");
+                cg.add_indented("}");
             }
 
             Statement::For {
@@ -138,7 +156,7 @@ impl GenRust for Statement {
                 pattern.gen_rust(ctx, cg);
                 cg.add(" in ");
                 iterator.gen_rust(ctx, cg);
-                cg.ensure_brackets(ctx, body);
+                cg.ensure_brackets_expr(ctx, body);
             }
 
             Statement::Return(expr) => {

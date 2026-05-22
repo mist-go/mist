@@ -65,7 +65,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                     else_if: collect_recovered(inner.next().unwrap().into_inner()),
                     else_branch: inner
                         .next()
-                        .map(Statement::try_from)
+                        .map(Expression::try_from)
                         .transpose()
                         .map(|v| v.map(Box::new))
                         .get_map(|v| { Some(Box::new(v)) }),
@@ -74,11 +74,13 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
 
             Rule::while_stmt => ast_expr!(Statement::While(inner.next().unwrap().try_into())),
 
+            Rule::loop_stmt => ast_expr!(Statement::Loop(inner.next().unwrap().try_into())),
+
             Rule::c_for_stmt => ast_expr!(Statement::CStyleFor {
-                init: inner.next().unwrap().try_into().map(Box::new),
+                init: inner.next().unwrap().try_into(),
                 condition: inner.next().unwrap().try_into(),
-                update: inner.next().unwrap().try_into().map(Box::new),
-                body: inner.next().unwrap().try_into().map(Box::new),
+                update: inner.next().unwrap().try_into(),
+                body: inner.next().unwrap().try_into(),
             }),
 
             Rule::for_stmt => ast_expr!(Statement::For {
