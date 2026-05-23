@@ -76,7 +76,11 @@ pub fn build(mut args: Vec<String>, root: PathBuf) -> Vec<MistDiagnostic> {
                                 .expect("Unable to find mapping");
 
                         let mist_msg = MistDiagnosticMessage {
-                            message: span.label.clone().unwrap_or(msg.message.message.clone()),
+                            message: format!(
+                                "{}: {}",
+                                msg.message.message,
+                                span.label.clone().unwrap_or_default()
+                            ),
                             file_name: if is_root {
                                 mist_file
                             } else {
@@ -115,42 +119,6 @@ pub fn build(mut args: Vec<String>, root: PathBuf) -> Vec<MistDiagnostic> {
 
     diagnostics
 }
-
-// pub fn print_diagnostics(diagnostics: &Vec<MistDiagnostic>) {
-//     let mut files = HashMap::new();
-
-//     for diag in diagnostics {
-//         match diag {
-//             MistDiagnostic::Error(msg) => {
-//                 let line = get_line(&mut files, &msg);
-
-//                 println!(
-//                     "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}",
-//                     msg.file_name,
-//                     msg.line,
-//                     msg.column,
-//                     msg.message,
-//                     line.unwrap_or_default(),
-//                 )
-//             }
-
-//             MistDiagnostic::Warning(msg) => {
-//                 let line = get_line(&mut files, &msg);
-
-//                 println!(
-//                     "\n{}:{}:{}\n \x1b[33mWarning\x1b[0m: {}\n\t{}",
-//                     msg.file_name,
-//                     msg.line,
-//                     msg.column,
-//                     msg.message,
-//                     line.unwrap_or_default(),
-//                 )
-//             }
-
-//             MistDiagnostic::Rust(rs) => println!("{rs}"),
-//         }
-//     }
-// }
 
 pub fn get_line(
     files: &mut HashMap<PathBuf, Vec<String>>,
