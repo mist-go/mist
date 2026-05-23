@@ -130,9 +130,9 @@ dependencies = [
 
 [[package]]
 name = "dashmap"
-version = "6.2.1"
+version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6361d5c062261c78a176addb82d4c821ae42bed6089de0e12603cd25de2059c"
+checksum = "5041cc499144891f3790297212f32a74fb938e5136a14943f338ef9e0ae276cf"
 dependencies = [
  "cfg-if",
  "crossbeam-utils",
@@ -444,7 +444,8 @@ dependencies = [
 name = "mist-analyzer"
 version = "0.0.2"
 dependencies = [
- "dashmap 6.2.1",
+ "cargo_metadata",
+ "dashmap 6.1.0",
  "mist-codegen",
  "mist-parser",
  "tokio",

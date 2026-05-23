@@ -12,6 +12,7 @@ categories = ["compilers"]
 mist-parser = { workspace = true }
 mist-codegen = { workspace = true }
 
-dashmap = "6.2.1"
+dashmap = "6.1.0"
 tokio = { version = "1.52.3", features = ["full", "macros", "rt", "rt-multi-thread"] }
 tower-lsp = "0.20.0"
+cargo_metadata = "0.23.1"

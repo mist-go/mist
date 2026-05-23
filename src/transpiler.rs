@@ -5,7 +5,7 @@ use std::{
     time::Instant,
 };
 
-use mist_parser::error::ParseError;
+use mist_parser::{ast::TopLevel, error::ParseError};
 
 pub fn build(force: bool) -> PathBuf {
     let start = Instant::now();
@@ -110,39 +110,34 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path, f
             }
         };
 
-        let parser_result = mist_parser::parse(&source).map_err(|e| match e {
-            ParseError::Ast(e) => {
-                let start_pos = e.span.start_pos().line_col();
-
-                let span = e.span.as_str();
-
-                format!(
-                    "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}{}\t{}",
-                    path.as_os_str().display(),
-                    start_pos.0,
-                    start_pos.1,
-                    e.error_message,
-                    span,
-                    if span.ends_with("\n") { "" } else { "\n" },
-                    "^".repeat(span.trim().len()),
-                )
-            }
-            ParseError::PreAst(e) => format!("{e}"),
-        });
-
-        let ast = match parser_result {
+        let output = match transpile_file(&source) {
             Ok(ast) => ast,
             Err(e) => {
-                eprintln!("error: parse failed in {}\n{}", path.display(), e);
+                match e {
+                    ParseError::Ast(e) => {
+                        let start_pos = e.span.start_pos().line_col();
+
+                        let span = e.span.as_str();
+
+                        eprintln!(
+                            "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}{}\t{}",
+                            path.as_os_str().display(),
+                            start_pos.0,
+                            start_pos.1,
+                            e.error_message,
+                            span,
+                            if span.ends_with("\n") { "" } else { "\n" },
+                            "^".repeat(span.trim().len()),
+                        )
+                    }
+                    ParseError::PreAst(e) => {
+                        eprintln!("error: parse failed in {}\n{}", path.display(), e)
+                    }
+                }
 
                 process::exit(1);
             }
         };
-
-        // semantic::walk_ast(semantic::scope::Scope::from_top(root, &ast), &mut ast);
-
-        let mut gc = mist_codegen::RustCodegen::new();
-        let output = gc.generate(ast);
 
         if let Err(e) = fs::write(&output_path, output) {
             eprintln!(
@@ -154,6 +149,12 @@ fn build_dir(root: &Path, base_src: &Path, current_dir: &Path, out_dir: &Path, f
             process::exit(1);
         }
     }
+}
+
+pub fn transpile_file<'a>(source: &'a str) -> Result<String, ParseError<'a, Vec<TopLevel>>> {
+    let mut gc = mist_codegen::RustCodegen::new();
+
+    Ok(gc.generate(mist_parser::parse(&source)?))
 }
 
 fn should_skip(source: &Path, output: &Path) -> bool {
