@@ -15,92 +15,6 @@ pub struct RustAnalyzer {
     id: usize,
 }
 
-impl RustAnalyzer {
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let mut child = tokio::process::Command::new("rust-analyzer")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null()) // Ignore logs for simplicity
-            .spawn()?;
-
-        let stdin = child.stdin.take().unwrap();
-        let stdout = BufReader::new(child.stdout.take().unwrap());
-
-        Ok(Self {
-            stdin,
-            stdout,
-            id: 0,
-        })
-    }
-
-    pub async fn init(&mut self, root: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-        let project_uri = Url::from_directory_path(root)
-            .map_err(|_| "Failed to convert path to valid file:// URL")?;
-
-        #[allow(deprecated)]
-        let init_params = InitializeParams {
-            process_id: Some(std::process::id()),
-            root_uri: Some(project_uri.clone()),
-            workspace_folders: Some(vec![WorkspaceFolder {
-                uri: project_uri,
-                name: "workspace".to_string(),
-            }]),
-            capabilities: ClientCapabilities {
-                workspace: Some(lsp_types::WorkspaceClientCapabilities {
-                    workspace_folders: Some(true),
-                    ..Default::default()
-                }),
-                text_document: Some(lsp_types::TextDocumentClientCapabilities {
-                    ..Default::default()
-                }),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        let _response = self.request::<request::Initialize>(init_params);
-
-        eprintln!("<- Received: initialize response");
-
-        Ok(())
-    }
-
-    pub async fn request<R: Request>(
-        &mut self,
-        params: R::Params,
-    ) -> Result<R::Result, Box<dyn std::error::Error>> {
-        self.send(R::METHOD, params).await?;
-        self.read().await
-    }
-
-    pub async fn send<T: Serialize>(&mut self, method: &str, req: T) -> std::io::Result<()> {
-        let id = {
-            self.id += 1;
-            self.id
-        };
-
-        send_lsp_message(
-            &mut self.stdin,
-            &json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "method": method,
-                "params": req,
-            }),
-        )
-        .await
-    }
-
-    pub async fn read<T>(&mut self) -> Result<T, Box<dyn std::error::Error>>
-    where
-        T: for<'de> serde::Deserialize<'de>,
-    {
-        read_lsp_message(&mut self.stdout)
-            .await
-            .map(|v| serde_json::from_str(&v).unwrap())
-    }
-}
-
 async fn send_lsp_message<W: AsyncWriteExt + Unpin>(
     writer: &mut W,
     value: &serde_json::Value,
@@ -139,4 +53,92 @@ async fn read_lsp_message<R: AsyncBufReadExt + Unpin>(
     reader.read_exact(&mut buffer).await?;
 
     Ok(String::from_utf8(buffer)?)
+}
+
+impl RustAnalyzer {
+    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+        let mut child = tokio::process::Command::new("rust-analyzer")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null()) // Ignore logs for simplicity
+            .spawn()?;
+
+        let stdin = child.stdin.take().unwrap();
+        let stdout = BufReader::new(child.stdout.take().unwrap());
+
+        Ok(Self {
+            stdin,
+            stdout,
+            id: 0,
+        })
+    }
+
+    pub async fn request<R: Request>(
+        &mut self,
+        params: R::Params,
+    ) -> Result<R::Result, Box<dyn std::error::Error>> {
+        self.send(R::METHOD, params).await?;
+        self.read().await
+    }
+
+    pub async fn send<T: Serialize>(&mut self, method: &str, req: T) -> std::io::Result<()> {
+        let id = {
+            self.id += 1;
+            self.id
+        };
+
+        send_lsp_message(
+            &mut self.stdin,
+            &json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "method": method,
+                "params": req,
+            }),
+        )
+        .await
+    }
+
+    pub async fn read<T>(&mut self) -> Result<T, Box<dyn std::error::Error>>
+    where
+        T: for<'de> serde::Deserialize<'de>,
+    {
+        read_lsp_message(&mut self.stdout)
+            .await
+            .map(|v| serde_json::from_str(&v).unwrap())
+    }
+}
+
+impl RustAnalyzer {
+    pub async fn init(&mut self, root: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+        let project_uri = Url::from_directory_path(root)
+            .map_err(|_| "Failed to convert path to valid file:// URL")?;
+
+        #[allow(deprecated)]
+        let init_params = InitializeParams {
+            process_id: Some(std::process::id()),
+            root_uri: Some(project_uri.clone()),
+            workspace_folders: Some(vec![WorkspaceFolder {
+                uri: project_uri,
+                name: "workspace".to_string(),
+            }]),
+            capabilities: ClientCapabilities {
+                workspace: Some(lsp_types::WorkspaceClientCapabilities {
+                    workspace_folders: Some(true),
+                    ..Default::default()
+                }),
+                text_document: Some(lsp_types::TextDocumentClientCapabilities {
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let _response = self.request::<request::Initialize>(init_params);
+
+        eprintln!("<- Received: initialize response");
+
+        Ok(())
+    }
 }

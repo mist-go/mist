@@ -197,15 +197,14 @@ impl LanguageServer for Backend {
         &self,
         params: GotoDefinitionParams,
     ) -> Result<Option<GotoDefinitionResponse>> {
-        let mut source = fs::read_to_string(
-            params
-                .text_document_position_params
-                .text_document
-                .uri
-                .to_file_path()
-                .unwrap(),
-        )
-        .expect("Failed to read source");
+        let file_path = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .to_file_path()
+            .unwrap();
+
+        let mut source = fs::read_to_string(&file_path).expect("Failed to read source");
 
         let inject = "__mist_23";
 
@@ -223,9 +222,31 @@ impl LanguageServer for Backend {
             .expect("Didn't find injection")
             .saturating_sub(1);
 
+        let (line, character) = find_row_col(&output, inject).unwrap();
+
         self.client
             .log_message(MessageType::INFO, format!("Found at {position}"))
             .await;
+
+        self.rust_analyzer
+            .lock()
+            .await
+            .request::<lsp_types::request::GotoDefinition>(lsp_types::GotoDefinitionParams {
+                text_document_position_params: lsp_types::TextDocumentPositionParams {
+                    position: lsp_types::Position {
+                        line: line as u32,
+                        character: character as u32,
+                    },
+                    text_document: lsp_types::TextDocumentIdentifier {
+                        uri: Url::from_file_path(from_mist_to_rust(file_path))
+                            .expect("failed to generate rs url"),
+                    },
+                },
+                partial_result_params: lsp_types::PartialResultParams::default(),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+            })
+            .await
+            .expect("Failed to send to rust");
 
         Ok(None)
     }
@@ -285,4 +306,21 @@ fn insert_at_position(s: &str, line: usize, col: usize, insert: &str) -> String 
     target.insert_str(char_idx, insert);
 
     lines.join("\n")
+}
+
+fn find_row_col(output: &str, inject: &str) -> Option<(usize, usize)> {
+    // 1. Find the flat byte index just like your original code
+    let byte_idx = output.find(inject)?;
+
+    // 2. Slice the string up to the match point
+    let prefix = &output[..byte_idx];
+
+    // 3. Row = number of newlines found before the match + 1 (1-indexed)
+    let row = prefix.lines().count();
+
+    // 4. Column = character count of the remaining text on the current line + 1
+    // (Using .chars().count() ensures it works with multi-byte UTF-8 symbols)
+    let col = prefix.lines().last().unwrap_or("").chars().count() + 1;
+
+    Some((row, col))
 }
