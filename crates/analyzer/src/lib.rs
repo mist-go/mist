@@ -1,4 +1,5 @@
 pub mod builder;
+pub mod rust_analyzer;
 pub mod transpiler;
 
 use std::collections::HashMap;
@@ -72,6 +73,9 @@ impl LanguageServer for Backend {
         tokio::spawn(async move {
             if let Some(root) = &*workspace_folder.lock().await {
                 transpiler::build(root);
+                rust_analyzer::initialize(root)
+                    .await
+                    .expect("Failed to initialize rust analyzer");
             }
         });
 
