@@ -13,12 +13,14 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::builder::MistDiagnostic;
+use crate::rust_analyzer::RustAnalyzer;
 
 #[derive(Debug)]
 struct Backend {
     client: Client,
     workspace_folder: Arc<Mutex<Option<PathBuf>>>,
     previous_diagnostics: Arc<Mutex<HashMap<Url, Vec<Diagnostic>>>>,
+    rust_analyzer: Arc<Mutex<RustAnalyzer>>,
 }
 
 /// Helper function to force percent-encoding on Windows drive colons
@@ -70,10 +72,17 @@ impl LanguageServer for Backend {
         }
 
         let workspace_folder = self.workspace_folder.clone();
+
+        let analyzer = self.rust_analyzer.clone();
+
         tokio::spawn(async move {
             if let Some(root) = &*workspace_folder.lock().await {
                 transpiler::build(root);
-                rust_analyzer::initialize(root)
+
+                analyzer
+                    .lock()
+                    .await
+                    .init(root)
                     .await
                     .expect("Failed to initialize rust analyzer");
             }
@@ -231,6 +240,9 @@ pub async fn start() {
         client,
         workspace_folder: Arc::new(Mutex::new(None)),
         previous_diagnostics: Arc::new(Mutex::new(HashMap::new())),
+        rust_analyzer: Arc::new(Mutex::new(
+            RustAnalyzer::new().expect("Failed to create rust analyzer"),
+        )),
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }
