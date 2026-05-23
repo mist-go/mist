@@ -1,6 +1,7 @@
 pub mod builder;
 pub mod transpiler;
 
+use std::collections::HashMap;
 use std::path::{Component, PathBuf};
 use std::sync::Arc;
 
@@ -10,12 +11,33 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::builder::MistDiagnostic;
-use crate::transpiler::transpile_file;
 
 #[derive(Debug)]
 struct Backend {
     client: Client,
     workspace_folder: Arc<Mutex<Option<PathBuf>>>,
+    previous_diagnostics: Arc<Mutex<HashMap<Url, Vec<Diagnostic>>>>,
+}
+
+/// Helper function to force percent-encoding on Windows drive colons
+/// so that the URLs exactly match what VS Code/LSP clients send.
+fn clean_lsp_url(path: &std::path::Path) -> Option<Url> {
+    let mut url_str = Url::from_file_path(path).ok()?.to_string();
+
+    // Look for Windows patterns like file:///D: or file:///d: and switch to %3A
+    if url_str.starts_with("file:///I:") || url_str.starts_with("file:///i:") || // Catch-all or explicit check:
+       (url_str.len() > 10 && url_str.as_bytes()[11] == b':')
+    {
+        // Safely replace the first colon occurring after "file:///"
+        if let Some(pos) = url_str.find(':') {
+            if pos == 11 {
+                // Double check it's the drive letter colon
+                url_str.replace_range(pos..=pos, "%3A");
+            }
+        }
+    }
+
+    Url::parse(&url_str).ok()
 }
 
 #[tower_lsp::async_trait]
@@ -33,7 +55,6 @@ impl LanguageServer for Backend {
             },
         ));
 
-        // Safely extract workspace root without deep nested matching panics
         let folder_path = params
             .workspace_folders
             .as_ref()
@@ -47,7 +68,6 @@ impl LanguageServer for Backend {
         let workspace_folder = self.workspace_folder.clone();
         tokio::spawn(async move {
             if let Some(root) = &*workspace_folder.lock().await {
-                // Consideration: Ensure transpiler::build is panic-safe internally
                 transpiler::build(root);
             }
         });
@@ -61,47 +81,15 @@ impl LanguageServer for Backend {
             .await;
     }
 
-    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+    async fn did_save(&self, _: DidSaveTextDocumentParams) {
         self.client
             .log_message(MessageType::INFO, "Processing did_save event")
             .await;
 
-        // 1. Safe URI parsing fallback
-        let input_path = match params.text_document.uri.to_file_path() {
-            Ok(path) => path,
-            Err(_) => {
-                self.client
-                    .log_message(
-                        MessageType::WARNING,
-                        "Skipping: Document URI is not a valid local file path",
-                    )
-                    .await;
-                return;
-            }
-        };
-
-        let output_path = from_mist_to_rust(input_path.clone());
-
-        self.client
-            .log_message(
-                MessageType::INFO,
-                format!("Transpiling: {}", input_path.display()),
-            )
-            .await;
-
-        // 2. Safe call to the updated transpile_file function
-        if let Err(err_msg) = transpile_file(&input_path, &output_path) {
-            self.client
-                .log_message(
-                    MessageType::ERROR,
-                    format!("Transpilation error: {err_msg}"),
-                )
-                .await;
-            // Optimization choice: You can return early here, or keep moving forward
-            // to collect compiler diagnostics anyway.
+        if let Some(root) = &*self.workspace_folder.lock().await {
+            transpiler::build(root);
         }
 
-        // 3. Safe workspace root retrieval fallback
         let workspace_root = match self.workspace_folder.lock().await.clone() {
             Some(root) => root,
             None => {
@@ -115,38 +103,35 @@ impl LanguageServer for Backend {
             }
         };
 
-        // 4. Run the project builder stage
         let diagnostics_raw = builder::build(
             vec![
                 "check".to_string(),
-                "--bin".to_string(),
-                "mist-lsp".to_string(),
+                "--workspace".to_string(),
+                "--all-targets".to_string(),
             ],
             workspace_root,
         );
 
-        let mut diagnostics = Vec::new();
+        let mut diagnostics = HashMap::new();
 
         for diag in diagnostics_raw.iter() {
             let (msg, severity) = match diag {
                 MistDiagnostic::Error(msg) => (msg, DiagnosticSeverity::ERROR),
                 MistDiagnostic::Warning(msg) => (msg, DiagnosticSeverity::WARNING),
-                MistDiagnostic::Rust(d) => {
-                    self.client
-                        .log_message(
-                            MessageType::LOG,
-                            format!("Unhandled underlying Rust diagnostic: {d:?}"),
-                        )
-                        .await;
+                MistDiagnostic::Rust(_) => {
                     continue;
                 }
             };
 
-            // 5. Safe indexing checks via saturating_sub
             let line = (msg.line as u32).saturating_sub(1);
             let column = (msg.column as u32).saturating_sub(1);
 
-            diagnostics.push(Diagnostic {
+            let url = match clean_lsp_url(&msg.file_path) {
+                Some(u) => u,
+                None => continue,
+            };
+
+            let diagnostic_item = Diagnostic {
                 range: Range {
                     start: Position {
                         line,
@@ -154,7 +139,7 @@ impl LanguageServer for Backend {
                     },
                     end: Position {
                         line,
-                        character: u32::MAX, // Highlights to the end of the line safely
+                        character: column + 1,
                     },
                 },
                 severity: Some(severity),
@@ -165,13 +150,27 @@ impl LanguageServer for Backend {
                 tags: None,
                 data: None,
                 code_description: None,
-            });
+            };
+
+            diagnostics
+                .entry(url)
+                .or_insert_with(Vec::new)
+                .push(diagnostic_item);
         }
 
-        // 6. Send the generated diagnostics back to the IDE client interface
-        self.client
-            .publish_diagnostics(params.text_document.uri, diagnostics, None)
-            .await;
+        for (file, _) in self.previous_diagnostics.lock().await.iter() {
+            self.client
+                .publish_diagnostics(file.clone(), Vec::new(), None)
+                .await;
+        }
+
+        for (file, diag) in &diagnostics {
+            self.client
+                .publish_diagnostics(file.clone(), diag.clone(), None)
+                .await;
+        }
+
+        *self.previous_diagnostics.lock().await = diagnostics;
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -187,11 +186,12 @@ pub async fn start() {
     let (service, socket) = LspService::new(|client| Backend {
         client,
         workspace_folder: Arc::new(Mutex::new(None)),
+        previous_diagnostics: Arc::new(Mutex::new(HashMap::new())),
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }
 
-fn from_mist_to_rust(mut path: PathBuf) -> PathBuf {
+pub fn from_mist_to_rust(mut path: PathBuf) -> PathBuf {
     path.set_extension("rs");
 
     let mut comps: Vec<Component> = path.components().collect();
