@@ -205,7 +205,10 @@ impl LanguageServer for Backend {
 
         let output = transpiler::transpile_text(&source).expect("Failed to transpile");
 
-        let position = output.find(inject).expect("Didn't find injection").saturating_sub(1);
+        let position = output
+            .find(inject)
+            .expect("Didn't find injection")
+            .saturating_sub(1);
 
         self.client
             .log_message(MessageType::INFO, format!("Found at {position}"))
