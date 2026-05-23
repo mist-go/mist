@@ -2,6 +2,7 @@ pub mod builder;
 pub mod transpiler;
 
 use std::collections::HashMap;
+use std::fs;
 use std::path::{Component, PathBuf};
 use std::sync::Arc;
 
@@ -55,6 +56,8 @@ impl LanguageServer for Backend {
             },
         ));
 
+        res.capabilities.definition_provider = Some(OneOf::Left(true));
+
         let folder_path = params
             .workspace_folders
             .as_ref()
@@ -79,6 +82,10 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "server initialized!")
             .await;
+    }
+
+    async fn shutdown(&self) -> Result<()> {
+        Ok(())
     }
 
     async fn did_save(&self, _: DidSaveTextDocumentParams) {
@@ -173,8 +180,38 @@ impl LanguageServer for Backend {
         *self.previous_diagnostics.lock().await = diagnostics;
     }
 
-    async fn shutdown(&self) -> Result<()> {
-        Ok(())
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        let mut source = fs::read_to_string(
+            params
+                .text_document_position_params
+                .text_document
+                .uri
+                .to_file_path()
+                .unwrap(),
+        )
+        .expect("Failed to read source");
+
+        let inject = "__mist_23";
+
+        source = insert_at_position(
+            &source,
+            params.text_document_position_params.position.line as usize,
+            params.text_document_position_params.position.character as usize,
+            &inject,
+        );
+
+        let output = transpiler::transpile_text(&source).expect("Failed to transpile");
+
+        let position = output.find(inject).expect("Didn't find injection").saturating_sub(1);
+
+        self.client
+            .log_message(MessageType::INFO, format!("Found at {position}"))
+            .await;
+
+        Ok(None)
     }
 }
 
@@ -203,4 +240,30 @@ pub fn from_mist_to_rust(mut path: PathBuf) -> PathBuf {
     } else {
         path
     }
+}
+
+fn insert_at_position(s: &str, line: usize, col: usize, insert: &str) -> String {
+    let mut lines: Vec<String> = s.lines().map(|l| l.to_string()).collect();
+
+    // Convert to 0-index
+    let line_idx = line.saturating_sub(1);
+    let col_idx = col.saturating_sub(1);
+
+    // Ensure line exists (optional behavior: extend with empty lines)
+    if line_idx >= lines.len() {
+        lines.resize(line_idx + 1, String::new());
+    }
+
+    let target = &mut lines[line_idx];
+
+    // Clamp column to valid char boundary
+    let char_idx = target
+        .char_indices()
+        .nth(col_idx)
+        .map(|(i, _)| i)
+        .unwrap_or(target.len()); // if past end, append
+
+    target.insert_str(char_idx, insert);
+
+    lines.join("\n")
 }

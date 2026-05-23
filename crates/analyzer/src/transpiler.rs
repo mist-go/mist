@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use mist_parser::error::ParseError;
+use mist_parser::{ast::TopLevel, error::ParseError};
 
 pub fn build(root: &PathBuf) {
     let src_dir = root.join("src");
@@ -142,6 +142,12 @@ pub fn transpile_file(path: &Path, output_path: &Path) -> Result<(), String> {
         .map_err(|e| format!("failed to write output {}: {}", output_path.display(), e))?;
 
     Ok(())
+}
+
+pub fn transpile_text<'a>(source: &'a str) -> Result<String, ParseError<'a, Vec<TopLevel>>> {
+    let mut gc = mist_codegen::RustCodegen::new();
+
+    Ok(gc.generate(mist_parser::parse(&source)?))
 }
 
 fn should_skip(source: &Path, output: &Path) -> bool {
