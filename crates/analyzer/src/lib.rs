@@ -217,52 +217,26 @@ impl LanguageServer for Backend {
 
         source = insert_at_position(
             &source,
-            params.text_document_position_params.position.line as usize,
+            params.text_document_position_params.position.line as usize + 1,
             params.text_document_position_params.position.character as usize,
             &inject,
         );
 
         let output = transpiler::transpile_text(&source).expect("Failed to transpile");
 
-        let position = output
-            .find(inject)
-            .expect("Didn't find injection")
-            .saturating_sub(1);
-
         let (line, character) = find_row_col(&output, inject).unwrap();
-
-        self.client
-            .log_message(MessageType::INFO, format!("Found at {position}"))
-            .await;
 
         let uri =
             Url::from_file_path(from_mist_to_rust(file_path)).expect("failed to generate rs url");
 
-        self.rust_analyzer
-            .lock()
-            .await
-            .notify(
-                "textDocument/didOpen",
-                DidOpenTextDocumentParams {
-                    text_document: TextDocumentItem {
-                        uri: uri.clone(),
-                        language_id: "rust".into(),
-                        version: 1,
-                        text: output,
-                    },
-                },
-            )
-            .await
-            .expect("Failed to init req");
-
-        let res = self
+        let rs_res = self
             .rust_analyzer
             .lock()
             .await
             .request::<request::GotoDefinition>(lsp_types::GotoDefinitionParams {
                 text_document_position_params: lsp_types::TextDocumentPositionParams {
                     position: lsp_types::Position {
-                        line: line as u32,
+                        line: line as u32 - 1,
                         character: character as u32,
                     },
                     text_document: lsp_types::TextDocumentIdentifier { uri },
@@ -273,9 +247,7 @@ impl LanguageServer for Backend {
             .await
             .expect("Failed to send to rust");
 
-        self.client
-            .log_message(MessageType::INFO, format!("OUTPUT: {:?}", res))
-            .await;
+        eprintln!("{:?}", rs_res);
 
         Ok(None)
     }

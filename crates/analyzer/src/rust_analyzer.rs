@@ -12,7 +12,7 @@ use tower_lsp::lsp_types::{
     request::{self, Request},
 };
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct JsonRpcResponse<T> {
     pub jsonrpc: String,
     pub id: Option<usize>,
