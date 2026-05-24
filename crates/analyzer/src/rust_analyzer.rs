@@ -135,18 +135,25 @@ impl RustAnalyzer {
             let pending = self.pending.clone();
 
             tokio::spawn(async move {
-                let raw_string = read_lsp_message(&mut *stdout.lock().await).await.unwrap();
+                loop {
+                    let raw_string = read_lsp_message(&mut *stdout.lock().await).await.unwrap();
 
-                let envelope: JsonRpcResponse<Value> = serde_json::from_str(&raw_string).unwrap();
+                    let envelope: JsonRpcResponse<Value> =
+                        serde_json::from_str(&raw_string).unwrap();
 
-                pending
-                    .lock()
-                    .await
-                    .get(&envelope.id.unwrap())
-                    .unwrap()
-                    .send(raw_string)
-                    .await
-                    .unwrap();
+                    pending
+                        .lock()
+                        .await
+                        .remove(&envelope.id.unwrap())
+                        .unwrap()
+                        .send(raw_string)
+                        .await
+                        .unwrap();
+
+                    if pending.lock().await.len() == 0 {
+                        break;
+                    }
+                }
             });
         }
 
