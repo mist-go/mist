@@ -8,6 +8,7 @@ use std::path::{Component, PathBuf};
 use std::sync::Arc;
 
 use mist_parser::rev_mapper;
+use ropey::Rope;
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::notification::Notification;
@@ -539,44 +540,50 @@ pub fn from_rust_to_mist(mut path: PathBuf) -> PathBuf {
 }
 
 fn insert_at_position(s: &str, line: usize, col: usize, insert: &str) -> String {
-    let mut lines: Vec<String> = s.lines().map(|l| l.to_string()).collect();
+    let mut rope = Rope::from_str(s);
 
-    // Convert to 0-index
+    // Convert to 0-indexed
     let line_idx = line.saturating_sub(1);
     let col_idx = col.saturating_sub(1);
 
-    // Ensure line exists (optional behavior: extend with empty lines)
-    if line_idx >= lines.len() {
-        lines.resize(line_idx + 1, String::new());
-    }
+    // Clamp line
+    let line_idx = line_idx.min(rope.len_lines().saturating_sub(1));
 
-    let target = &mut lines[line_idx];
+    // Get start char index of the line
+    let line_start = rope.line_to_char(line_idx);
 
-    // Clamp column to valid char boundary
-    let char_idx = target
-        .char_indices()
-        .nth(col_idx)
-        .map(|(i, _)| i)
-        .unwrap_or(target.len()); // if past end, append
+    // Get line length in chars
+    let line = rope.line(line_idx);
+    let line_len = line.len_chars();
 
-    target.insert_str(char_idx, insert);
+    // Clamp column
+    let col_idx = col_idx.min(line_len);
 
-    lines.join("\n")
+    // Final insertion char index
+    let insert_idx = line_start + col_idx;
+
+    rope.insert(insert_idx, insert);
+
+    rope.to_string()
 }
 
 fn find_row_col(output: &str, inject: &str) -> Option<(usize, usize)> {
-    // 1. Find the flat byte index just like your original code
+    let rope = Rope::from_str(output);
+
     let byte_idx = output.find(inject)?;
 
-    // 2. Slice the string up to the match point
-    let prefix = &output[..byte_idx];
+    // Convert byte index -> char index
+    let char_idx = output[..byte_idx].chars().count();
 
-    // 3. Row = number of newlines found before the match + 1 (1-indexed)
-    let row = prefix.lines().count();
+    // Ropey line lookup
+    let line_idx = rope.char_to_line(char_idx);
 
-    // 4. Column = character count of the remaining text on the current line + 1
-    // (Using .chars().count() ensures it works with multi-byte UTF-8 symbols)
-    let col = prefix.lines().last().unwrap_or("").chars().count() + 1;
+    // Line start char index
+    let line_start = rope.line_to_char(line_idx);
 
-    Some((row, col))
+    // Column within line
+    let col_idx = char_idx - line_start;
+
+    // Return 1-indexed
+    Some((line_idx + 1, col_idx + 1))
 }
