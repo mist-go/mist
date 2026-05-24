@@ -1,4 +1,4 @@
-use std::{path::PathBuf, process::Stdio};
+use std::{collections::HashMap, path::PathBuf, process::Stdio, sync::Arc};
 
 use lsp_types::{
     ClientCapabilities, InitializeParams, InitializedParams, Url, WorkspaceFolder,
@@ -6,15 +6,16 @@ use lsp_types::{
     request::{self, Request},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use serde_json::{Value, json};
+use tokio::{
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+    sync::{Mutex, mpsc::Sender},
+};
 
 #[derive(Deserialize)]
 pub struct JsonRpcResponse<T> {
     pub jsonrpc: String,
-    // id can be a number or null, so we use serde_json::Value to be safe
-    pub id: serde_json::Value,
-    // We only unpack the result if it exists
+    pub id: Option<usize>,
     pub result: Option<T>,
     pub error: Option<JsonRpcError>,
 }
@@ -29,7 +30,8 @@ pub struct JsonRpcError {
 #[derive(Debug)]
 pub struct RustAnalyzer {
     stdin: tokio::process::ChildStdin,
-    stdout: BufReader<tokio::process::ChildStdout>,
+    stdout: Arc<Mutex<BufReader<tokio::process::ChildStdout>>>,
+    pending: Arc<Mutex<HashMap<usize, Sender<String>>>>,
     id: usize,
 }
 
@@ -82,11 +84,12 @@ impl RustAnalyzer {
             .spawn()?;
 
         let stdin = child.stdin.take().unwrap();
-        let stdout = BufReader::new(child.stdout.take().unwrap());
+        let stdout = Arc::new(Mutex::new(BufReader::new(child.stdout.take().unwrap())));
 
         Ok(Self {
             stdin,
             stdout,
+            pending: Arc::new(Mutex::new(HashMap::new())),
             id: 0,
         })
     }
@@ -95,11 +98,11 @@ impl RustAnalyzer {
         &mut self,
         params: R::Params,
     ) -> Result<R::Result, Box<dyn std::error::Error>> {
-        self.send(R::METHOD, params).await?;
-        self.read().await
+        let id = self.send(R::METHOD, params).await?;
+        self.read(id).await
     }
 
-    pub async fn send<T: Serialize>(&mut self, method: &str, req: T) -> std::io::Result<()> {
+    pub async fn send<T: Serialize>(&mut self, method: &str, req: T) -> std::io::Result<usize> {
         let id = {
             self.id += 1;
             self.id
@@ -114,14 +117,40 @@ impl RustAnalyzer {
                 "params": req,
             }),
         )
-        .await
+        .await?;
+
+        Ok(id)
     }
 
-    pub async fn read<T>(&mut self) -> Result<T, Box<dyn std::error::Error>>
+    pub async fn read<T>(&mut self, id: usize) -> Result<T, Box<dyn std::error::Error>>
     where
         T: for<'de> serde::Deserialize<'de>,
     {
-        let raw_string = read_lsp_message(&mut self.stdout).await?;
+        let (tx, mut rx) = tokio::sync::mpsc::channel(16);
+
+        self.pending.lock().await.insert(id, tx);
+
+        if self.pending.lock().await.len() == 1 {
+            let stdout = self.stdout.clone();
+            let pending = self.pending.clone();
+
+            tokio::spawn(async move {
+                let raw_string = read_lsp_message(&mut *stdout.lock().await).await.unwrap();
+
+                let envelope: JsonRpcResponse<Value> = serde_json::from_str(&raw_string).unwrap();
+
+                pending
+                    .lock()
+                    .await
+                    .get(&envelope.id.unwrap())
+                    .unwrap()
+                    .send(raw_string)
+                    .await
+                    .unwrap();
+            });
+        }
+
+        let raw_string = rx.recv().await.expect("Failed to receive");
 
         let envelope: JsonRpcResponse<T> = serde_json::from_str(&raw_string)?;
 

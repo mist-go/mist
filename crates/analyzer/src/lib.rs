@@ -7,10 +7,9 @@ use std::fs;
 use std::path::{Component, PathBuf};
 use std::sync::Arc;
 
-use serde_json::Value;
+use lsp_types::request::GotoDefinition;
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::request::Request;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
@@ -237,37 +236,29 @@ impl LanguageServer for Backend {
             .log_message(MessageType::INFO, format!("Found at {position}"))
             .await;
 
-        self.rust_analyzer
+        let res = self
+            .rust_analyzer
             .lock()
             .await
-            .send(
-                request::GotoDefinition::METHOD,
-                lsp_types::GotoDefinitionParams {
-                    text_document_position_params: lsp_types::TextDocumentPositionParams {
-                        position: lsp_types::Position {
-                            line: line as u32,
-                            character: character as u32,
-                        },
-                        text_document: lsp_types::TextDocumentIdentifier {
-                            uri: Url::from_file_path(from_mist_to_rust(file_path))
-                                .expect("failed to generate rs url"),
-                        },
+            .request::<GotoDefinition>(lsp_types::GotoDefinitionParams {
+                text_document_position_params: lsp_types::TextDocumentPositionParams {
+                    position: lsp_types::Position {
+                        line: line as u32,
+                        character: character as u32,
                     },
-                    partial_result_params: lsp_types::PartialResultParams::default(),
-                    work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+                    text_document: lsp_types::TextDocumentIdentifier {
+                        uri: Url::from_file_path(from_mist_to_rust(file_path))
+                            .expect("failed to generate rs url"),
+                    },
                 },
-            )
+                partial_result_params: lsp_types::PartialResultParams::default(),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+            })
             .await
             .expect("Failed to send to rust");
 
         self.client
-            .log_message(
-                MessageType::INFO,
-                format!(
-                    "{:?}",
-                    self.rust_analyzer.lock().await.read::<Value>().await
-                ),
-            )
+            .log_message(MessageType::INFO, format!("{:?}", res))
             .await;
 
         Ok(None)
