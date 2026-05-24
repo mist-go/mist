@@ -494,7 +494,15 @@ impl LanguageServer for Backend {
             .await
             .expect("Failed to send to rust");
 
-        Ok(rs_res)
+        Ok(rs_res.map(|rs_res| match rs_res {
+            CompletionResponse::Array(items) => {
+                CompletionResponse::Array(items.into_iter().map(simplify_item).collect())
+            }
+
+            CompletionResponse::List(list) => {
+                CompletionResponse::Array(list.items.into_iter().map(simplify_item).collect())
+            }
+        }))
     }
 }
 
@@ -594,4 +602,17 @@ fn find_row_col(rope: &Rope, needle: &str) -> Option<(usize, usize)> {
     let col_idx = char_idx - line_start;
 
     Some((line_idx + 1, col_idx + 1))
+}
+
+fn simplify_item(mut item: CompletionItem) -> CompletionItem {
+    item.text_edit = None;
+    item.additional_text_edits = None;
+    item.command = None;
+    item.data = None;
+
+    item.insert_text = Some(item.label.clone());
+
+    item.insert_text_format = Some(InsertTextFormat::PLAIN_TEXT);
+
+    item
 }
