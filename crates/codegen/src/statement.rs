@@ -31,8 +31,8 @@ impl GenRust for StatementBody {
         match self {
             Self::Expression(expr) => expr.gen_rust(ctx, cg),
             Self::Statement(stmt) => {
+                ctx.expr_ensure_semicolon = true;
                 stmt.gen_rust(ctx, cg);
-                cg.add(";");
             }
         }
     }

@@ -95,10 +95,14 @@ impl RustCodegen {
         }
     }
 
-    pub fn ensure_brackets_body(&mut self, ctx: &mut Context, expr: &StatementBody) {
-        match expr {
-            StatementBody::Statement(expr) => self.ensure_brackets_expr(ctx, expr),
+    pub fn ensure_brackets_body(&mut self, ctx: &mut Context, body: &StatementBody) {
+        match body {
             StatementBody::Expression(expr) => self.ensure_brackets_expr(ctx, expr),
+
+            StatementBody::Statement(expr) => {
+                ctx.expr_ensure_semicolon = true;
+                self.ensure_brackets_expr(ctx, expr);
+            }
         }
     }
 }

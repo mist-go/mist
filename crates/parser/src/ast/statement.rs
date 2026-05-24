@@ -64,28 +64,15 @@ pub struct StatementBranch {
 }
 
 impl Statement {
-    pub fn is_soft_return(&self) -> bool {
+    pub fn is_block(&self) -> bool {
         match self {
-            Self::Block(_) | Self::Match(_, _) => true,
-            Self::While(branch) => branch.body.is_soft_return(),
-            Self::For { body, .. } | Self::Loop(body) | Self::CStyleFor { body, .. } => {
-                body.is_soft_return()
-            }
-            Self::If {
-                initial,
-                else_if,
-                else_branch,
-            } => {
-                else_branch
-                    .as_ref()
-                    .map(|v| v.is_soft_return())
-                    .unwrap_or_default()
-                    || else_if
-                        .last()
-                        .map(|b| b.body.is_soft_return())
-                        .unwrap_or_default()
-                    || initial.body.is_soft_return()
-            }
+            Self::Block(_)
+            | Self::Match(_, _)
+            | Self::While(_)
+            | Self::For { .. }
+            | Self::Loop(..)
+            | Self::CStyleFor { .. }
+            | Self::If { .. } => true,
             _ => false,
         }
     }

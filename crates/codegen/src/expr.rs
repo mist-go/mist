@@ -103,7 +103,7 @@ impl GenRust for Expression {
         if ensure_semicolon {
             ctx.expr_ensure_semicolon = true;
 
-            if !self.is_soft_return() {
+            if !self.is_block() {
                 cg.add(";");
             }
         }
