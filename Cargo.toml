@@ -1,6 +1,6 @@
 [package]
 name = "mist-lang"
-version = "0.0.4-alpha0"
+version = "0.0.5-alpha0"
 edition = "2024"
 description = "The Mist programming language compiler"
 license = "Apache-2.0"
@@ -36,9 +36,9 @@ exclude = [
 ]
 
 [workspace.dependencies]
-mist-parser = { path = "crates/parser", version = "0.1.5" }
-mist-analyzer = { path = "crates/analyzer", version = "0.0.2" }
-mist-codegen = { path = "crates/codegen", version = "0.1.1" }
+mist-parser = { path = "crates/parser", version = "0.1.6" }
+mist-analyzer = { path = "crates/analyzer", version = "0.0.3" }
+mist-codegen = { path = "crates/codegen", version = "0.1.2" }
 
 [[bin]]
 name = "mist"

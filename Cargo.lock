@@ -442,7 +442,7 @@ dependencies = [
 
 [[package]]
 name = "mist-analyzer"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "cargo_metadata",
  "dashmap 6.1.0",
@@ -456,14 +456,14 @@ dependencies = [
 
 [[package]]
 name = "mist-codegen"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "mist-parser",
 ]
 
 [[package]]
 name = "mist-lang"
-version = "0.0.4-alpha0"
+version = "0.0.5-alpha0"
 dependencies = [
  "cargo_metadata",
  "mist-analyzer",
@@ -475,7 +475,7 @@ dependencies = [
 
 [[package]]
 name = "mist-parser"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "pest",
  "pest_derive",
