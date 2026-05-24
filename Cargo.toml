@@ -45,6 +45,10 @@ name = "mist"
 path = ".mist/src/main.rs"
 
 [[bin]]
+name = "mist-lsp"
+path = ".mist/lsp/main.rs"
+
+[[bin]]
 name = "mist-header"
 path = "src/_header.rs"
 
