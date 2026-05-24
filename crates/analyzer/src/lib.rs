@@ -418,7 +418,7 @@ impl LanguageServer for Backend {
             .request::<request::GotoDefinition>(lsp_types::GotoDefinitionParams {
                 text_document_position_params: lsp_types::TextDocumentPositionParams {
                     position: lsp_types::Position {
-                        line: line as u32 - 1,
+                        line: line as u32,
                         character: character as u32,
                     },
                     text_document: lsp_types::TextDocumentIdentifier { uri },
@@ -503,6 +503,19 @@ impl LanguageServer for Backend {
                 CompletionResponse::Array(list.items.into_iter().map(simplify_item).collect())
             }
         }))
+    }
+
+    async fn completion_resolve(&self, params: CompletionItem) -> Result<CompletionItem> {
+        match self
+            .rust_analyzer
+            .lock()
+            .await
+            .request::<request::ResolveCompletionItem>(params.clone())
+            .await
+        {
+            Ok(o) => Ok(o),
+            _ => Ok(params),
+        }
     }
 }
 
@@ -601,18 +614,13 @@ fn find_row_col(rope: &Rope, needle: &str) -> Option<(usize, usize)> {
 
     let col_idx = char_idx - line_start;
 
-    Some((line_idx + 1, col_idx + 1))
+    Some((line_idx, col_idx + 1))
 }
 
 fn simplify_item(mut item: CompletionItem) -> CompletionItem {
     item.text_edit = None;
     item.additional_text_edits = None;
     item.command = None;
-    item.data = None;
-
-    item.insert_text = Some(item.label.clone());
-
-    item.insert_text_format = Some(InsertTextFormat::PLAIN_TEXT);
 
     item
 }
