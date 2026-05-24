@@ -7,10 +7,9 @@ use std::fs;
 use std::path::{Component, PathBuf};
 use std::sync::Arc;
 
-use lsp_types::request::GotoDefinition;
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::*;
+use tower_lsp::lsp_types::{self, *};
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::builder::MistDiagnostic;
@@ -240,7 +239,7 @@ impl LanguageServer for Backend {
             .rust_analyzer
             .lock()
             .await
-            .request::<GotoDefinition>(lsp_types::GotoDefinitionParams {
+            .request::<request::GotoDefinition>(lsp_types::GotoDefinitionParams {
                 text_document_position_params: lsp_types::TextDocumentPositionParams {
                     position: lsp_types::Position {
                         line: line as u32,

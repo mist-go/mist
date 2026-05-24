@@ -1,15 +1,15 @@
 use std::{collections::HashMap, path::PathBuf, process::Stdio, sync::Arc};
 
-use lsp_types::{
-    ClientCapabilities, InitializeParams, InitializedParams, Url, WorkspaceFolder,
-    notification::{Initialized, Notification},
-    request::{self, Request},
-};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     sync::{Mutex, mpsc::Sender},
+};
+use tower_lsp::lsp_types::{
+    self, ClientCapabilities, InitializeParams, InitializedParams, Url, WorkspaceFolder,
+    notification::{Initialized, Notification},
+    request::{self, Request},
 };
 
 #[derive(Deserialize)]
