@@ -63,12 +63,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                 ast_expr!(Statement::If {
                     initial: inner.next().unwrap().try_into(),
                     else_if: collect_recovered(inner.next().unwrap().into_inner()),
-                    else_branch: inner
-                        .next()
-                        .map(Expression::try_from)
-                        .transpose()
-                        .map(|v| v.map(Box::new))
-                        .get_map(|v| { Some(Box::new(v)) }),
+                    else_branch: inner.next().map(Expression::try_from).transpose(),
                 })
             }
 
@@ -87,7 +82,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                 mutable: Ok(listen_rule(&mut inner, Rule::mutable)) as AstResult<'_, bool>,
                 pattern: inner.next().unwrap().try_into(),
                 iterator: inner.next().unwrap().try_into(),
-                body: inner.next().unwrap().try_into().map(Box::new),
+                body: inner.next().unwrap().try_into(),
             }),
 
             Rule::match_stmt => ast_expr!(Statement::Match(

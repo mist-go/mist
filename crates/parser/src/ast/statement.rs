@@ -14,7 +14,7 @@ pub enum Statement {
     If {
         initial: StatementBranch,
         else_if: Vec<StatementBranch>,
-        else_branch: Option<Box<Expression>>,
+        else_branch: Option<Expression>,
     },
     Loop(Expression),
     While(StatementBranch),
@@ -28,7 +28,7 @@ pub enum Statement {
         mutable: bool,
         pattern: Pattern,
         iterator: Expression,
-        body: Box<Expression>,
+        body: Expression,
     },
     Match(Expression, Vec<(Vec<Pattern>, Expression)>),
 
@@ -60,7 +60,11 @@ pub struct StatementBranch {
 impl Statement {
     pub fn is_block(&self) -> bool {
         match self {
-            Self::Block(_) => true,
+            Self::Block(_) | Self::Match(_, _) => true,
+            Self::While(branch) => branch.body.is_block(),
+            Self::For { body, .. } | Self::Loop(body) | Self::CStyleFor { body, .. } => {
+                body.is_block()
+            }
             Self::If {
                 initial,
                 else_if,
