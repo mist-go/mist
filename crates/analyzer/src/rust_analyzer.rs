@@ -1,10 +1,10 @@
 use std::{collections::HashMap, path::PathBuf, process::Stdio, sync::Arc};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
-    sync::{Mutex, mpsc::Sender},
+    sync::{Mutex, oneshot},
 };
 use tower_lsp::lsp_types::{
     self, ClientCapabilities, InitializeParams, InitializedParams, Url, WorkspaceFolder,
@@ -27,11 +27,12 @@ pub struct JsonRpcError {
     pub data: Option<serde_json::Value>,
 }
 
+type PendingMap = Arc<Mutex<HashMap<usize, oneshot::Sender<Value>>>>;
+
 #[derive(Debug)]
 pub struct RustAnalyzer {
     stdin: tokio::process::ChildStdin,
-    stdout: Arc<Mutex<BufReader<tokio::process::ChildStdout>>>,
-    pending: Arc<Mutex<HashMap<usize, Sender<String>>>>,
+    pending: PendingMap,
     id: usize,
 }
 
@@ -84,12 +85,63 @@ impl RustAnalyzer {
             .spawn()?;
 
         let stdin = child.stdin.take().unwrap();
-        let stdout = Arc::new(Mutex::new(BufReader::new(child.stdout.take().unwrap())));
+        let stdout = child.stdout.take().unwrap();
+
+        let pending: PendingMap = Arc::new(Mutex::new(HashMap::new()));
+        let pending_clone = pending.clone();
+
+        tokio::spawn(async move {
+            let mut stdout = BufReader::new(stdout);
+
+            loop {
+                let raw = match read_lsp_message(&mut stdout).await {
+                    Ok(v) => v,
+                    Err(err) => {
+                        eprintln!("LSP read error: {err}");
+                        break;
+                    }
+                };
+
+                let value: Value = match serde_json::from_str(&raw) {
+                    Ok(v) => v,
+                    Err(err) => {
+                        eprintln!("Invalid JSON from rust-analyzer: {err}");
+                        continue;
+                    }
+                };
+
+                if value.get("method").is_some() {
+                    continue;
+                }
+
+                let id = value.get("id").and_then(|v| v.as_u64()).map(|v| v as usize);
+
+                match id {
+                    Some(id) => {
+                        let tx = pending_clone.lock().await.remove(&id);
+
+                        match tx {
+                            Some(tx) => {
+                                let _ = tx.send(value);
+                            }
+                            None => {
+                                eprintln!("({:?}) {}", pending_clone, value);
+                                eprintln!("Received response for unknown request id {id}");
+                            }
+                        }
+                    }
+
+                    None => {
+                        // notification or server request
+                        eprintln!("Received server notification/request: {raw}");
+                    }
+                }
+            }
+        });
 
         Ok(Self {
             stdin,
-            stdout,
-            pending: Arc::new(Mutex::new(HashMap::new())),
+            pending,
             id: 0,
         })
     }
@@ -97,81 +149,39 @@ impl RustAnalyzer {
     pub async fn request<R: Request>(
         &mut self,
         params: R::Params,
-    ) -> Result<R::Result, Box<dyn std::error::Error>> {
-        let id = self.send(R::METHOD, params).await?;
-        self.read(id).await
-    }
-
-    pub async fn send<T: Serialize>(&mut self, method: &str, req: T) -> std::io::Result<usize> {
+    ) -> Result<R::Result, Box<dyn std::error::Error>>
+    where
+        R::Result: DeserializeOwned,
+    {
         let id = {
             self.id += 1;
             self.id
         };
+
+        let (tx, rx) = oneshot::channel();
+
+        self.pending.lock().await.insert(id, tx);
 
         send_lsp_message(
             &mut self.stdin,
             &json!({
                 "jsonrpc": "2.0",
                 "id": id,
-                "method": method,
-                "params": req,
+                "method": R::METHOD,
+                "params": params,
             }),
         )
         .await?;
 
-        Ok(id)
-    }
+        let value = rx.await?;
 
-    pub async fn read<T>(&mut self, id: usize) -> Result<T, Box<dyn std::error::Error>>
-    where
-        T: for<'de> serde::Deserialize<'de>,
-    {
-        let (tx, mut rx) = tokio::sync::mpsc::channel(16);
-
-        self.pending.lock().await.insert(id, tx);
-
-        if self.pending.lock().await.len() == 1 {
-            let stdout = self.stdout.clone();
-            let pending = self.pending.clone();
-
-            tokio::spawn(async move {
-                loop {
-                    let raw_string = read_lsp_message(&mut *stdout.lock().await).await.unwrap();
-
-                    let envelope: JsonRpcResponse<Value> =
-                        serde_json::from_str(&raw_string).unwrap();
-
-                    pending
-                        .lock()
-                        .await
-                        .remove(&envelope.id.unwrap())
-                        .unwrap()
-                        .send(raw_string)
-                        .await
-                        .unwrap();
-
-                    if pending.lock().await.len() == 0 {
-                        break;
-                    }
-                }
-            });
-        }
-
-        let raw_string = rx.recv().await.expect("Failed to receive");
-
-        let envelope: JsonRpcResponse<T> = serde_json::from_str(&raw_string)?;
+        let envelope: JsonRpcResponse<R::Result> = serde_json::from_value(value)?;
 
         if let Some(err) = envelope.error {
             return Err(format!("LSP Error ({}): {}", err.code, err.message).into());
         }
 
-        envelope.result.ok_or_else(|| {
-            format!(
-                "LSP response missing both result and error fields. Raw: {}",
-                raw_string
-            )
-            .into()
-        })
+        envelope.result.ok_or_else(|| "missing result".into())
     }
 
     pub async fn notify<T: Serialize>(&mut self, method: &str, req: T) -> std::io::Result<()> {
@@ -213,9 +223,7 @@ impl RustAnalyzer {
             ..Default::default()
         };
 
-        let response = self.request::<request::Initialize>(init_params).await;
-
-        eprintln!("<- Received: initialize response {response:?}");
+        self.request::<request::Initialize>(init_params).await?;
 
         Ok(())
     }

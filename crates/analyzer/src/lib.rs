@@ -235,6 +235,26 @@ impl LanguageServer for Backend {
             .log_message(MessageType::INFO, format!("Found at {position}"))
             .await;
 
+        let uri =
+            Url::from_file_path(from_mist_to_rust(file_path)).expect("failed to generate rs url");
+
+        self.rust_analyzer
+            .lock()
+            .await
+            .notify(
+                "textDocument/didOpen",
+                DidOpenTextDocumentParams {
+                    text_document: TextDocumentItem {
+                        uri: uri.clone(),
+                        language_id: "rust".into(),
+                        version: 1,
+                        text: output,
+                    },
+                },
+            )
+            .await
+            .expect("Failed to init req");
+
         let res = self
             .rust_analyzer
             .lock()
@@ -245,10 +265,7 @@ impl LanguageServer for Backend {
                         line: line as u32,
                         character: character as u32,
                     },
-                    text_document: lsp_types::TextDocumentIdentifier {
-                        uri: Url::from_file_path(from_mist_to_rust(file_path))
-                            .expect("failed to generate rs url"),
-                    },
+                    text_document: lsp_types::TextDocumentIdentifier { uri },
                 },
                 partial_result_params: lsp_types::PartialResultParams::default(),
                 work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
@@ -257,7 +274,7 @@ impl LanguageServer for Backend {
             .expect("Failed to send to rust");
 
         self.client
-            .log_message(MessageType::INFO, format!("{:?}", res))
+            .log_message(MessageType::INFO, format!("OUTPUT: {:?}", res))
             .await;
 
         Ok(None)
