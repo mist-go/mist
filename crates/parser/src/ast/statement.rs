@@ -9,26 +9,32 @@ pub struct Block(
 );
 
 #[derive(Debug, Clone, Serialize)]
+pub enum StatementBody {
+    Statement(Expression),
+    Expression(Expression),
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum Statement {
     Block(Block),
     If {
         initial: StatementBranch,
         else_if: Vec<StatementBranch>,
-        else_branch: Option<Box<Expression>>,
+        else_branch: Option<StatementBody>,
     },
-    Loop(Expression),
+    Loop(StatementBody),
     While(StatementBranch),
     CStyleFor {
         init: Expression,
         condition: Expression,
         update: Expression,
-        body: Expression,
+        body: StatementBody,
     },
     For {
         mutable: bool,
         pattern: Pattern,
         iterator: Expression,
-        body: Box<Expression>,
+        body: StatementBody,
     },
     Match(Expression, Vec<(Vec<Pattern>, Expression)>),
 
@@ -54,28 +60,28 @@ pub struct VarDeclStmt {
 #[derive(Debug, Clone, Serialize)]
 pub struct StatementBranch {
     pub condition: Expression,
-    pub body: Box<Expression>,
+    pub body: Box<StatementBody>,
 }
 
 impl Statement {
     pub fn is_block(&self) -> bool {
         match self {
-            Self::Block(_) => true,
-            Self::If {
-                initial,
-                else_if,
-                else_branch,
-            } => {
-                else_branch
-                    .as_ref()
-                    .map(|v| v.is_block())
-                    .unwrap_or_default()
-                    || else_if
-                        .last()
-                        .map(|b| b.body.is_block())
-                        .unwrap_or_default()
-                    || initial.body.is_block()
-            }
+            Self::Block(_)
+            | Self::Match(_, _)
+            | Self::While(_)
+            | Self::For { .. }
+            | Self::Loop(..)
+            | Self::CStyleFor { .. }
+            | Self::If { .. } => true,
+            _ => false,
+        }
+    }
+}
+
+impl StatementBody {
+    pub fn is_soft_return(&self) -> bool {
+        match self {
+            Self::Expression(_) => true,
             _ => false,
         }
     }

@@ -62,6 +62,7 @@ pub enum Prefix {
     New(Option<Generics>),
     Not,
     Neg,
+    Closure(Option<TypeExpr>, Vec<VarDecl>),
 }
 
 #[derive(Debug, Clone, Serialize)]

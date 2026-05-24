@@ -91,7 +91,7 @@ generics = { "<" ~ (generic ~ ("," ~ generic)*)? ~ ">" }
 // ======================================================
 
 tuple_type = {
-    "(" ~ (type_expr ~ ("," ~ type_expr)*)? ~ ")"
+    "[" ~ (type_expr ~ ("," ~ type_expr)*)? ~ "]"
 }
 
 path_type = {
@@ -343,6 +343,10 @@ statement = _{
   | (expr ~ semicolon)
 }
 
+statement_wrapper = { statement }
+
+statement_body = { statement_wrapper | expr }
+
 // ------------------------------------------------------
 // BASIC STATEMENTS
 // ------------------------------------------------------
@@ -384,7 +388,7 @@ control_flow = {
   | block
 }
 
-statement_branch = { "(" ~ expr ~ ")" ~ statement }
+statement_branch = { "(" ~ expr ~ ")" ~ statement_body }
 
 else_if = {
     "else" ~ "if" ~ statement_branch
@@ -395,7 +399,7 @@ else_if_list = {
 }
 
 if_stmt = {
-    "if" ~ statement_branch ~ else_if_list ~ ("else" ~ statement)?
+    "if" ~ statement_branch ~ else_if_list ~ ("else" ~ statement_body)?
 }
 
 // ------------------------------------------------------
@@ -407,15 +411,15 @@ while_stmt = {
 }
 
 c_for_stmt = {
-    "for" ~ "(" ~ statement ~ statement ~ expr ~ ")" ~ statement
+    "for" ~ "(" ~ statement ~ statement ~ expr ~ ")" ~ statement_body
 }
 
 for_stmt = {
-    "for" ~ "(" ~ mutable? ~ pattern ~ ":" ~ expr ~ ")" ~ statement
+    "for" ~ "(" ~ mutable? ~ pattern ~ ":" ~ expr ~ ")" ~ statement_body
 }
 
 loop_stmt = {
-    "loop" ~ statement
+    "loop" ~ statement_body
 }
 
 // ------------------------------------------------------
@@ -435,6 +439,12 @@ match_stmt = {
 // ======================================================
 // EXPRESSIONS
 // ======================================================
+
+// ------------------------------------------------------
+// CLOSURES
+// ------------------------------------------------------
+
+closure = { type_expr? ~ "|" ~ param_list ~ "|" }
 
 // ------------------------------------------------------
 // TUPLES & ARRAYS
@@ -549,7 +559,8 @@ not_px     = { "!" }
 neg_px     = { "-" }
 
 prefix = {
-    deref_px
+    closure
+  | deref_px
   | mut_ref_px
   | ref_px
   | new_px

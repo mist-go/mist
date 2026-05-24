@@ -94,6 +94,17 @@ impl RustCodegen {
             }
         }
     }
+
+    pub fn ensure_brackets_body(&mut self, ctx: &mut Context, body: &StatementBody) {
+        match body {
+            StatementBody::Expression(expr) => self.ensure_brackets_expr(ctx, expr),
+
+            StatementBody::Statement(expr) => {
+                ctx.expr_ensure_semicolon = true;
+                self.ensure_brackets_expr(ctx, expr);
+            }
+        }
+    }
 }
 
 impl GenRust for Attribute {
