@@ -84,9 +84,9 @@ pub enum Generic {
 }
 
 impl Expression {
-    pub fn is_block(&self) -> bool {
+    pub fn is_soft_return(&self) -> bool {
         if let Expression::Statement(stmt) = self {
-            stmt.is_block()
+            stmt.is_soft_return()
         } else {
             false
         }

@@ -13,7 +13,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
-        let inner = pair.clone().into_inner();
+        let mut inner = pair.clone().into_inner();
 
         match rule {
             Rule::expr => {
@@ -79,6 +79,15 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
             Rule::static_path => ast_expr!(Expression::Path(pair.try_into())),
             Rule::literal => ast_expr!(Expression::Literal(pair.try_into())),
             Rule::expr_path => ast_expr!(Expression::Path(pair.try_into())),
+            Rule::statement_wrapper => {
+                let i = inner.next().unwrap();
+                match i.as_rule() {
+                    Rule::expr => i.try_into(),
+                    _ => ast_expr!(Expression::Statement(
+                        i.try_into().get_map(Box::new).map(Box::new)
+                    )),
+                }
+            }
             Rule::statement | Rule::basic_stmt | Rule::control_flow => ast_expr!(
                 Expression::Statement(pair.try_into().get_map(Box::new).map(Box::new))
             ),

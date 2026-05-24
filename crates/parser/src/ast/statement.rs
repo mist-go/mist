@@ -10,7 +10,7 @@ pub struct Block(
 
 #[derive(Debug, Clone, Serialize)]
 pub enum StatementBody {
-    Statement(Box<Statement>),
+    Statement(Expression),
     Expression(Expression),
 }
 
@@ -64,12 +64,12 @@ pub struct StatementBranch {
 }
 
 impl Statement {
-    pub fn is_block(&self) -> bool {
+    pub fn is_soft_return(&self) -> bool {
         match self {
             Self::Block(_) | Self::Match(_, _) => true,
-            Self::While(branch) => branch.body.is_block(),
+            Self::While(branch) => branch.body.is_soft_return(),
             Self::For { body, .. } | Self::Loop(body) | Self::CStyleFor { body, .. } => {
-                body.is_block()
+                body.is_soft_return()
             }
             Self::If {
                 initial,
@@ -78,13 +78,13 @@ impl Statement {
             } => {
                 else_branch
                     .as_ref()
-                    .map(|v| v.is_block())
+                    .map(|v| v.is_soft_return())
                     .unwrap_or_default()
                     || else_if
                         .last()
-                        .map(|b| b.body.is_block())
+                        .map(|b| b.body.is_soft_return())
                         .unwrap_or_default()
-                    || initial.body.is_block()
+                    || initial.body.is_soft_return()
             }
             _ => false,
         }
@@ -92,10 +92,10 @@ impl Statement {
 }
 
 impl StatementBody {
-    pub fn is_block(&self) -> bool {
+    pub fn is_soft_return(&self) -> bool {
         match self {
-            Self::Expression(_) => false,
-            _ => true,
+            Self::Expression(_) => true,
+            _ => false,
         }
     }
 }

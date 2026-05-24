@@ -94,6 +94,13 @@ impl RustCodegen {
             }
         }
     }
+
+    pub fn ensure_brackets_body(&mut self, ctx: &mut Context, expr: &StatementBody) {
+        match expr {
+            StatementBody::Statement(expr) => self.ensure_brackets_expr(ctx, expr),
+            StatementBody::Expression(expr) => self.ensure_brackets_expr(ctx, expr),
+        }
+    }
 }
 
 impl GenRust for Attribute {

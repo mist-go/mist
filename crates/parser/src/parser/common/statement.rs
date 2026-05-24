@@ -29,7 +29,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for StatementBody {
 
             match i.as_rule() {
                 Rule::expr => ast_expr!(StatementBody::Expression(i.try_into())),
-                Rule::statement_wrapper => ast_expr!(StatementBody::Statement(i.try_into().map(Box::new).get_map(Box::new))),
+                Rule::statement_wrapper => ast_expr!(StatementBody::Statement(i.try_into())),
                 _ => AstError::bug_unimplemented(i),
             }
         })
