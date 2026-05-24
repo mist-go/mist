@@ -2,11 +2,12 @@ pub mod builder;
 pub mod rust_analyzer;
 pub mod transpiler;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Component, PathBuf};
 use std::sync::Arc;
 
+use mist_parser::rev_mapper;
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::notification::Notification;
@@ -22,6 +23,7 @@ struct Backend {
     workspace_folder: Arc<Mutex<Option<PathBuf>>>,
     previous_diagnostics: Arc<Mutex<HashMap<Url, Vec<Diagnostic>>>>,
     rust_analyzer: Arc<Mutex<RustAnalyzer>>,
+    mapping: Arc<Mutex<HashMap<PathBuf, HashSet<(rev_mapper::RustMap, rev_mapper::MistMap)>>>>,
 }
 
 /// Helper function to force percent-encoding on Windows drive colons
@@ -43,6 +45,40 @@ fn clean_lsp_url(path: &std::path::Path) -> Option<Url> {
     }
 
     Url::parse(&url_str).ok()
+}
+
+impl Backend {
+    async fn get_mist_location(&self, rs_loc: Location) -> Location {
+        let rs_path = rs_loc.uri.to_file_path().unwrap();
+
+        match self.mapping.lock().await.get(&rs_path) {
+            Some(mapping) => {
+                let (_, rev_mapper::MistMap(line, character)) = rev_mapper::find_mapping(
+                    mapping,
+                    &rev_mapper::RustMap(
+                        rs_loc.range.start.line as usize,
+                        rs_loc.range.start.character as usize,
+                    ),
+                )
+                .expect("Failed to map");
+
+                Location {
+                    uri: Url::from_file_path(from_rust_to_mist(rs_path)).unwrap(),
+                    range: Range {
+                        start: Position {
+                            line: line as u32 - 1,
+                            character: character as u32,
+                        },
+                        end: Position {
+                            line: line as u32 - 1,
+                            character: character as u32 + 1,
+                        },
+                    },
+                }
+            }
+            None => rs_loc,
+        }
+    }
 }
 
 #[tower_lsp::async_trait]
@@ -208,10 +244,14 @@ impl LanguageServer for Backend {
             params.text_document.text =
                 transpiler::transpile_text(&params.text_document.text).unwrap();
 
-            params.text_document.uri = Url::from_file_path(from_mist_to_rust(
-                params.text_document.uri.to_file_path().unwrap(),
-            ))
-            .unwrap();
+            let rust_path = from_mist_to_rust(params.text_document.uri.to_file_path().unwrap());
+
+            params.text_document.uri = Url::from_file_path(&rust_path).unwrap();
+
+            self.mapping.lock().await.insert(
+                rust_path,
+                rev_mapper::get_mapping(&params.text_document.text),
+            );
         }
 
         self.rust_analyzer
@@ -271,7 +311,18 @@ impl LanguageServer for Backend {
 
         eprintln!("{:?}", rs_res);
 
-        Ok(rs_res)
+        Ok(match rs_res {
+            Some(GotoDefinitionResponse::Array(mut arr)) => {
+                for rs_loc in &mut arr {
+                    let a = self.get_mist_location(rs_loc.clone()).await;
+
+                    *rs_loc = a;
+                }
+
+                Some(GotoDefinitionResponse::Array(arr))
+            }
+            _ => rs_res,
+        })
     }
 }
 
@@ -284,6 +335,7 @@ pub async fn start() {
         client,
         workspace_folder: Arc::new(Mutex::new(None)),
         previous_diagnostics: Arc::new(Mutex::new(HashMap::new())),
+        mapping: Arc::new(Mutex::new(HashMap::new())),
         rust_analyzer: Arc::new(Mutex::new(
             RustAnalyzer::new().expect("Failed to create rust analyzer"),
         )),
@@ -300,6 +352,34 @@ pub fn from_mist_to_rust(mut path: PathBuf) -> PathBuf {
         let replacement = std::path::Path::new(".mist/lsp");
         comps.splice(pos..=pos, replacement.components());
         comps.iter().collect()
+    } else {
+        path
+    }
+}
+
+pub fn from_rust_to_mist(mut path: PathBuf) -> PathBuf {
+    // reverse extension
+    path.set_extension("mist");
+
+    let comps: Vec<Component> = path.components().collect();
+
+    // pattern we originally inserted: ".mist/lsp"
+    let pattern: Vec<Component> = std::path::Path::new(".mist/lsp").components().collect();
+
+    // find the last occurrence of the pattern
+    if let Some(pos) = comps
+        .windows(pattern.len())
+        .rposition(|window| window == pattern.as_slice())
+    {
+        let mut new_comps = comps.clone();
+
+        // replace the matched range with "src"
+        new_comps.splice(
+            pos..pos + pattern.len(),
+            std::iter::once(Component::Normal(std::ffi::OsStr::new("src"))),
+        );
+
+        new_comps.iter().collect()
     } else {
         path
     }
