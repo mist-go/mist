@@ -79,7 +79,11 @@ pub fn build(mut args: Vec<String>, root: PathBuf) -> bool {
                                 .expect("Unable to find mapping");
 
                         let mist_msg = MistDiagnosticMessage {
-                            message: span.label.clone().unwrap_or(msg.message.message.clone()),
+                            message: format!(
+                                "{}: {}",
+                                msg.message.message,
+                                span.label.clone().unwrap_or_default()
+                            ),
                             file_name: if is_root {
                                 mist_file
                             } else {

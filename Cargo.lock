@@ -448,6 +448,8 @@ dependencies = [
  "dashmap 6.1.0",
  "mist-codegen",
  "mist-parser",
+ "serde",
+ "serde_json",
  "tokio",
  "tower-lsp",
 ]

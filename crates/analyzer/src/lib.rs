@@ -1,23 +1,29 @@
 pub mod builder;
+pub mod rust_analyzer;
 pub mod transpiler;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Component, PathBuf};
 use std::sync::Arc;
 
+use mist_parser::rev_mapper;
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::*;
+use tower_lsp::lsp_types::notification::Notification;
+use tower_lsp::lsp_types::{self, *};
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::builder::MistDiagnostic;
+use crate::rust_analyzer::RustAnalyzer;
 
 #[derive(Debug)]
 struct Backend {
     client: Client,
     workspace_folder: Arc<Mutex<Option<PathBuf>>>,
     previous_diagnostics: Arc<Mutex<HashMap<Url, Vec<Diagnostic>>>>,
+    rust_analyzer: Arc<Mutex<RustAnalyzer>>,
+    mapping: Arc<Mutex<HashMap<PathBuf, HashSet<(rev_mapper::RustMap, rev_mapper::MistMap)>>>>,
 }
 
 /// Helper function to force percent-encoding on Windows drive colons
@@ -41,6 +47,44 @@ fn clean_lsp_url(path: &std::path::Path) -> Option<Url> {
     Url::parse(&url_str).ok()
 }
 
+impl Backend {
+    async fn get_mist_location(&self, rs_loc: Location) -> Location {
+        let rs_path = match rs_loc.uri.to_file_path() {
+            Ok(path) => path,
+            Err(_) => return rs_loc,
+        };
+
+        match self.mapping.lock().await.get(&rs_path) {
+            Some(mapping) => {
+                // FIX: Match the find_mapping operation instead of calling .expect("Failed to map")
+                match rev_mapper::find_mapping(
+                    mapping,
+                    &rev_mapper::RustMap(
+                        rs_loc.range.start.line as usize,
+                        rs_loc.range.start.character as usize,
+                    ),
+                ) {
+                    Some((_, rev_mapper::MistMap(line, character))) => Location {
+                        uri: Url::from_file_path(from_rust_to_mist(rs_path)).unwrap(),
+                        range: Range {
+                            start: Position {
+                                line: line as u32 - 1,
+                                character: character as u32,
+                            },
+                            end: Position {
+                                line: line as u32 - 1,
+                                character: character as u32 + 1,
+                            },
+                        },
+                    },
+                    None => rs_loc,
+                }
+            }
+            None => rs_loc,
+        }
+    }
+}
+
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
@@ -56,6 +100,12 @@ impl LanguageServer for Backend {
             },
         ));
 
+        res.capabilities.completion_provider = Some(CompletionOptions {
+            resolve_provider: None,
+            trigger_characters: Some(vec![".".to_string()]),
+            ..Default::default()
+        });
+
         res.capabilities.definition_provider = Some(OneOf::Left(true));
 
         let folder_path = params
@@ -69,9 +119,19 @@ impl LanguageServer for Backend {
         }
 
         let workspace_folder = self.workspace_folder.clone();
+
+        let analyzer = self.rust_analyzer.clone();
+
         tokio::spawn(async move {
             if let Some(root) = &*workspace_folder.lock().await {
                 transpiler::build(root);
+
+                analyzer
+                    .lock()
+                    .await
+                    .initialize(root)
+                    .await
+                    .expect("Failed to initialize rust analyzer");
             }
         });
 
@@ -82,6 +142,13 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "server initialized!")
             .await;
+
+        self.rust_analyzer
+            .lock()
+            .await
+            .initialized()
+            .await
+            .expect("Failed to initialize rust analyzer");
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -180,42 +247,160 @@ impl LanguageServer for Backend {
         *self.previous_diagnostics.lock().await = diagnostics;
     }
 
+    async fn did_open(&self, mut params: DidOpenTextDocumentParams) {
+        if params.text_document.language_id == "mist" {
+            params.text_document.language_id = "rust".to_string();
+
+            match transpiler::transpile_text(&params.text_document.text) {
+                Ok(transpiled_text) => {
+                    params.text_document.text = transpiled_text;
+                    let rust_path =
+                        from_mist_to_rust(params.text_document.uri.to_file_path().unwrap());
+                    params.text_document.uri = Url::from_file_path(&rust_path).unwrap();
+
+                    self.mapping.lock().await.insert(
+                        rust_path,
+                        rev_mapper::get_mapping(&params.text_document.text),
+                    );
+                }
+                Err(e) => {
+                    self.client
+                        .log_message(MessageType::WARNING, format!("MIST-LSP: Syntax invalid during open/change. Parsing stopped: {:?}", e))
+                        .await;
+                    return;
+                }
+            }
+        }
+
+        if let Ok(mut ra) = self.rust_analyzer.try_lock() {
+            let _ = ra
+                .notify(notification::DidOpenTextDocument::METHOD, params)
+                .await;
+        }
+    }
+
     async fn goto_definition(
         &self,
         params: GotoDefinitionParams,
     ) -> Result<Option<GotoDefinitionResponse>> {
-        let mut source = fs::read_to_string(
-            params
-                .text_document_position_params
-                .text_document
-                .uri
-                .to_file_path()
-                .unwrap(),
-        )
-        .expect("Failed to read source");
+        let file_path = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .to_file_path()
+            .unwrap();
+
+        let source = match fs::read_to_string(&file_path) {
+            Ok(src) => src,
+            Err(_) => return Ok(None),
+        };
 
         let inject = "__mist_23";
-
-        source = insert_at_position(
+        let injected_source = insert_at_position(
             &source,
-            params.text_document_position_params.position.line as usize,
+            params.text_document_position_params.position.line as usize + 1,
             params.text_document_position_params.position.character as usize,
             &inject,
         );
 
-        let output = transpiler::transpile_text(&source).expect("Failed to transpile");
+        let output = match transpiler::transpile_text(&injected_source) {
+            Ok(out) => out,
+            Err(_) => return Ok(None),
+        };
 
-        let position = output
-            .find(inject)
-            .expect("Didn't find injection")
-            .saturating_sub(1);
+        let (line, character) = match find_row_col(&output, inject) {
+            Some(coords) => coords,
+            None => return Ok(None),
+        };
 
+        let uri =
+            Url::from_file_path(from_mist_to_rust(file_path)).expect("failed to generate rs url");
+
+        let rs_res = self
+            .rust_analyzer
+            .lock()
+            .await
+            .request::<request::GotoDefinition>(lsp_types::GotoDefinitionParams {
+                text_document_position_params: lsp_types::TextDocumentPositionParams {
+                    position: lsp_types::Position {
+                        line: line as u32 - 1,
+                        character: character as u32,
+                    },
+                    text_document: lsp_types::TextDocumentIdentifier { uri },
+                },
+                partial_result_params: lsp_types::PartialResultParams::default(),
+                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
+            })
+            .await
+            .expect("Failed to send to rust");
+
+        Ok(match rs_res {
+            Some(GotoDefinitionResponse::Array(arr)) => {
+                let mut mapped_arr = Vec::new();
+                for rs_loc in arr {
+                    let mapped_loc = self.get_mist_location(rs_loc).await;
+                    mapped_arr.push(mapped_loc);
+                }
+                Some(GotoDefinitionResponse::Array(mapped_arr))
+            }
+            _ => rs_res,
+        })
+    }
+
+    async fn completion(&self, _params: CompletionParams) -> Result<Option<CompletionResponse>> {
         self.client
-            .log_message(MessageType::INFO, format!("Found at {position}"))
+            .log_message(MessageType::INFO, "getting completion")
             .await;
 
-        Ok(None)
+        Ok(Some(CompletionResponse::Array(vec![
+            CompletionItem::new_simple("new".to_string(), "The new keyword".to_string()),
+        ])))
     }
+
+    // async fn completion(&self, mut params: CompletionParams) -> Result<Option<CompletionResponse>> {
+    //     self.client
+    //         .log_message(MessageType::INFO, "COMPLETEING!")
+    //         .await;
+
+    //     let file_path = params
+    //         .text_document_position
+    //         .text_document
+    //         .uri
+    //         .to_file_path()
+    //         .unwrap();
+
+    //     let mut source = fs::read_to_string(&file_path).expect("Failed to read source");
+
+    //     let inject = "__mist_23";
+
+    //     source = insert_at_position(
+    //         &source,
+    //         params.text_document_position.position.line as usize + 1,
+    //         params.text_document_position.position.character as usize,
+    //         &inject,
+    //     );
+
+    //     let output = transpiler::transpile_text(&source).expect("Failed to transpile");
+
+    //     let (line, character) = find_row_col(&output, inject).unwrap();
+
+    //     let uri =
+    //         Url::from_file_path(from_mist_to_rust(file_path)).expect("failed to generate rs url");
+
+    //     params.text_document_position.text_document.uri = uri;
+    //     params.text_document_position.position.line = line as u32;
+    //     params.text_document_position.position.character = character as u32;
+
+    //     let rs_res = self
+    //         .rust_analyzer
+    //         .lock()
+    //         .await
+    //         .request::<request::Completion>(params)
+    //         .await
+    //         .expect("Failed to send to rust");
+
+    //     Ok(rs_res)
+    // }
 }
 
 #[tokio::main]
@@ -227,6 +412,10 @@ pub async fn start() {
         client,
         workspace_folder: Arc::new(Mutex::new(None)),
         previous_diagnostics: Arc::new(Mutex::new(HashMap::new())),
+        mapping: Arc::new(Mutex::new(HashMap::new())),
+        rust_analyzer: Arc::new(Mutex::new(
+            RustAnalyzer::new().expect("Failed to create rust analyzer"),
+        )),
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }
@@ -240,6 +429,34 @@ pub fn from_mist_to_rust(mut path: PathBuf) -> PathBuf {
         let replacement = std::path::Path::new(".mist/lsp");
         comps.splice(pos..=pos, replacement.components());
         comps.iter().collect()
+    } else {
+        path
+    }
+}
+
+pub fn from_rust_to_mist(mut path: PathBuf) -> PathBuf {
+    // reverse extension
+    path.set_extension("mist");
+
+    let comps: Vec<Component> = path.components().collect();
+
+    // pattern we originally inserted: ".mist/lsp"
+    let pattern: Vec<Component> = std::path::Path::new(".mist/lsp").components().collect();
+
+    // find the last occurrence of the pattern
+    if let Some(pos) = comps
+        .windows(pattern.len())
+        .rposition(|window| window == pattern.as_slice())
+    {
+        let mut new_comps = comps.clone();
+
+        // replace the matched range with "src"
+        new_comps.splice(
+            pos..pos + pattern.len(),
+            std::iter::once(Component::Normal(std::ffi::OsStr::new("src"))),
+        );
+
+        new_comps.iter().collect()
     } else {
         path
     }
@@ -269,4 +486,21 @@ fn insert_at_position(s: &str, line: usize, col: usize, insert: &str) -> String 
     target.insert_str(char_idx, insert);
 
     lines.join("\n")
+}
+
+fn find_row_col(output: &str, inject: &str) -> Option<(usize, usize)> {
+    // 1. Find the flat byte index just like your original code
+    let byte_idx = output.find(inject)?;
+
+    // 2. Slice the string up to the match point
+    let prefix = &output[..byte_idx];
+
+    // 3. Row = number of newlines found before the match + 1 (1-indexed)
+    let row = prefix.lines().count();
+
+    // 4. Column = character count of the remaining text on the current line + 1
+    // (Using .chars().count() ensures it works with multi-byte UTF-8 symbols)
+    let col = prefix.lines().last().unwrap_or("").chars().count() + 1;
+
+    Some((row, col))
 }
