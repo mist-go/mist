@@ -3,11 +3,11 @@ pub mod rust_analyzer;
 pub mod transpiler;
 
 use std::collections::{HashMap, HashSet};
-use std::fs;
 use std::path::{Component, PathBuf};
 use std::sync::Arc;
 
 use mist_parser::rev_mapper;
+use ropey::Rope;
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::notification::Notification;
@@ -24,6 +24,7 @@ struct Backend {
     previous_diagnostics: Arc<Mutex<HashMap<Url, Vec<Diagnostic>>>>,
     rust_analyzer: Arc<Mutex<RustAnalyzer>>,
     mapping: Arc<Mutex<HashMap<PathBuf, HashSet<(rev_mapper::RustMap, rev_mapper::MistMap)>>>>,
+    documents: Arc<Mutex<HashMap<PathBuf, Rope>>>,
 }
 
 /// Helper function to force percent-encoding on Windows drive colons
@@ -93,7 +94,7 @@ impl LanguageServer for Backend {
         res.capabilities.text_document_sync = Some(TextDocumentSyncCapability::Options(
             TextDocumentSyncOptions {
                 open_close: Some(true),
-                change: Some(TextDocumentSyncKind::INCREMENTAL),
+                change: Some(TextDocumentSyncKind::FULL),
                 will_save: Some(false),
                 will_save_wait_until: Some(false),
                 save: Some(SaveOptions::default().into()),
@@ -101,9 +102,20 @@ impl LanguageServer for Backend {
         ));
 
         res.capabilities.completion_provider = Some(CompletionOptions {
-            resolve_provider: None,
-            trigger_characters: Some(vec![".".to_string()]),
-            ..Default::default()
+            resolve_provider: Some(true),
+            trigger_characters: Some(vec![
+                ":".to_owned(),
+                ".".to_owned(),
+                "'".to_owned(),
+                "(".to_owned(),
+            ]),
+            all_commit_characters: None,
+            completion_item: Some(CompletionOptionsCompletionItem {
+                label_details_support: None,
+            }),
+            work_done_progress_options: WorkDoneProgressOptions {
+                work_done_progress: None,
+            },
         });
 
         res.capabilities.definition_provider = Some(OneOf::Left(true));
@@ -122,8 +134,14 @@ impl LanguageServer for Backend {
 
         let analyzer = self.rust_analyzer.clone();
 
+        let documents = self.documents.clone();
+
+        let mapping = self.mapping.clone();
+
         tokio::spawn(async move {
             if let Some(root) = &*workspace_folder.lock().await {
+                let src_root = root.join("src");
+
                 transpiler::build(root);
 
                 analyzer
@@ -132,6 +150,32 @@ impl LanguageServer for Backend {
                     .initialize(root)
                     .await
                     .expect("Failed to initialize rust analyzer");
+
+                // ---- LOAD ALL .MIST FILES ----
+                let mut files = Vec::new();
+                collect_mist_files(&src_root, &mut files);
+
+                for file in files {
+                    if let Ok(text) = std::fs::read_to_string(&file) {
+                        if let Ok(transpiled) = transpiler::transpile_text(&text) {
+                            let rust_path = from_mist_to_rust(file.clone());
+
+                            // store document
+                            documents
+                                .lock()
+                                .await
+                                .insert(file.clone(), Rope::from_str(&text));
+
+                            // store mapping
+                            mapping
+                                .lock()
+                                .await
+                                .insert(rust_path, rev_mapper::get_mapping(&transpiled));
+                        }
+                    }
+                }
+
+                eprintln!("Ready to use");
             }
         });
 
@@ -139,16 +183,16 @@ impl LanguageServer for Backend {
     }
 
     async fn initialized(&self, _: InitializedParams) {
-        self.client
-            .log_message(MessageType::INFO, "server initialized!")
-            .await;
-
         self.rust_analyzer
             .lock()
             .await
             .initialized()
             .await
             .expect("Failed to initialize rust analyzer");
+
+        self.client
+            .log_message(MessageType::INFO, "server initialized!")
+            .await;
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -213,7 +257,7 @@ impl LanguageServer for Backend {
                     },
                     end: Position {
                         line,
-                        character: column + 1,
+                        character: u32::MAX,
                     },
                 },
                 severity: Some(severity),
@@ -249,13 +293,22 @@ impl LanguageServer for Backend {
 
     async fn did_open(&self, mut params: DidOpenTextDocumentParams) {
         if params.text_document.language_id == "mist" {
+            let original_text = params.text_document.text.clone();
+
+            self.documents.lock().await.insert(
+                params.text_document.uri.to_file_path().unwrap(),
+                Rope::from_str(&original_text),
+            );
+
             params.text_document.language_id = "rust".to_string();
 
-            match transpiler::transpile_text(&params.text_document.text) {
+            match transpiler::transpile_text(&original_text) {
                 Ok(transpiled_text) => {
                     params.text_document.text = transpiled_text;
+
                     let rust_path =
                         from_mist_to_rust(params.text_document.uri.to_file_path().unwrap());
+
                     params.text_document.uri = Url::from_file_path(&rust_path).unwrap();
 
                     self.mapping.lock().await.insert(
@@ -265,8 +318,12 @@ impl LanguageServer for Backend {
                 }
                 Err(e) => {
                     self.client
-                        .log_message(MessageType::WARNING, format!("MIST-LSP: Syntax invalid during open/change. Parsing stopped: {:?}", e))
+                        .log_message(
+                            MessageType::WARNING,
+                            format!("MIST-LSP: Syntax invalid during open/change: {:?}", e),
+                        )
                         .await;
+
                     return;
                 }
             }
@@ -275,6 +332,72 @@ impl LanguageServer for Backend {
         if let Ok(mut ra) = self.rust_analyzer.try_lock() {
             let _ = ra
                 .notify(notification::DidOpenTextDocument::METHOD, params)
+                .await;
+        }
+    }
+
+    async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
+        let mist_path = params.text_document.uri.to_file_path().unwrap();
+
+        let rust_path = from_mist_to_rust(mist_path.clone());
+
+        let rust_uri = Url::from_file_path(&rust_path).unwrap();
+
+        if let Some(change) = params.content_changes.first_mut() {
+            self.documents
+                .lock()
+                .await
+                .insert(mist_path, Rope::from_str(&change.text));
+
+            match transpiler::transpile_text(&change.text) {
+                Ok(transpiled_text) => {
+                    change.text = transpiled_text;
+
+                    self.mapping
+                        .lock()
+                        .await
+                        .insert(rust_path, rev_mapper::get_mapping(&change.text));
+                }
+                Err(e) => {
+                    self.client
+                        .log_message(
+                            MessageType::WARNING,
+                            format!("MIST-LSP: Syntax invalid during change: {:?}", e),
+                        )
+                        .await;
+
+                    return;
+                }
+            }
+        }
+
+        params.text_document.uri = rust_uri;
+
+        if let Ok(mut ra) = self.rust_analyzer.try_lock() {
+            let _ = ra
+                .notify(notification::DidChangeTextDocument::METHOD, params)
+                .await;
+        }
+    }
+
+    async fn did_close(&self, mut params: DidCloseTextDocumentParams) {
+        self.client
+            .log_message(MessageType::INFO, "MIST-LSP: Processing did_close event")
+            .await;
+
+        let rust_path = from_mist_to_rust(params.text_document.uri.to_file_path().unwrap());
+
+        let mist_path = params.text_document.uri.to_file_path().unwrap();
+
+        self.documents.lock().await.remove(&mist_path);
+
+        self.mapping.lock().await.remove(&rust_path);
+
+        params.text_document.uri = Url::from_file_path(&rust_path).unwrap();
+
+        if let Ok(mut ra) = self.rust_analyzer.try_lock() {
+            let _ = ra
+                .notify(notification::DidCloseTextDocument::METHOD, params)
                 .await;
         }
     }
@@ -290,9 +413,9 @@ impl LanguageServer for Backend {
             .to_file_path()
             .unwrap();
 
-        let source = match fs::read_to_string(&file_path) {
-            Ok(src) => src,
-            Err(_) => return Ok(None),
+        let source = match self.documents.lock().await.get(&file_path) {
+            Some(doc) => doc.clone(),
+            None => return Ok(None),
         };
 
         let inject = "__mist_23";
@@ -303,10 +426,12 @@ impl LanguageServer for Backend {
             &inject,
         );
 
-        let output = match transpiler::transpile_text(&injected_source) {
-            Ok(out) => out,
-            Err(_) => return Ok(None),
-        };
+        let output = Rope::from_str(
+            &match transpiler::transpile_text(&injected_source.to_string()) {
+                Ok(out) => out,
+                Err(_) => return Ok(None),
+            },
+        );
 
         let (line, character) = match find_row_col(&output, inject) {
             Some(coords) => coords,
@@ -323,7 +448,7 @@ impl LanguageServer for Backend {
             .request::<request::GotoDefinition>(lsp_types::GotoDefinitionParams {
                 text_document_position_params: lsp_types::TextDocumentPositionParams {
                     position: lsp_types::Position {
-                        line: line as u32 - 1,
+                        line: line as u32,
                         character: character as u32,
                     },
                     text_document: lsp_types::TextDocumentIdentifier { uri },
@@ -347,60 +472,81 @@ impl LanguageServer for Backend {
         })
     }
 
-    async fn completion(&self, _params: CompletionParams) -> Result<Option<CompletionResponse>> {
+    async fn completion(&self, mut params: CompletionParams) -> Result<Option<CompletionResponse>> {
         self.client
-            .log_message(MessageType::INFO, "getting completion")
+            .log_message(MessageType::INFO, "COMPLETEING!")
             .await;
 
-        Ok(Some(CompletionResponse::Array(vec![
-            CompletionItem::new_simple("new".to_string(), "The new keyword".to_string()),
-        ])))
+        let file_path = params
+            .text_document_position
+            .text_document
+            .uri
+            .to_file_path()
+            .unwrap();
+
+        let source = match self.documents.lock().await.get(&file_path) {
+            Some(doc) => doc.clone(),
+            None => return Ok(None),
+        };
+
+        let inject = "__mist_23";
+        let injected_source = insert_at_position(
+            &source,
+            params.text_document_position.position.line as usize + 1,
+            params.text_document_position.position.character as usize,
+            &inject,
+        );
+
+        let output = Rope::from_str(
+            &match transpiler::transpile_text(&injected_source.to_string()) {
+                Ok(out) => out,
+                Err(_) => return Ok(None),
+            },
+        );
+
+        let (line, character) = match find_row_col(&output, inject) {
+            Some(coords) => coords,
+            None => return Ok(None),
+        };
+
+        let uri =
+            Url::from_file_path(from_mist_to_rust(file_path)).expect("failed to generate rs url");
+
+        params.text_document_position.text_document.uri = uri;
+        params.text_document_position.position.line = line as u32;
+        params.text_document_position.position.character = character as u32;
+
+        let rs_res = self
+            .rust_analyzer
+            .lock()
+            .await
+            .request::<request::Completion>(params)
+            .await
+            .expect("Failed to send to rust");
+
+        Ok(rs_res.map(|rs_res| match rs_res {
+            CompletionResponse::Array(items) => {
+                CompletionResponse::Array(items.into_iter().map(simplify_item).collect())
+            }
+
+            CompletionResponse::List(list) => {
+                CompletionResponse::Array(list.items.into_iter().map(simplify_item).collect())
+            }
+        }))
     }
 
-    // async fn completion(&self, mut params: CompletionParams) -> Result<Option<CompletionResponse>> {
-    //     self.client
-    //         .log_message(MessageType::INFO, "COMPLETEING!")
-    //         .await;
-
-    //     let file_path = params
-    //         .text_document_position
-    //         .text_document
-    //         .uri
-    //         .to_file_path()
-    //         .unwrap();
-
-    //     let mut source = fs::read_to_string(&file_path).expect("Failed to read source");
-
-    //     let inject = "__mist_23";
-
-    //     source = insert_at_position(
-    //         &source,
-    //         params.text_document_position.position.line as usize + 1,
-    //         params.text_document_position.position.character as usize,
-    //         &inject,
-    //     );
-
-    //     let output = transpiler::transpile_text(&source).expect("Failed to transpile");
-
-    //     let (line, character) = find_row_col(&output, inject).unwrap();
-
-    //     let uri =
-    //         Url::from_file_path(from_mist_to_rust(file_path)).expect("failed to generate rs url");
-
-    //     params.text_document_position.text_document.uri = uri;
-    //     params.text_document_position.position.line = line as u32;
-    //     params.text_document_position.position.character = character as u32;
-
-    //     let rs_res = self
-    //         .rust_analyzer
-    //         .lock()
-    //         .await
-    //         .request::<request::Completion>(params)
-    //         .await
-    //         .expect("Failed to send to rust");
-
-    //     Ok(rs_res)
-    // }
+    async fn completion_resolve(&self, params: CompletionItem) -> Result<CompletionItem> {
+        match self
+            .rust_analyzer
+            .lock()
+            .await
+            .request::<request::ResolveCompletionItem>(params.clone())
+            .await
+        {
+            Ok(o) => Ok(o),
+            _ => Ok(params),
+        }
+    }
 }
 
 #[tokio::main]
@@ -413,6 +559,7 @@ pub async fn start() {
         workspace_folder: Arc::new(Mutex::new(None)),
         previous_diagnostics: Arc::new(Mutex::new(HashMap::new())),
         mapping: Arc::new(Mutex::new(HashMap::new())),
+        documents: Arc::new(Mutex::new(HashMap::new())),
         rust_analyzer: Arc::new(Mutex::new(
             RustAnalyzer::new().expect("Failed to create rust analyzer"),
         )),
@@ -462,45 +609,64 @@ pub fn from_rust_to_mist(mut path: PathBuf) -> PathBuf {
     }
 }
 
-fn insert_at_position(s: &str, line: usize, col: usize, insert: &str) -> String {
-    let mut lines: Vec<String> = s.lines().map(|l| l.to_string()).collect();
+fn insert_at_position(rope: &Rope, line: usize, col: usize, insert: &str) -> Rope {
+    let mut rope = rope.clone();
 
-    // Convert to 0-index
     let line_idx = line.saturating_sub(1);
     let col_idx = col.saturating_sub(1);
 
-    // Ensure line exists (optional behavior: extend with empty lines)
-    if line_idx >= lines.len() {
-        lines.resize(line_idx + 1, String::new());
-    }
+    let line_idx = line_idx.min(rope.len_lines().saturating_sub(1));
 
-    let target = &mut lines[line_idx];
+    let line_start = rope.line_to_char(line_idx);
 
-    // Clamp column to valid char boundary
-    let char_idx = target
-        .char_indices()
-        .nth(col_idx)
-        .map(|(i, _)| i)
-        .unwrap_or(target.len()); // if past end, append
+    let line_slice = rope.line(line_idx);
+    let line_len = line_slice.len_chars();
 
-    target.insert_str(char_idx, insert);
+    let col_idx = col_idx.min(line_len);
 
-    lines.join("\n")
+    let idx = line_start + col_idx;
+
+    rope.insert(idx, insert);
+
+    rope
 }
 
-fn find_row_col(output: &str, inject: &str) -> Option<(usize, usize)> {
-    // 1. Find the flat byte index just like your original code
-    let byte_idx = output.find(inject)?;
+fn find_row_col(rope: &Rope, needle: &str) -> Option<(usize, usize)> {
+    let text = rope.to_string();
 
-    // 2. Slice the string up to the match point
-    let prefix = &output[..byte_idx];
+    let byte_idx = text.find(needle)?;
 
-    // 3. Row = number of newlines found before the match + 1 (1-indexed)
-    let row = prefix.lines().count();
+    let char_idx = text[..byte_idx].chars().count();
 
-    // 4. Column = character count of the remaining text on the current line + 1
-    // (Using .chars().count() ensures it works with multi-byte UTF-8 symbols)
-    let col = prefix.lines().last().unwrap_or("").chars().count() + 1;
+    let line_idx = rope.char_to_line(char_idx);
 
-    Some((row, col))
+    let line_start = rope.line_to_char(line_idx);
+
+    let col_idx = char_idx - line_start;
+
+    Some((line_idx, col_idx + 1))
+}
+
+fn simplify_item(mut item: CompletionItem) -> CompletionItem {
+    item.text_edit = None;
+    item.additional_text_edits = None;
+    item.command = None;
+
+    item
+}
+
+fn collect_mist_files(dir: &PathBuf, out: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+
+        if path.is_dir() {
+            collect_mist_files(&path, out);
+        } else if path.extension().and_then(|e| e.to_str()) == Some("mist") {
+            out.push(path);
+        }
+    }
 }
