@@ -3,6 +3,7 @@ use crate::{
     ast::*,
     ast_ensure, ast_expr,
     error::{AstError, AstResult, GetLength, IntoErr, collect_recovered, collect_recovered_map},
+    parser::consume_rule,
 };
 use pest::pratt_parser::PrattParser;
 use std::sync::OnceLock;
@@ -104,6 +105,16 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Prefix {
             ),
             Rule::not_px => Self::Not,
             Rule::neg_px => Self::Neg,
+            Rule::closure => {
+                let mut inner = pair.into_inner();
+
+                return ast_expr!(Self::Closure(
+                    consume_rule(&mut inner, Rule::type_expr)
+                        .map(TypeExpr::try_from)
+                        .transpose(),
+                    collect_recovered(inner.next().unwrap().into_inner())
+                ));
+            }
 
             _ => return AstError::bug_unimplemented(pair),
         })
