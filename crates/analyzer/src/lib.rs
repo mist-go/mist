@@ -101,8 +101,11 @@ impl LanguageServer for Backend {
         ));
 
         res.capabilities.completion_provider = Some(CompletionOptions {
-            resolve_provider: None,
+            resolve_provider: Some(true),
             trigger_characters: Some(vec![".".to_string()]),
+            completion_item: Some(CompletionOptionsCompletionItem {
+                label_details_support: Some(true),
+            }),
             ..Default::default()
         });
 
@@ -132,6 +135,8 @@ impl LanguageServer for Backend {
                     .initialize(root)
                     .await
                     .expect("Failed to initialize rust analyzer");
+
+                eprintln!("Ready to use");
             }
         });
 
@@ -139,16 +144,16 @@ impl LanguageServer for Backend {
     }
 
     async fn initialized(&self, _: InitializedParams) {
-        self.client
-            .log_message(MessageType::INFO, "server initialized!")
-            .await;
-
         self.rust_analyzer
             .lock()
             .await
             .initialized()
             .await
             .expect("Failed to initialize rust analyzer");
+
+        self.client
+            .log_message(MessageType::INFO, "server initialized!")
+            .await;
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -412,60 +417,58 @@ impl LanguageServer for Backend {
         }
     }
 
-    async fn completion(&self, _params: CompletionParams) -> Result<Option<CompletionResponse>> {
+    async fn completion(&self, mut params: CompletionParams) -> Result<Option<CompletionResponse>> {
         self.client
-            .log_message(MessageType::INFO, "getting completion")
+            .log_message(MessageType::INFO, "COMPLETEING!")
             .await;
 
-        Ok(Some(CompletionResponse::Array(vec![
-            CompletionItem::new_simple("new".to_string(), "The new keyword".to_string()),
-        ])))
+        let file_path = params
+            .text_document_position
+            .text_document
+            .uri
+            .to_file_path()
+            .unwrap();
+
+        let source = match fs::read_to_string(&file_path) {
+            Ok(src) => src,
+            Err(_) => return Ok(None),
+        };
+
+        let inject = "__mist_23";
+        let injected_source = insert_at_position(
+            &source,
+            params.text_document_position.position.line as usize + 1,
+            params.text_document_position.position.character as usize,
+            &inject,
+        );
+
+        let output = match transpiler::transpile_text(&injected_source) {
+            Ok(out) => out,
+            Err(_) => return Ok(None),
+        };
+
+        let (line, character) = match find_row_col(&output, inject) {
+            Some(coords) => coords,
+            None => return Ok(None),
+        };
+
+        let uri =
+            Url::from_file_path(from_mist_to_rust(file_path)).expect("failed to generate rs url");
+
+        params.text_document_position.text_document.uri = uri;
+        params.text_document_position.position.line = line as u32;
+        params.text_document_position.position.character = character as u32;
+
+        let rs_res = self
+            .rust_analyzer
+            .lock()
+            .await
+            .request::<request::Completion>(params)
+            .await
+            .expect("Failed to send to rust");
+
+        Ok(rs_res)
     }
-
-    // async fn completion(&self, mut params: CompletionParams) -> Result<Option<CompletionResponse>> {
-    //     self.client
-    //         .log_message(MessageType::INFO, "COMPLETEING!")
-    //         .await;
-
-    //     let file_path = params
-    //         .text_document_position
-    //         .text_document
-    //         .uri
-    //         .to_file_path()
-    //         .unwrap();
-
-    //     let mut source = fs::read_to_string(&file_path).expect("Failed to read source");
-
-    //     let inject = "__mist_23";
-
-    //     source = insert_at_position(
-    //         &source,
-    //         params.text_document_position.position.line as usize + 1,
-    //         params.text_document_position.position.character as usize,
-    //         &inject,
-    //     );
-
-    //     let output = transpiler::transpile_text(&source).expect("Failed to transpile");
-
-    //     let (line, character) = find_row_col(&output, inject).unwrap();
-
-    //     let uri =
-    //         Url::from_file_path(from_mist_to_rust(file_path)).expect("failed to generate rs url");
-
-    //     params.text_document_position.text_document.uri = uri;
-    //     params.text_document_position.position.line = line as u32;
-    //     params.text_document_position.position.character = character as u32;
-
-    //     let rs_res = self
-    //         .rust_analyzer
-    //         .lock()
-    //         .await
-    //         .request::<request::Completion>(params)
-    //         .await
-    //         .expect("Failed to send to rust");
-
-    //     Ok(rs_res)
-    // }
 }
 
 #[tokio::main]
