@@ -102,11 +102,19 @@ impl LanguageServer for Backend {
 
         res.capabilities.completion_provider = Some(CompletionOptions {
             resolve_provider: Some(true),
-            trigger_characters: Some(vec![".".to_string()]),
+            trigger_characters: Some(vec![
+                ":".to_owned(),
+                ".".to_owned(),
+                "'".to_owned(),
+                "(".to_owned(),
+            ]),
+            all_commit_characters: None,
             completion_item: Some(CompletionOptionsCompletionItem {
-                label_details_support: Some(true),
+                label_details_support: None,
             }),
-            ..Default::default()
+            work_done_progress_options: WorkDoneProgressOptions {
+                work_done_progress: None,
+            },
         });
 
         res.capabilities.definition_provider = Some(OneOf::Left(true));

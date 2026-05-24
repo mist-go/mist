@@ -175,13 +175,15 @@ impl RustAnalyzer {
 
         let value = rx.await?;
 
-        let envelope: JsonRpcResponse<R::Result> = serde_json::from_value(value)?;
+        let envelope: JsonRpcResponse<R::Result> = serde_json::from_value(value.clone())?;
 
         if let Some(err) = envelope.error {
             return Err(format!("LSP Error ({}): {}", err.code, err.message).into());
         }
 
-        envelope.result.ok_or_else(|| "missing result".into())
+        envelope
+            .result
+            .ok_or_else(|| format!("missing result: {:?}", value).into())
     }
 
     pub async fn notify<T: Serialize>(&mut self, method: &str, req: T) -> std::io::Result<()> {
