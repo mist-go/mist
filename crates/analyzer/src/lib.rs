@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
+use tower_lsp::lsp_types::notification::Notification;
 use tower_lsp::lsp_types::{self, *};
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
@@ -200,6 +201,27 @@ impl LanguageServer for Backend {
         *self.previous_diagnostics.lock().await = diagnostics;
     }
 
+    async fn did_open(&self, mut params: DidOpenTextDocumentParams) {
+        if params.text_document.language_id == "mist" {
+            params.text_document.language_id = "rust".to_string();
+
+            params.text_document.text =
+                transpiler::transpile_text(&params.text_document.text).unwrap();
+
+            params.text_document.uri = Url::from_file_path(from_mist_to_rust(
+                params.text_document.uri.to_file_path().unwrap(),
+            ))
+            .unwrap();
+        }
+
+        self.rust_analyzer
+            .lock()
+            .await
+            .notify(notification::DidOpenTextDocument::METHOD, params)
+            .await
+            .expect("Failed to send open document");
+    }
+
     async fn goto_definition(
         &self,
         params: GotoDefinitionParams,
@@ -249,7 +271,7 @@ impl LanguageServer for Backend {
 
         eprintln!("{:?}", rs_res);
 
-        Ok(None)
+        Ok(rs_res)
     }
 }
 
