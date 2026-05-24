@@ -93,7 +93,7 @@ impl LanguageServer for Backend {
         res.capabilities.text_document_sync = Some(TextDocumentSyncCapability::Options(
             TextDocumentSyncOptions {
                 open_close: Some(true),
-                change: Some(TextDocumentSyncKind::INCREMENTAL),
+                change: Some(TextDocumentSyncKind::FULL),
                 will_save: Some(false),
                 will_save_wait_until: Some(false),
                 save: Some(SaveOptions::default().into()),
@@ -345,6 +345,71 @@ impl LanguageServer for Backend {
             }
             _ => rs_res,
         })
+    }
+
+    async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
+        self.client
+            .log_message(MessageType::INFO, "MIST-LSP: Processing did_change event")
+            .await;
+
+        let rust_path = from_mist_to_rust(params.text_document.uri.to_file_path().unwrap());
+        let rust_uri = Url::from_file_path(&rust_path).unwrap();
+
+        if let Some(change) = params.content_changes.first_mut() {
+            match transpiler::transpile_text(&change.text) {
+                Ok(transpiled_text) => {
+                    change.text = transpiled_text;
+
+                    self.mapping
+                        .lock()
+                        .await
+                        .insert(rust_path, rev_mapper::get_mapping(&change.text));
+                }
+                Err(e) => {
+                    self.client
+                        .log_message(
+                            MessageType::WARNING,
+                            format!(
+                                "MIST-LSP: Syntax invalid during change. Sync stopped: {:?}",
+                                e
+                            ),
+                        )
+                        .await;
+                    return;
+                }
+            }
+        }
+
+        // 3. Re-route URI path to mirror directory
+        params.text_document.uri = rust_uri;
+
+        // 4. Notify downstream rust-analyzer
+        if let Ok(mut ra) = self.rust_analyzer.try_lock() {
+            let _ = ra
+                .notify(notification::DidChangeTextDocument::METHOD, params)
+                .await;
+        }
+    }
+
+    async fn did_close(&self, mut params: DidCloseTextDocumentParams) {
+        self.client
+            .log_message(MessageType::INFO, "MIST-LSP: Processing did_close event")
+            .await;
+
+        let rust_path = from_mist_to_rust(params.text_document.uri.to_file_path().unwrap());
+
+        // 1. Evict the mapping from memory to prevent leaks
+        self.mapping.lock().await.remove(&rust_path);
+
+        // 2. Re-route URI path to mirror directory
+        params.text_document.uri = Url::from_file_path(&rust_path).unwrap();
+
+        // 3. Notify downstream rust-analyzer
+        if let Ok(mut ra) = self.rust_analyzer.try_lock() {
+            let _ = ra
+                .notify(notification::DidCloseTextDocument::METHOD, params)
+                .await;
+        }
     }
 
     async fn completion(&self, _params: CompletionParams) -> Result<Option<CompletionResponse>> {
