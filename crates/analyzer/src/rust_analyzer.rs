@@ -1,12 +1,30 @@
 use std::{path::PathBuf, process::Stdio};
 
 use lsp_types::{
-    ClientCapabilities, InitializeParams, Url, WorkspaceFolder,
+    ClientCapabilities, InitializeParams, InitializedParams, Url, WorkspaceFolder,
+    notification::{Initialized, Notification},
     request::{self, Request},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+
+#[derive(Deserialize)]
+pub struct JsonRpcResponse<T> {
+    pub jsonrpc: String,
+    // id can be a number or null, so we use serde_json::Value to be safe
+    pub id: serde_json::Value,
+    // We only unpack the result if it exists
+    pub result: Option<T>,
+    pub error: Option<JsonRpcError>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct JsonRpcError {
+    pub code: i64,
+    pub message: String,
+    pub data: Option<serde_json::Value>,
+}
 
 #[derive(Debug)]
 pub struct RustAnalyzer {
@@ -103,14 +121,38 @@ impl RustAnalyzer {
     where
         T: for<'de> serde::Deserialize<'de>,
     {
-        read_lsp_message(&mut self.stdout)
-            .await
-            .map(|v| serde_json::from_str(&v).unwrap())
+        let raw_string = read_lsp_message(&mut self.stdout).await?;
+
+        let envelope: JsonRpcResponse<T> = serde_json::from_str(&raw_string)?;
+
+        if let Some(err) = envelope.error {
+            return Err(format!("LSP Error ({}): {}", err.code, err.message).into());
+        }
+
+        envelope.result.ok_or_else(|| {
+            format!(
+                "LSP response missing both result and error fields. Raw: {}",
+                raw_string
+            )
+            .into()
+        })
+    }
+
+    pub async fn notify<T: Serialize>(&mut self, method: &str, req: T) -> std::io::Result<()> {
+        send_lsp_message(
+            &mut self.stdin,
+            &json!({
+                "jsonrpc": "2.0",
+                "method": method,
+                "params": req,
+            }),
+        )
+        .await
     }
 }
 
 impl RustAnalyzer {
-    pub async fn init(&mut self, root: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn initialize(&mut self, root: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         let project_uri = Url::from_directory_path(root)
             .map_err(|_| "Failed to convert path to valid file:// URL")?;
 
@@ -135,9 +177,16 @@ impl RustAnalyzer {
             ..Default::default()
         };
 
-        let _response = self.request::<request::Initialize>(init_params);
+        let response = self.request::<request::Initialize>(init_params).await;
 
-        eprintln!("<- Received: initialize response");
+        eprintln!("<- Received: initialize response {response:?}");
+
+        Ok(())
+    }
+
+    pub async fn initialized(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.notify(Initialized::METHOD, InitializedParams {})
+            .await?;
 
         Ok(())
     }

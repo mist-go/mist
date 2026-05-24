@@ -7,8 +7,10 @@ use std::fs;
 use std::path::{Component, PathBuf};
 use std::sync::Arc;
 
+use serde_json::Value;
 use tokio::sync::Mutex;
 use tower_lsp::jsonrpc::Result;
+use tower_lsp::lsp_types::request::Request;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
@@ -82,7 +84,7 @@ impl LanguageServer for Backend {
                 analyzer
                     .lock()
                     .await
-                    .init(root)
+                    .initialize(root)
                     .await
                     .expect("Failed to initialize rust analyzer");
             }
@@ -95,6 +97,13 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "server initialized!")
             .await;
+
+        self.rust_analyzer
+            .lock()
+            .await
+            .initialized()
+            .await
+            .expect("Failed to initialize rust analyzer");
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -231,22 +240,35 @@ impl LanguageServer for Backend {
         self.rust_analyzer
             .lock()
             .await
-            .request::<lsp_types::request::GotoDefinition>(lsp_types::GotoDefinitionParams {
-                text_document_position_params: lsp_types::TextDocumentPositionParams {
-                    position: lsp_types::Position {
-                        line: line as u32,
-                        character: character as u32,
+            .send(
+                request::GotoDefinition::METHOD,
+                lsp_types::GotoDefinitionParams {
+                    text_document_position_params: lsp_types::TextDocumentPositionParams {
+                        position: lsp_types::Position {
+                            line: line as u32,
+                            character: character as u32,
+                        },
+                        text_document: lsp_types::TextDocumentIdentifier {
+                            uri: Url::from_file_path(from_mist_to_rust(file_path))
+                                .expect("failed to generate rs url"),
+                        },
                     },
-                    text_document: lsp_types::TextDocumentIdentifier {
-                        uri: Url::from_file_path(from_mist_to_rust(file_path))
-                            .expect("failed to generate rs url"),
-                    },
+                    partial_result_params: lsp_types::PartialResultParams::default(),
+                    work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
                 },
-                partial_result_params: lsp_types::PartialResultParams::default(),
-                work_done_progress_params: lsp_types::WorkDoneProgressParams::default(),
-            })
+            )
             .await
             .expect("Failed to send to rust");
+
+        self.client
+            .log_message(
+                MessageType::INFO,
+                format!(
+                    "{:?}",
+                    self.rust_analyzer.lock().await.read::<Value>().await
+                ),
+            )
+            .await;
 
         Ok(None)
     }
