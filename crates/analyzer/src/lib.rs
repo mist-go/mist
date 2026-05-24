@@ -134,8 +134,14 @@ impl LanguageServer for Backend {
 
         let analyzer = self.rust_analyzer.clone();
 
+        let documents = self.documents.clone();
+
+        let mapping = self.mapping.clone();
+
         tokio::spawn(async move {
             if let Some(root) = &*workspace_folder.lock().await {
+                let src_root = root.join("src");
+
                 transpiler::build(root);
 
                 analyzer
@@ -144,6 +150,30 @@ impl LanguageServer for Backend {
                     .initialize(root)
                     .await
                     .expect("Failed to initialize rust analyzer");
+
+                // ---- LOAD ALL .MIST FILES ----
+                let mut files = Vec::new();
+                collect_mist_files(&src_root, &mut files);
+
+                for file in files {
+                    if let Ok(text) = std::fs::read_to_string(&file) {
+                        if let Ok(transpiled) = transpiler::transpile_text(&text) {
+                            let rust_path = from_mist_to_rust(file.clone());
+
+                            // store document
+                            documents
+                                .lock()
+                                .await
+                                .insert(file.clone(), Rope::from_str(&text));
+
+                            // store mapping
+                            mapping
+                                .lock()
+                                .await
+                                .insert(rust_path, rev_mapper::get_mapping(&transpiled));
+                        }
+                    }
+                }
 
                 eprintln!("Ready to use");
             }
@@ -227,7 +257,7 @@ impl LanguageServer for Backend {
                     },
                     end: Position {
                         line,
-                        character: column + 1,
+                        character: u32::MAX,
                     },
                 },
                 severity: Some(severity),
@@ -623,4 +653,20 @@ fn simplify_item(mut item: CompletionItem) -> CompletionItem {
     item.command = None;
 
     item
+}
+
+fn collect_mist_files(dir: &PathBuf, out: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+
+        if path.is_dir() {
+            collect_mist_files(&path, out);
+        } else if path.extension().and_then(|e| e.to_str()) == Some("mist") {
+            out.push(path);
+        }
+    }
 }
