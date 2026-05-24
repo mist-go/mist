@@ -9,26 +9,32 @@ pub struct Block(
 );
 
 #[derive(Debug, Clone, Serialize)]
+pub enum StatementBody {
+    Statement(Box<Statement>),
+    Expression(Expression),
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum Statement {
     Block(Block),
     If {
         initial: StatementBranch,
         else_if: Vec<StatementBranch>,
-        else_branch: Option<Expression>,
+        else_branch: Option<StatementBody>,
     },
-    Loop(Expression),
+    Loop(StatementBody),
     While(StatementBranch),
     CStyleFor {
         init: Expression,
         condition: Expression,
         update: Expression,
-        body: Expression,
+        body: StatementBody,
     },
     For {
         mutable: bool,
         pattern: Pattern,
         iterator: Expression,
-        body: Expression,
+        body: StatementBody,
     },
     Match(Expression, Vec<(Vec<Pattern>, Expression)>),
 
@@ -54,7 +60,7 @@ pub struct VarDeclStmt {
 #[derive(Debug, Clone, Serialize)]
 pub struct StatementBranch {
     pub condition: Expression,
-    pub body: Box<Expression>,
+    pub body: Box<StatementBody>,
 }
 
 impl Statement {
@@ -81,6 +87,15 @@ impl Statement {
                     || initial.body.is_block()
             }
             _ => false,
+        }
+    }
+}
+
+impl StatementBody {
+    pub fn is_block(&self) -> bool {
+        match self {
+            Self::Expression(_) => false,
+            _ => true,
         }
     }
 }
