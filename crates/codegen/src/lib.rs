@@ -243,30 +243,30 @@ impl GenRust for Pattern {
             }
             Self::Literal(lit) => lit.gen_rust(ctx, cg),
 
-            Self::Struct(path, ids) => {
+            Self::Struct(path, inner) => {
                 cg.add(&path.get_rust());
                 cg.add(" {");
-                for id in ids {
-                    cg.add(&id.get_rust());
+                for pat in inner {
+                    pat.gen_rust(ctx, cg);
                     cg.add(",");
                 }
                 cg.add("}");
             }
 
-            Self::NamedTuple(path, ids) => {
+            Self::NamedTuple(path, inner) => {
                 cg.add(&path.get_rust());
                 cg.add(" (");
-                for id in ids {
-                    cg.add(&id.get_rust());
+                for pat in inner {
+                    pat.gen_rust(ctx, cg);
                     cg.add(",");
                 }
                 cg.add(")");
             }
 
-            Self::Tuple(ids) => {
+            Self::Tuple(inner) => {
                 cg.add("(");
-                for id in ids {
-                    cg.add(&id.get_rust());
+                for pat in inner {
+                    pat.gen_rust(ctx, cg);
                     cg.add(",");
                 }
                 cg.add(")");

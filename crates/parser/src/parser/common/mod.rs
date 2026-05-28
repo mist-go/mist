@@ -7,7 +7,7 @@ use crate::{
     Rule,
     ast::*,
     ast_ensure, ast_expr,
-    error::{AstError, AstResult, IntoErr, collect_recovered},
+    error::{AstError, AstResult, IntoErr, collect_recovered, collect_recovered_map},
     parser::{consume_rule, listen_rule},
 };
 
@@ -60,16 +60,18 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
         let mut inner = pair.clone().into_inner();
 
         match rule {
-            Rule::tuple_pattern => ast_expr!(Pattern::Tuple(collect_recovered(pair.into_inner()))),
+            Rule::tuple_pattern => ast_expr!(Pattern::Tuple(collect_recovered_map(inner, |v| {
+                Self::try_from(v).map(Box::new)
+            }))),
 
             Rule::named_tuple_pattern => ast_expr!(Pattern::NamedTuple(
                 Path::try_from(inner.next().unwrap()),
-                collect_recovered(inner),
+                collect_recovered_map(inner, |v| Self::try_from(v).map(Box::new)),
             )),
 
             Rule::struct_pattern => ast_expr!(Pattern::Struct(
                 Path::try_from(inner.next().unwrap()),
-                collect_recovered(inner),
+                collect_recovered_map(inner, |v| Self::try_from(v).map(Box::new)),
             )),
 
             Rule::literal => ast_expr!(Pattern::Literal(pair.try_into())),
