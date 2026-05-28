@@ -135,7 +135,7 @@ literal = {
 // ======================================================
 
 multi_pat_template = _{
-    "[" ~ (identifier ~ ("," ~ identifier)*)? ~ "]"
+    (identifier ~ ("," ~ identifier)*)?
 }
 
 tuple_pattern = {

@@ -36,7 +36,7 @@ pub enum Pattern {
     Struct(Path, Vec<Identifier>),
     Tuple(Vec<Identifier>),
     Literal(Literal),
-    Path(Path),
+    Path(bool, Path),
     Id(Identifier),
 }
 
