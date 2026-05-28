@@ -1,6 +1,6 @@
 use mist_parser::ast::*;
 
-use crate::{Context, get_mutable};
+use crate::Context;
 
 use crate::{GenRust, GetRust, RustCodegen};
 
@@ -59,7 +59,11 @@ impl GenRust for Statement {
                 cg.add(" {");
                 cg.indent += 1;
 
-                for (pat, body) in match_items {
+                for match_item in match_items {
+                    cg.add_indentedln(&match_item.get_comment());
+
+                    let MatchItem(pat, body) = &match_item.item;
+
                     for (i, p) in pat.iter().enumerate() {
                         cg.addln("");
                         cg.add_indented("");
@@ -158,13 +162,11 @@ impl GenRust for Statement {
             }
 
             Statement::For {
-                mutable,
                 pattern,
                 iterator,
                 body,
             } => {
                 cg.add("for ");
-                cg.add(&get_mutable(*mutable));
                 pattern.gen_rust(ctx, cg);
                 cg.add(" in ");
                 iterator.gen_rust(ctx, cg);
@@ -186,8 +188,6 @@ impl GenRust for Statement {
 
 impl GenRust for VarDecl {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
-        cg.add(&get_mutable(self.mutable));
-
         self.name.gen_rust(ctx, cg);
 
         cg.add(

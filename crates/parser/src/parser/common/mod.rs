@@ -7,8 +7,8 @@ use crate::{
     Rule,
     ast::*,
     ast_ensure, ast_expr,
-    error::{AstError, IntoErr, collect_recovered},
-    parser::consume_rule,
+    error::{AstError, AstResult, IntoErr, collect_recovered, collect_recovered_map},
+    parser::{consume_rule, listen_rule},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Identifier {
@@ -60,23 +60,26 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
         let mut inner = pair.clone().into_inner();
 
         match rule {
-            Rule::tuple_pattern => ast_expr!(Pattern::Tuple(collect_recovered(pair.into_inner()))),
+            Rule::tuple_pattern => ast_expr!(Pattern::Tuple(collect_recovered_map(inner, |v| {
+                Self::try_from(v).map(Box::new)
+            }))),
 
             Rule::named_tuple_pattern => ast_expr!(Pattern::NamedTuple(
                 Path::try_from(inner.next().unwrap()),
-                collect_recovered(inner),
+                collect_recovered_map(inner, |v| Self::try_from(v).map(Box::new)),
             )),
 
             Rule::struct_pattern => ast_expr!(Pattern::Struct(
                 Path::try_from(inner.next().unwrap()),
-                collect_recovered(inner),
+                collect_recovered_map(inner, |v| Self::try_from(v).map(Box::new)),
             )),
 
             Rule::literal => ast_expr!(Pattern::Literal(pair.try_into())),
 
-            Rule::identifier => ast_expr!(Pattern::Id(pair.try_into())),
-
-            Rule::static_path => ast_expr!(Pattern::Path(pair.try_into())),
+            Rule::path_pattern => ast_expr!(Pattern::Path(
+                Ok(listen_rule(&mut inner, Rule::mutable)) as AstResult<'_, bool>,
+                inner.next().unwrap().try_into()
+            )),
 
             _ => AstError::bug_unimplemented(pair),
         }

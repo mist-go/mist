@@ -32,12 +32,11 @@ pub enum Literal {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Pattern {
-    NamedTuple(Path, Vec<Identifier>),
-    Struct(Path, Vec<Identifier>),
-    Tuple(Vec<Identifier>),
+    NamedTuple(Path, Vec<Box<Pattern>>),
+    Struct(Path, Vec<Box<Pattern>>),
+    Tuple(Vec<Box<Pattern>>),
     Literal(Literal),
-    Path(Path),
-    Id(Identifier),
+    Path(bool, Path),
 }
 
 #[derive(Debug, Clone, Serialize)]

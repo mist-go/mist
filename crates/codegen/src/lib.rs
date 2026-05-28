@@ -4,10 +4,6 @@ pub mod top_level;
 
 use mist_parser::ast::*;
 
-pub fn get_mutable(mutable: bool) -> String {
-    if mutable { "mut " } else { "" }.to_string()
-}
-
 pub struct Context {
     pub expr_ensure_semicolon: bool,
 }
@@ -238,34 +234,39 @@ impl GetRust for TypeExprKind {
 impl GenRust for Pattern {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         match self {
-            Self::Id(id) => cg.add(&id.get_rust()),
-            Self::Path(path) => cg.add(&path.get_rust()),
+            Self::Path(mutable, path) => {
+                if *mutable {
+                    cg.add("mut ");
+                };
+
+                cg.add(&path.get_rust())
+            }
             Self::Literal(lit) => lit.gen_rust(ctx, cg),
 
-            Self::Struct(path, ids) => {
+            Self::Struct(path, inner) => {
                 cg.add(&path.get_rust());
                 cg.add(" {");
-                for id in ids {
-                    cg.add(&id.get_rust());
+                for pat in inner {
+                    pat.gen_rust(ctx, cg);
                     cg.add(",");
                 }
                 cg.add("}");
             }
 
-            Self::NamedTuple(path, ids) => {
+            Self::NamedTuple(path, inner) => {
                 cg.add(&path.get_rust());
                 cg.add(" (");
-                for id in ids {
-                    cg.add(&id.get_rust());
+                for pat in inner {
+                    pat.gen_rust(ctx, cg);
                     cg.add(",");
                 }
                 cg.add(")");
             }
 
-            Self::Tuple(ids) => {
+            Self::Tuple(inner) => {
                 cg.add("(");
-                for id in ids {
-                    cg.add(&id.get_rust());
+                for pat in inner {
+                    pat.gen_rust(ctx, cg);
                     cg.add(",");
                 }
                 cg.add(")");

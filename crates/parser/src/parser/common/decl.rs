@@ -2,8 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_expr,
-    error::{AstError, AstResult, IntoErr},
-    parser::listen_rule,
+    error::{AstError, IntoErr},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDeclStmt {
@@ -63,13 +62,10 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDecl {
                     })
                     .transpose();
 
-                let mutable: AstResult<'_, bool> = Ok(listen_rule(&mut inner, Rule::mutable));
-
                 let name = Pattern::try_from(inner.next().unwrap());
 
                 ast_expr!(VarDecl {
                     type_: type_,
-                    mutable: mutable,
                     name: name,
                 })
             }

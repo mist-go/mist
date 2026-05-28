@@ -212,8 +212,7 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &Spanned<ClassConstructor>) {
         cg.add_indentedln("}\n");
 
         let mut constructor_params = vec![VarDecl {
-            mutable: false,
-            name: Pattern::Id(Identifier(String::from("self"))),
+            name: Pattern::Path(false, Path(vec![Identifier(String::from("self"))])),
             type_: Some(TypeExpr(
                 TypeExprKind::Path(Path(vec![Identifier(String::from("Self"))])),
                 vec![TypePostfix::RefMut],
