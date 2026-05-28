@@ -28,11 +28,11 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Attribute {
                     }
 
                     Some(next) => match next.as_rule() {
-                        Rule::primary => {
+                        Rule::literal => {
                             // #[path = literal]
                             Ok(Attribute::NameValue {
                                 path,
-                                value: inner.next().unwrap().try_into().get()?,
+                                value: next.try_into().get()?,
                             })
                         }
 
