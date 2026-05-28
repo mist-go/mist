@@ -325,6 +325,7 @@ impl GenRust for TopLevelKind {
                 visibility,
                 name,
                 generics,
+                inherits,
                 fields,
                 constructor,
                 items,
@@ -337,6 +338,12 @@ impl GenRust for TopLevelKind {
                     generics.clone().get_rust()
                 ));
                 cg.indent += 1;
+
+                if let Some(inherits) = inherits {
+                    cg.add_indented("pub _super: ");
+                    cg.add(&inherits.get_rust());
+                    cg.addln(",");
+                }
 
                 for field in fields.clone() {
                     cg.add_indentedln(&field.get_comment());
@@ -394,6 +401,38 @@ impl GenRust for TopLevelKind {
                         }
                         ClassItem::Method(_) => {}
                     }
+                }
+
+                if let Some(inherits) = inherits {
+                    cg.add("impl std::ops::Deref for ");
+                    cg.add(&name.get_rust());
+
+                    cg.addln(" {");
+                    cg.indent += 1;
+
+                    cg.add_indented("type Target = ");
+                    cg.add(&inherits.get_rust());
+                    cg.addln(";");
+
+                    cg.add_indentedln("fn deref(&self) -> &Self::Target {&self._super}");
+
+                    cg.indent -= 1;
+                    cg.addln("}");
+
+                    // Mut
+
+                    cg.add("impl std::ops::DerefMut for ");
+                    cg.add(&name.get_rust());
+
+                    cg.addln(" {");
+                    cg.indent += 1;
+
+                    cg.add_indentedln(
+                        "fn deref_mut(&mut self) -> &mut Self::Target {&mut self._super}",
+                    );
+
+                    cg.indent -= 1;
+                    cg.addln("}");
                 }
             }
         }

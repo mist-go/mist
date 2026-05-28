@@ -108,11 +108,12 @@ impl GenRust for Attribute {
         match self {
             Self::Path(path) => cg.add(&path.get_rust()),
             Self::NameValue { path, value } => {
-                cg.add(&format!("{} =", path.get_rust()));
+                cg.add(&format!("{} = ", path.get_rust()));
                 value.gen_rust(ctx, cg);
             }
             Self::List { path, items } => {
                 cg.add(&path.get_rust());
+                cg.add("(");
                 for (i, item) in items.iter().enumerate() {
                     if i > 0 {
                         cg.add(", ");
@@ -120,6 +121,7 @@ impl GenRust for Attribute {
 
                     item.gen_rust(ctx, cg);
                 }
+                cg.add(")");
             }
         }
     }
