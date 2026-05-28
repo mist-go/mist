@@ -134,16 +134,24 @@ literal = {
 // PATTERNS
 // ======================================================
 
+multi_pat_template = _{
+    "[" ~ (identifier ~ ("," ~ identifier)*)? ~ "]"
+}
+
 tuple_pattern = {
-    "[" ~ (identifier ~ ("," ~ identifier)*) ~ "]"
+    "[" ~ multi_pat_template ~ "]"
 }
 
 named_tuple_pattern = {
-    static_path ~ "[" ~ (identifier ~ ("," ~ identifier)*)? ~ "]"
+    static_path ~ "[" ~ multi_pat_template ~ "]"
 }
 
 struct_pattern = {
-    static_path ~ "{" ~ (identifier ~ ("," ~ identifier)*)? ~ "}"
+    static_path ~ "{" ~ multi_pat_template ~ "}"
+}
+
+path_pattern = {
+    mutable? ~ static_path
 }
 
 pattern = _{
@@ -151,7 +159,7 @@ pattern = _{
   | tuple_pattern
   | struct_pattern
   | literal
-  | static_path
+  | path_pattern
 }
 
 // ======================================================
@@ -182,7 +190,7 @@ attributes = {
 // DECLARATION HELPERS
 // ======================================================
 var_decl = {
-    (var | type_expr) ~ mutable? ~ pattern
+    (var | type_expr) ~ pattern
 }
 
 field = {
@@ -415,7 +423,7 @@ c_for_stmt = {
 }
 
 for_stmt = {
-    "for" ~ "(" ~ mutable? ~ pattern ~ ":" ~ expr ~ ")" ~ statement_body
+    "for" ~ "(" ~ pattern ~ ":" ~ expr ~ ")" ~ statement_body
 }
 
 loop_stmt = {
