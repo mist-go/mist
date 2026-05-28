@@ -158,7 +158,6 @@ impl GenRust for Statement {
             }
 
             Statement::For {
-                mutable,
                 pattern,
                 iterator,
                 body,

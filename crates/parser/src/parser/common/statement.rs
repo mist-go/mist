@@ -3,7 +3,6 @@ use crate::{
     ast::*,
     ast_ensure, ast_expr,
     error::{AstError, AstResult, IntoErr, collect_recovered},
-    parser::listen_rule,
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
@@ -97,7 +96,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
             }),
 
             Rule::for_stmt => ast_expr!(Statement::For {
-                mutable: Ok(listen_rule(&mut inner, Rule::mutable)) as AstResult<'_, bool>,
                 pattern: inner.next().unwrap().try_into(),
                 iterator: inner.next().unwrap().try_into(),
                 body: inner.next().unwrap().try_into(),

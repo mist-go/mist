@@ -37,7 +37,6 @@ pub enum Pattern {
     Tuple(Vec<Identifier>),
     Literal(Literal),
     Path(bool, Path),
-    Id(Identifier),
 }
 
 #[derive(Debug, Clone, Serialize)]

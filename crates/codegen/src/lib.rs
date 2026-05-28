@@ -234,7 +234,6 @@ impl GetRust for TypeExprKind {
 impl GenRust for Pattern {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         match self {
-            Self::Id(id) => cg.add(&id.get_rust()),
             Self::Path(mutable, path) => {
                 if *mutable {
                     cg.add("mut ");

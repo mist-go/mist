@@ -31,7 +31,6 @@ pub enum Statement {
         body: StatementBody,
     },
     For {
-        mutable: bool,
         pattern: Pattern,
         iterator: Expression,
         body: StatementBody,
@@ -46,7 +45,6 @@ pub enum Statement {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct VarDecl {
-    pub mutable: bool,
     pub name: Pattern,
     pub type_: Option<TypeExpr>,
 }

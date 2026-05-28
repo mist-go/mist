@@ -23,14 +23,11 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
 
             let self_param = consume_rule(&mut inner, Rule::self_param).map(|param| {
                 let mut param_inner = param.into_inner();
-                let name = Pattern::Id(Identifier(String::from("self")));
-
                 let mutable = listen_rule(&mut param_inner, Rule::mutable);
-
                 let is_ref = listen_rule(&mut param_inner, Rule::deref_px);
+                let name = Pattern::Path(mutable && !is_ref, Path(vec![Identifier(String::from("self"))]));
 
                 VarDecl {
-                    mutable: mutable && !is_ref,
                     name: name.clone(),
                     type_: Some(TypeExpr(
                         TypeExprKind::Path(Path(vec![Identifier("Self".to_string())])),

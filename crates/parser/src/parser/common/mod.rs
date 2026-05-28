@@ -74,8 +74,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
 
             Rule::literal => ast_expr!(Pattern::Literal(pair.try_into())),
 
-            Rule::identifier => ast_expr!(Pattern::Id(pair.try_into())),
-
             Rule::path_pattern => ast_expr!(Pattern::Path(
                 Ok(listen_rule(&mut inner, Rule::mutable)) as AstResult<'_, bool>,
                 inner.next().unwrap().try_into()
