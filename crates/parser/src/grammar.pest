@@ -179,7 +179,7 @@ meta = {
 }
 
 meta_list = {
-    meta ~ ("," ~ meta)* ~ ","?
+    (meta ~ ("," ~ meta)* ~ ","?)?
 }
 
 attributes = {
@@ -198,11 +198,11 @@ field = {
 }
 
 field_list = {
-    field ~ ("," ~ field)* ~ ","?
+    (field ~ ("," ~ field)* ~ ","?)?
 }
 
 param_list = {
-    var_decl ~ ("," ~ var_decl)* ~ ","?
+    (var_decl ~ ("," ~ var_decl)* ~ ","?)?
 }
 
 // ======================================================
@@ -260,7 +260,7 @@ enum_decl = {
 // ======================================================
 
 class_constructor = {
-    visibility? ~ "constructor" ~ generics_decl? ~ "(" ~ param_list? ~ ")" ~ block
+    visibility? ~ "constructor" ~ generics_decl? ~ "(" ~ param_list ~ ")" ~ block
 }
 
 class_fields = {
@@ -276,7 +276,7 @@ self_param = {
 }
 
 method = {
-    visibility? ~ type_expr ~ identifier ~ generics_decl? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ block
+    visibility? ~ type_expr ~ identifier ~ generics_decl? ~ "(" ~ self_param? ~ ("," ~ param_list)? ~ ")" ~ block
 }
 
 class_item = _{
@@ -305,7 +305,7 @@ impl_decl = {
 trait_requirements = { ":" ~ type_expr_param ~ ("+" ~ type_expr_param)* }
 
 method_no_body = {
-    visibility? ~ type_expr ~ identifier ~ generics_decl? ~ "(" ~ self_param? ~ ("," ~ param_list?)? ~ ")" ~ semicolon
+    visibility? ~ type_expr ~ identifier ~ generics_decl? ~ "(" ~ self_param? ~ ("," ~ param_list)? ~ ")" ~ semicolon
 }
 
 trait_item = _{
@@ -322,7 +322,7 @@ trait_decl = {
 // ======================================================
 
 function_decl = {
-    visibility? ~ type_expr ~ identifier ~ "(" ~ param_list? ~ ")" ~ block
+    visibility? ~ type_expr ~ identifier ~ "(" ~ param_list ~ ")" ~ block
 }
 
 // ======================================================
