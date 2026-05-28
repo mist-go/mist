@@ -59,7 +59,11 @@ impl GenRust for Statement {
                 cg.add(" {");
                 cg.indent += 1;
 
-                for (pat, body) in match_items {
+                for match_item in match_items {
+                    cg.add_indentedln(&match_item.get_comment());
+
+                    let MatchItem(pat, body) = &match_item.item;
+
                     for (i, p) in pat.iter().enumerate() {
                         cg.addln("");
                         cg.add_indented("");

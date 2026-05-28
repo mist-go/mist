@@ -35,13 +35,16 @@ pub enum Statement {
         iterator: Expression,
         body: StatementBody,
     },
-    Match(Expression, Vec<(Vec<Pattern>, Expression)>),
+    Match(Expression, Vec<Spanned<MatchItem>>),
 
     VarDecl(VarDeclStmt),
     Return(Option<Expression>),
     Break,
     Continue,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MatchItem(pub Vec<Pattern>, pub Expression);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct VarDecl {

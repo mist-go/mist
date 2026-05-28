@@ -2,7 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_ensure, ast_expr,
-    error::{AstError, AstResult, IntoErr, collect_recovered},
+    error::{AstError, IntoErr, collect_recovered},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
@@ -103,18 +103,23 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
 
             Rule::match_stmt => ast_expr!(Statement::Match(
                 inner.next().unwrap().try_into(),
-                inner
-                    .map(|match_itms| {
-                        let mut match_inner = match_itms.into_inner();
-                        Ok((
-                            collect_recovered(match_inner.next().unwrap().into_inner()).get()?,
-                            Expression::try_from(match_inner.next().unwrap()).get()?,
-                        ))
-                    })
-                    .collect::<AstResult<'a, Vec<_>>>(),
+                collect_recovered(inner),
             )),
 
             _ => AstError::bug_unimplemented(pair),
         }
+    }
+}
+
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for MatchItem {
+    type Error = AstError<'a, Self>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        let mut match_inner = pair.into_inner();
+
+        Ok(MatchItem(
+            collect_recovered(match_inner.next().unwrap().into_inner()).get()?,
+            Expression::try_from(match_inner.next().unwrap()).get()?,
+        ))
     }
 }
