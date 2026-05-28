@@ -54,6 +54,7 @@ pub enum TopLevelKind {
         visibility: Visibility,
         name: Identifier,
         generics: GenericsDecl,
+        inherits: Option<TypeExpr>,
         fields: Vec<Spanned<FieldDeclStmt>>,
         constructor: Spanned<ClassConstructor>,
         items: Vec<ClassItem>,

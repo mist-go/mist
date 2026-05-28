@@ -325,6 +325,7 @@ impl GenRust for TopLevelKind {
                 visibility,
                 name,
                 generics,
+                inherits,
                 fields,
                 constructor,
                 items,
