@@ -339,6 +339,12 @@ impl GenRust for TopLevelKind {
                 ));
                 cg.indent += 1;
 
+                if let Some(inherits) = inherits {
+                    cg.add_indented("pub _super: ");
+                    cg.add(&inherits.get_rust());
+                    cg.addln(",");
+                }
+
                 for field in fields.clone() {
                     cg.add_indentedln(&field.get_comment());
                     cg.add_indentedln(&field.item.decl.get_rust());
@@ -421,7 +427,9 @@ impl GenRust for TopLevelKind {
                     cg.addln(" {");
                     cg.indent += 1;
 
-                    cg.add_indentedln("fn deref(&mut self) -> &mut Self::Target {&mut self._super}");
+                    cg.add_indentedln(
+                        "fn deref_mut(&mut self) -> &mut Self::Target {&mut self._super}",
+                    );
 
                     cg.indent -= 1;
                     cg.addln("}");
