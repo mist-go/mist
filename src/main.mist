@@ -1,9 +1,8 @@
 use <std::process>;
 use <std::env>;
 use <std::fs>;
-
-pub mod builder;
-pub mod transpiler;
+use <mist_api::builder>;
+use <mist_api::transpiler>;
 
 void main() {
     Vec<String> args = env::args().collect();

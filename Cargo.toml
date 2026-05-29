@@ -16,19 +16,15 @@ include = [
 ]
 
 [dependencies]
-mist-parser = { workspace = true }
 mist-analyzer = { workspace = true }
-mist-codegen = { workspace = true }
-
-serde = { version = "1.0.228", features = ["serde_derive"] }
-serde_json = "1.0.149"
-cargo_metadata = "0.23.1"
+mist-api = { workspace = true }
 
 [workspace]
 members = [
     "crates/parser",
     "crates/analyzer",
     "crates/codegen",
+    "crates/mist-api",
 ]
 
 exclude = [
@@ -39,6 +35,7 @@ exclude = [
 mist-parser = { path = "crates/parser", version = "0.1.6" }
 mist-analyzer = { path = "crates/analyzer", version = "0.0.3" }
 mist-codegen = { path = "crates/codegen", version = "0.1.2" }
+mist-api = { path = "crates/mist-api", version = "0.1.0" }
 
 [[bin]]
 name = "mist"
@@ -47,10 +44,6 @@ path = ".mist/src/main.rs"
 [[bin]]
 name = "mist-lsp"
 path = ".mist/lsp/main.rs"
-
-[[bin]]
-name = "mist-header"
-path = "src/_header.rs"
 
 [[bin]]
 name = "mist-analyzer"

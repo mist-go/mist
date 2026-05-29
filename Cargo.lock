@@ -456,6 +456,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mist-api"
+version = "0.1.0"
+dependencies = [
+ "cargo_metadata",
+ "mist-codegen",
+ "mist-parser",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mist-codegen"
 version = "0.1.2"
 dependencies = [
@@ -466,12 +477,8 @@ dependencies = [
 name = "mist-lang"
 version = "0.0.5-alpha0"
 dependencies = [
- "cargo_metadata",
  "mist-analyzer",
- "mist-codegen",
- "mist-parser",
- "serde",
- "serde_json",
+ "mist-api",
 ]
 
 [[package]]
