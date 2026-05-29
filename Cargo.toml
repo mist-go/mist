@@ -16,13 +16,8 @@ include = [
 ]
 
 [dependencies]
-mist-parser = { workspace = true }
 mist-analyzer = { workspace = true }
-mist-codegen = { workspace = true }
-
-serde = { version = "1.0.228", features = ["serde_derive"] }
-serde_json = "1.0.149"
-cargo_metadata = "0.23.1"
+mist-api = { workspace = true }
 
 [workspace]
 members = [
@@ -49,10 +44,6 @@ path = ".mist/src/main.rs"
 [[bin]]
 name = "mist-lsp"
 path = ".mist/lsp/main.rs"
-
-[[bin]]
-name = "mist-header"
-path = "src/_header.rs"
 
 [[bin]]
 name = "mist-analyzer"

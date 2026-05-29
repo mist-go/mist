@@ -4,7 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+serde = { version = "1.0.228", features = ["serde_derive"] }
+serde_json = "1.0.149"
+cargo_metadata = "0.23.1"
+mist-parser = { workspace = true }
+mist-codegen = { workspace = true }
 
 [lib]
-name = "mist-api"
+name = "mist_api"
 path = ".mist/src/lib.rs"
