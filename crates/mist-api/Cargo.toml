@@ -13,3 +13,7 @@ mist-codegen = { workspace = true }
 [lib]
 name = "mist_api"
 path = ".mist/src/lib.rs"
+
+[[bin]]
+name = "mist_lsp"
+path = ".mist/lsp/main.rs"
