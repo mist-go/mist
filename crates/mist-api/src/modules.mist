@@ -1,0 +1,61 @@
+use <std::path::Path>;
+use <std::path::PathBuf>;
+use <std::fs>;
+use <std::process>;
+
+pub class Module {
+    pub String name;
+    pub PathBuf path;
+    pub Vec<Self> children;
+
+    pub constructor(PathBuf mist_path) {
+        self.children = new Vec();
+        self.name = mist_path.file_stem()
+            .and_then(|var s| s.to_str()).expect("Failed to get module name").to_string();
+        self.path = mist_path;
+
+        if (self.path.is_dir()) {
+            var entries = match (fs::read_dir(&self.path)) {
+                Ok[entries] => entries;
+                Err[e] => {
+                    eprintln!(
+                        "error: failed to read directory {}\n  {}",
+                        self.path.display(),
+                        e
+                    );
+
+                    process::exit(1);
+                }
+            };
+
+            for (entry : entries) {
+                var entry = match (entry) {
+                    Ok[entry] => entry;
+                    Err[e] => {
+                        eprintln!("error: failed to read directory entry\n  {}", e);
+
+                        process::exit(1);
+                    }
+                };
+
+                PathBuf child_path = entry.path();
+
+                self.children.push(new Module(child_path));
+            }
+        }
+    }
+}
+
+bool should_skip(Path* source, Path* output) {
+    var src_time = fs::metadata(source)
+        .ok()
+        .and_then(|var v| v.modified().ok());
+
+    var out_time = fs::metadata(output)
+        .ok()
+        .and_then(|var v| v.modified().ok());
+
+    out_time
+        .map(|var out_time| out_time >= src_time.unwrap())
+        .unwrap_or_default()
+}
