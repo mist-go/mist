@@ -29,6 +29,7 @@ members = [
     "crates/parser",
     "crates/analyzer",
     "crates/codegen",
+    "crates/mist-api",
 ]
 
 exclude = [
@@ -39,6 +40,7 @@ exclude = [
 mist-parser = { path = "crates/parser", version = "0.1.6" }
 mist-analyzer = { path = "crates/analyzer", version = "0.0.3" }
 mist-codegen = { path = "crates/codegen", version = "0.1.2" }
+mist-api = { path = "crates/mist-api", version = "0.1.0" }
 
 [[bin]]
 name = "mist"

@@ -1,0 +1,10 @@
+[package]
+name = "mist-api"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[lib]
+name = "mist-api"
+path = ".mist/src/lib.rs"
