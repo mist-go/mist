@@ -3,6 +3,10 @@ name = "mist-api"
 version = "0.1.7-alpha.0"
 edition = "2024"
 
+[features]
+default = []
+lsp-dev = []
+
 [dependencies]
 serde = { version = "1.0.228", features = ["serde_derive"] }
 serde_json = "1.0.149"
@@ -17,3 +21,4 @@ path = ".mist/src/lib.rs"
 [[bin]]
 name = "mist_lsp"
 path = ".mist/lsp/main.rs"
+required-features = ["lsp-dev"]
