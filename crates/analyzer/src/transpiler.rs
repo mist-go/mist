@@ -7,7 +7,7 @@ use mist_parser::{ast::TopLevel, error::ParseError};
 
 pub fn build(root: &PathBuf) {
     let src_dir = root.join("src");
-    let out_dir = root.join(".mist/lsp");
+    let out_dir = root.join(".mist/src");
 
     if let Err(e) = build_dir(root, &src_dir, &src_dir, &out_dir) {
         eprintln!("Warning: Build directory run aborted safely: {e}");

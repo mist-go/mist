@@ -573,7 +573,7 @@ pub fn from_mist_to_rust(mut path: PathBuf) -> PathBuf {
     let mut comps: Vec<Component> = path.components().collect();
 
     if let Some(pos) = comps.iter().rposition(|c| c.as_os_str() == "src") {
-        let replacement = std::path::Path::new(".mist/lsp");
+        let replacement = std::path::Path::new(".mist/src");
         comps.splice(pos..=pos, replacement.components());
         comps.iter().collect()
     } else {
@@ -587,8 +587,7 @@ pub fn from_rust_to_mist(mut path: PathBuf) -> PathBuf {
 
     let comps: Vec<Component> = path.components().collect();
 
-    // pattern we originally inserted: ".mist/lsp"
-    let pattern: Vec<Component> = std::path::Path::new(".mist/lsp").components().collect();
+    let pattern: Vec<Component> = std::path::Path::new(".mist/src").components().collect();
 
     // find the last occurrence of the pattern
     if let Some(pos) = comps
