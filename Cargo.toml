@@ -15,6 +15,10 @@ include = [
     "README.md",
 ]
 
+[features]
+default = []
+lsp-dev = []
+
 [dependencies]
 mist-analyzer = { workspace = true }
 mist-api = { workspace = true }
@@ -44,6 +48,7 @@ path = ".mist/src/main.rs"
 [[bin]]
 name = "mist-lsp"
 path = ".mist/lsp/main.rs"
+required-features = ["lsp-dev"]
 
 [[bin]]
 name = "mist-analyzer"
