@@ -8,10 +8,6 @@ repository = "https://github.com/mist-go/mist"
 keywords = ["compiler", "language", "mist", "module-system"]
 categories = ["compilers"]
 
-[features]
-default = []
-lsp-dev = []
-
 [dependencies]
 serde = { version = "1.0.228", features = ["serde_derive"] }
 serde_json = "1.0.149"
@@ -22,8 +18,3 @@ mist-codegen = { workspace = true }
 [lib]
 name = "mist_api"
 path = ".mist/src/lib.rs"
-
-[[bin]]
-name = "mist_lsp"
-path = ".mist/lsp/main.rs"
-required-features = ["lsp-dev"]
