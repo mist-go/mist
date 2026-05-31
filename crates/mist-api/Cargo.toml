@@ -2,6 +2,11 @@
 name = "mist-api"
 version = "0.1.7-alpha.0"
 edition = "2024"
+description = "The Mist programming language module system"
+license = "Apache-2.0"
+repository = "https://github.com/mist-go/mist"
+keywords = ["compiler", "language", "mist", "module-system"]
+categories = ["compilers"]
 
 [features]
 default = []
