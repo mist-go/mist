@@ -16,10 +16,11 @@ pub PathBuf build(bool force) {
     PathBuf src = root.join("src");
     PathBuf out = root.join(".mist/src");
 
-
-    build_dir(&root, &src, &src, &out, force);
+    // build_dir(&root, &src, &src, &out, force);
 
     var master = modules::master_package(src.join("main.mist"), out.join("main.rs"));
+
+    master.transpile(&out);
 
     var elapsed = start.elapsed();
     
@@ -31,123 +32,91 @@ pub PathBuf build(bool force) {
     root
 }
 
-void build_dir(Path* root, Path* base_src, Path* current, Path* out, bool force) {
-    var entries = match (fs::read_dir(current)) {
-        Ok[entries] => entries;
+impl modules::Module {
+    void transpile(self*, PathBuf* parent_dir) {
+        if (self.path.is_dir()) {
+            PathBuf dir = parent_dir.join(&self.name);
+            
+            for (child : &self.children) {
+                child.transpile(&dir);
+            }
+        } else {
+            if (Some("package.mist") == self.path.file_name().unwrap().to_str()) {
+                PathBuf dir = parent_dir.join(&self.name);
+                PathBuf output_file = dir.join("mod.rs");
+
+                transpile_file(&self.path, &output_file);
+
+                for (child : &self.children) {
+                    child.transpile(&dir);
+                }
+            } else {
+                PathBuf output_file = parent_dir.join(&self.name).with_extension("rs");
+
+                transpile_file(&self.path, &output_file);
+
+                for (child : &self.children) {
+                    child.transpile(parent_dir);
+                }
+            }
+        }
+    }
+}
+
+void transpile_file(PathBuf* path, PathBuf* output_file) {
+    String source = match (fs::read_to_string(path)) {
+        Ok[s] => s;
         Err[e] => {
-            eprintln!(
-                "error: failed to read directory {}\n  {}",
-                current.display(),
-                e
-            );
+            eprintln!("error: failed to read file {}\n  {}", path.display(), e);
 
             process::exit(1);
         }
     };
 
-    for (entry : entries) {
-        var entry = match (entry) {
-            Ok[entry] => entry;
-            Err[e] => {
-                eprintln!("error: failed to read directory entry\n  {}", e);
+    var mut gc = mist_codegen::RustCodegen::new();
 
-                process::exit(1);
-            }
-        };
+    String output = gc.generate(match (mist_parser::parse(&source)) {
+        Ok[ast] => ast;
+        Err[e] => {
+            match (e) {
+                error::ParseError::Ast[e] => {
+                    var start_pos = e.span.start_pos().line_col();
 
-        PathBuf path = entry.path();
+                    var span = e.span.as_str();
 
-        if (path.is_dir()) {
-            build_dir(root, base_src, &path, out, force);
-            continue;
-        }
+                    eprintln!(
+                        "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}{}\t{}",
+                        path.as_os_str().display(),
+                        start_pos.0,
+                        start_pos.1,
+                        e.error_message,
+                        span,
+                        if span.ends_with("\n") { "" } else { "\n" },
+                        "^".repeat(span.trim().len()),
+                    );
 
-        Path* relative = path.strip_prefix(base_src).expect("Failed to strip base src from path");
+                    process::exit(1);
+                }
 
-        if (path.extension().and_then(|var e| e.to_str()) != Some("mist")) {
-            PathBuf dest = out.join(relative);
+                error::ParseError::PreAst[e] => {
+                    eprintln!("error: parse failed in {}\n{}", path.display(), e);
 
-            Option<Path*> parent = dest.parent();
-
-            if (parent.is_some()) {
-                fs::create_dir_all(parent.unwrap()).expect("failed to create output directory");
-            }
-
-            if (!force && should_skip(&path, &dest)) {
-                continue
-            }
-
-            fs::copy(&path, dest).expect("Failed to copy non-mist file");
-
-            continue;
-        }
-
-        PathBuf output_file = out.join(relative).with_extension("rs");
-
-        if (!force && should_skip(&path, &output_file)) {
-            continue;
-        }
-
-        Option<Path*> parent = output_file.parent();
-
-        if (parent.is_some()) {
-            fs::create_dir_all(parent.unwrap()).expect("failed to create output directory");
-        }
-
-        String source = match (fs::read_to_string(&path)) {
-            Ok[s] => s;
-            Err[e] => {
-                eprintln!("error: failed to read file {}\n  {}", path.display(), e);
-
-                process::exit(1);
-            }
-        };
-
-        var mut gc = mist_codegen::RustCodegen::new();
-
-        String output = gc.generate(match (mist_parser::parse(&source)) {
-            Ok[ast] => ast;
-            Err[e] => {
-                match (e) {
-                    error::ParseError::Ast[e] => {
-                        var start_pos = e.span.start_pos().line_col();
-
-                        var span = e.span.as_str();
-
-                        eprintln!(
-                            "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}{}\t{}",
-                            path.as_os_str().display(),
-                            start_pos.0,
-                            start_pos.1,
-                            e.error_message,
-                            span,
-                            if span.ends_with("\n") { "" } else { "\n" },
-                            "^".repeat(span.trim().len()),
-                        );
-
-                        process::exit(1);
-                    }
-
-                    error::ParseError::PreAst[e] => {
-                        eprintln!("error: parse failed in {}\n{}", path.display(), e);
-
-                        process::exit(1);
-                    }
+                    process::exit(1);
                 }
             }
-        });
-
-        var res = fs::write(&output_file, output);
-
-        if (res.is_err()) {
-            eprintln!(
-                "error: failed to write output {}\n  {}",
-                output_file.display(),
-                res.unwrap_err(),
-            );
-
-            process::exit(1);
         }
+    });
+
+    var res = fs::write(&output_file, output);
+
+    if (res.is_err()) {
+        eprintln!(
+            "error: failed to write output {}\n  {}",
+            output_file.display(),
+            res.unwrap_err(),
+        );
+
+        process::exit(1);
     }
 }
 
