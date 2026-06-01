@@ -6,6 +6,7 @@ use <std::time>;
 use <std::env>;
 
 use <mist_parser::error>;
+use <crate::modules>;
 
 pub PathBuf build(bool force) {
     var start = time::Instant::now();
@@ -15,7 +16,10 @@ pub PathBuf build(bool force) {
     PathBuf src = root.join("src");
     PathBuf out = root.join(".mist/src");
 
+
     build_dir(&root, &src, &src, &out, force);
+
+    var master = modules::master_package(src.join("main.mist"), out.join("main.rs"));
 
     var elapsed = start.elapsed();
     

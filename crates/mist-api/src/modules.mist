@@ -3,6 +3,7 @@ use <std::path::PathBuf>;
 use <std::fs>;
 use <std::process>;
 
+#[derive(Debug)]
 pub class Module {
     pub String name;
     pub PathBuf path;
@@ -14,55 +15,75 @@ pub class Module {
         self.path = mist_path;
 
         if (self.path.is_dir()) {
-            var entries = match (fs::read_dir(&self.path)) {
-                Ok[entries] => entries;
-                Err[e] => {
-                    eprintln!(
-                        "error: failed to read directory {}\n  {}",
-                        self.path.display(),
-                        e
-                    );
+            PathBuf dir = self.path.clone();
 
+            // Behavior 2: It's a directory node. Check for gateway package.mist first.
+            PathBuf pkg_gate = self.path.join("package.mist");
+            if (pkg_gate.exists()) {
+                self.path = pkg_gate;
+            }
+            
+            self.scan_directory(&dir, &rust_path);
+        }
+    }
+
+    void scan_directory(self mut*, Path* search_dir, Path* rust_path) {
+        var entries = match (fs::read_dir(search_dir)) {
+            Ok[entries] => entries;
+            Err[e] => {
+                eprintln!("error: failed to read directory {}\n  {}", search_dir.display(), e);
+                process::exit(1);
+            }
+        };
+
+        for (entry : entries) {
+            var entry = match (entry) {
+                Ok[entry] => entry;
+                Err[e] => {
+                    eprintln!("error: failed to read directory entry\n  {}", e);
                     process::exit(1);
                 }
             };
 
-            for (entry : entries) {
-                var entry = match (entry) {
-                    Ok[entry] => entry;
-                    Err[e] => {
-                        eprintln!("error: failed to read directory entry\n  {}", e);
+            PathBuf child_path = entry.path();
 
-                        process::exit(1);
-                    }
-                };
-
-                PathBuf child_path = entry.path();
-
-                String child_name = child_path.file_stem()
-                    .and_then(|var s| s.to_str())
-                    .expect("Failed to get module name")
-                    .to_string();
-
-                PathBuf child_output = rust_path.join(&child_name).with_extension("rs");
-
-                if (should_skip(&child_path, &child_output)) {
-                    continue;
-                }
-
-                self.children.push(new Module(child_name, child_path, child_output));
+            if (child_path == self.path) {
+                continue;
             }
+
+            String child_name = child_path.file_stem()
+                .and_then(|var s| s.to_str())
+                .expect("Failed to get module name")
+                .to_string();
+
+            PathBuf child_output = rust_path.join(&child_name).with_extension("rs");
+
+            if (!child_path.is_dir() && should_skip(&child_path, &child_output)) {
+                continue;
+            }
+
+            self.children.push(new Module(child_name, child_path, child_output));
         }
     }
 }
 
-pub Module new_package(PathBuf mist_path, PathBuf rust_path) {
+pub Module master_package(PathBuf mist_path, PathBuf rust_path) {
     String name = mist_path.file_stem()
         .and_then(|var s| s.to_str())
         .expect("Failed to get module name")
         .to_string();
 
-    new Module(name, mist_path, rust_path)
+    var mut root_mod = new Module(name, mist_path.clone(), rust_path.clone());
+
+    if (!mist_path.is_dir()) {
+        PathBuf parent_dir = mist_path.parent()
+            .expect("Failed to get parent directory of root file")
+            .to_path_buf();
+            
+        root_mod.scan_directory(&parent_dir, &rust_path);
+    }
+
+    root_mod
 }
 
 bool should_skip(Path* source, Path* output) {
