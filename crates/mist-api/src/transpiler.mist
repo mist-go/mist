@@ -16,8 +16,6 @@ pub PathBuf build(bool force) {
     PathBuf src = root.join("src");
     PathBuf out = root.join(".mist/src");
 
-    // build_dir(&root, &src, &src, &out, force);
-
     var master = modules::master_package(src.join("main.mist"), out.join("main.rs"));
 
     master.transpile(&out);
@@ -33,37 +31,58 @@ pub PathBuf build(bool force) {
 }
 
 impl modules::Module {
-    void transpile(self*, PathBuf* parent_dir) {
+    String transpile(self*, PathBuf* parent_dir) {
         if (self.path.is_dir()) {
             PathBuf dir = parent_dir.join(&self.name);
-            
+            PathBuf output_file = dir.join("mod.rs");
+
+            String mut output = String::new();
+
             for (child : &self.children) {
-                child.transpile(&dir);
+                output.push_str(&child.transpile(&dir));
+            }
+
+            var res = fs::write(&output_file, output);
+
+            if (res.is_err()) {
+                eprintln!(
+                    "error: failed to write output {}\n  {}",
+                    output_file.display(),
+                    res.unwrap_err(),
+                );
+
+                process::exit(1);
             }
         } else {
             if (Some("package.mist") == self.path.file_name().unwrap().to_str()) {
                 PathBuf dir = parent_dir.join(&self.name);
                 PathBuf output_file = dir.join("mod.rs");
 
-                transpile_file(&self.path, &output_file);
+                String mut output = String::new();
 
                 for (child : &self.children) {
-                    child.transpile(&dir);
+                    output.push_str(&child.transpile(&dir));
                 }
+
+                transpile_file(&self.path, &output_file, &output);
             } else {
                 PathBuf output_file = parent_dir.join(&self.name).with_extension("rs");
 
-                transpile_file(&self.path, &output_file);
+                String mut output = String::new();
 
                 for (child : &self.children) {
-                    child.transpile(parent_dir);
+                    output.push_str(&child.transpile(&parent_dir));
                 }
+
+                transpile_file(&self.path, &output_file, &output);
             }
         }
+
+        format!("pub mod {};\n", self.name)
     }
 }
 
-void transpile_file(PathBuf* path, PathBuf* output_file) {
+void transpile_file(PathBuf* path, PathBuf* output_file, str* mod_decl) {
     String source = match (fs::read_to_string(path)) {
         Ok[s] => s;
         Err[e] => {
@@ -107,7 +126,7 @@ void transpile_file(PathBuf* path, PathBuf* output_file) {
         }
     });
 
-    var res = fs::write(&output_file, output);
+    var res = fs::write(&output_file, format!("{mod_decl}{output}"));
 
     if (res.is_err()) {
         eprintln!(
