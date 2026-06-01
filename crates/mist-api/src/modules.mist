@@ -65,6 +65,22 @@ pub class Module {
             self.children.push(new Module(child_name, child_path, child_output));
         }
     }
+
+    pub PathBuf output_dir(self*, PathBuf* parent_dir) {
+        if (self.path.is_dir() || Some("package.mist") == self.path.file_name().unwrap().to_str()) {
+            parent_dir.join(&self.name)
+        } else {
+            parent_dir.clone()
+        }
+    }
+
+    pub PathBuf output_path(self*, PathBuf* parent_dir) {
+        if (self.path.is_dir() || Some("package.mist") == self.path.file_name().unwrap().to_str()) {
+            parent_dir.join(&self.name).join("mod.rs")
+        } else {
+            parent_dir.join(&self.name).with_extension("rs")
+        }
+    }
 }
 
 pub Module master_package(PathBuf mist_path, PathBuf rust_path) {

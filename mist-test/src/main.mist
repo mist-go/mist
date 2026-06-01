@@ -1,9 +1,3 @@
-pub mod app;
-pub mod task;
-pub mod plugin;
-pub mod logger;
-pub mod event;
-
 void main() {
     var mut app_instance = new app::Application("mist-app");
 
