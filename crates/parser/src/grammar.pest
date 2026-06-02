@@ -139,7 +139,7 @@ multi_pat_template = _{
 }
 
 tuple_pattern = {
-    "[" ~ multi_pat_template ~ "]"
+    "[" ~ pattern ~ "," ~ multi_pat_template ~ "]"
 }
 
 named_tuple_pattern = {
