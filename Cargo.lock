@@ -475,7 +475,7 @@ dependencies = [
 
 [[package]]
 name = "mist-lang"
-version = "0.1.7-alpha.2"
+version = "0.1.7-alpha.3"
 dependencies = [
  "mist-analyzer",
  "mist-api",
