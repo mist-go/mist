@@ -32,10 +32,10 @@ exclude = [
 ]
 
 [workspace.dependencies]
-mist-parser = { path = "crates/parser", version = "0.1.7-alpha.0" }
-mist-analyzer = { path = "crates/analyzer", version = "0.1.7-alpha.0" }
+mist-parser = { path = "crates/parser", version = "0.1.7-alpha.2" }
+mist-analyzer = { path = "crates/analyzer", version = "0.1.7-alpha.1" }
 mist-codegen = { path = "crates/codegen", version = "0.1.7-alpha.0" }
-mist-api = { path = "crates/mist-api", version = "0.1.7-alpha.0" }
+mist-api = { path = "crates/mist-api", version = "0.1.7-alpha.2" }
 
 [[bin]]
 name = "mist"
