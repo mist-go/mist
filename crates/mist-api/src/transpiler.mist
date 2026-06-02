@@ -1,5 +1,4 @@
 use <std::fs>;
-use <std::path::Path>;
 use <std::path::PathBuf>;
 use <std::process>;
 use <std::time>;
@@ -8,7 +7,7 @@ use <std::env>;
 use <mist_parser::error>;
 use <crate::modules>;
 
-pub PathBuf build(bool force) {
+pub PathBuf transpile() {
     var start = time::Instant::now();
 
     var root = env::current_dir().expect("Unable to find project root");
