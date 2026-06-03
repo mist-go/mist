@@ -87,7 +87,6 @@ impl GenRust for Expression {
             } => {
                 prefixes.gen_rust(ctx, cg);
                 initial.gen_rust(ctx, cg);
-                cg.add(&Some(prefixes).get_rust());
                 for postfix in postfixes {
                     postfix.gen_rust(ctx, cg);
                 }
@@ -117,7 +116,6 @@ impl GenRust for Prefix {
             Self::Ref => cg.add("&"),
             Self::RefMut => cg.add("&mut "),
             Self::Not => cg.add("!"),
-            Self::New(_) => cg.add(""),
             Self::Neg => cg.add("-"),
             Self::Closure(ty, args) => {
                 cg.add("|");
@@ -144,30 +142,6 @@ impl GenRust for Vec<Prefix> {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         for prefix in self {
             prefix.gen_rust(ctx, cg);
-        }
-    }
-}
-
-impl GetRust for Option<&Vec<Prefix>> {
-    fn get_rust(&self) -> String {
-        if let Some(prefixes) = self {
-            prefixes
-                .into_iter()
-                .last()
-                .map(|p| match p {
-                    Prefix::New(generics) => format!(
-                        "::new{}",
-                        generics
-                            .clone()
-                            .map(|v| format!("::{}", v.get_rust()))
-                            .unwrap_or_default(),
-                    ),
-                    _ => String::new(),
-                })
-                .unwrap_or_default()
-                .to_string()
-        } else {
-            String::new()
         }
     }
 }

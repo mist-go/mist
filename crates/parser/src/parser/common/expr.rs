@@ -106,12 +106,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Prefix {
             Rule::deref_px => Self::Deref,
             Rule::mut_ref_px => Self::RefMut,
             Rule::ref_px => Self::Ref,
-            Rule::new_px => Self::New(
-                pair.into_inner()
-                    .next()
-                    .map(|v| v.try_into().get())
-                    .transpose()?,
-            ),
             Rule::not_px => Self::Not,
             Rule::neg_px => Self::Neg,
             Rule::closure => {

@@ -58,7 +58,6 @@ pub enum Prefix {
     Ref,
     RefMut,
     Deref,
-    New(Option<Generics>),
     Not,
     Neg,
     Closure(Option<TypeExpr>, Vec<VarDecl>),

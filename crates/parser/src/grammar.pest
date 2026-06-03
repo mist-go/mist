@@ -562,7 +562,6 @@ postfix = {
 deref_px   = { "*" }
 mut_ref_px = { "&" ~ mutable }
 ref_px     = { "&" }
-new_px     = { "new" ~ generics? }
 not_px     = { "!" }
 neg_px     = { "-" }
 
@@ -571,7 +570,6 @@ prefix = {
   | deref_px
   | mut_ref_px
   | ref_px
-  | new_px
   | not_px
   | neg_px
 }
