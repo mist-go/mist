@@ -84,17 +84,3 @@ pub Module master_package(PathBuf mist_path) {
 
     root_mod
 }
-
-bool should_skip(Path* source, Path* output) {
-    var src_time = fs::metadata(source)
-        .ok()
-        .and_then(|var v| v.modified().ok());
-
-    var out_time = fs::metadata(output)
-        .ok()
-        .and_then(|var v| v.modified().ok());
-
-    out_time
-        .map(|var out_time| out_time >= src_time.unwrap())
-        .unwrap_or_default()
-}
