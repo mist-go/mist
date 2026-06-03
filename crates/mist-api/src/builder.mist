@@ -1,36 +1,37 @@
-use std::{
-    collections::HashMap,
-    env, fs,
-    path::{MAIN_SEPARATOR, PathBuf},
-    process::{Command, Stdio},
-};
-
-use cargo_metadata::{CompilerMessage, Message};
-use mist_parser::rev_mapper::{RustMap, find_mapping, get_mapping};
+use <std::collections::HashMap>;
+use <std::env>;
+use <std::fs>;
+use <std::path::MAIN_SEPARATOR>;
+use <std::path::PathBuf>;
+use <std::process::Command>;
+use <std::process::Stdio>;
+use <cargo_metadata::CompilerMessage>;
+use <cargo_metadata::Message>;
+use <mist_parser::rev_mapper>;
 
 #[derive(Debug, Clone)]
 pub struct MistDiagnosticMessage {
-    pub message: String,
-    pub file_path: PathBuf,
-    pub file_name: String,
-    pub line: usize,
-    pub column: usize,
+    pub String message,
+    pub PathBuf file_path,
+    pub String file_name,
+    pub usize line,
+    pub usize column,
 }
 
 #[derive(Debug, Clone)]
 pub enum MistDiagnostic {
-    Error(MistDiagnosticMessage),
-    Warning(MistDiagnosticMessage),
-    Rust(CompilerMessage),
+    Error[MistDiagnosticMessage],
+    Warning[MistDiagnosticMessage],
+    Rust[CompilerMessage],
 }
 
-pub fn build(mut args: Vec<String>, root: PathBuf) -> bool {
+pub bool build(Vec<String> mut args, PathBuf root) {
     args.remove(0);
     args.insert(1, "--message-format=json".to_string());
 
-    let is_root = root == env::current_dir().expect("Failed getting env");
+    var is_root = root == env::current_dir().expect("Failed getting env");
 
-    let mut command = Command::new("cargo")
+    var mut command = Command::new("cargo")
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
@@ -38,63 +39,63 @@ pub fn build(mut args: Vec<String>, root: PathBuf) -> bool {
         .spawn()
         .expect("Failed to run cargo");
 
-    let mut reader = std::io::BufReader::new(command.stdout.take().expect("Failed to get reader"));
+    var mut reader = std::io::BufReader::new(command.stdout.take().expect("Failed to get reader"));
 
-    let mut diagnostics = Vec::new();
+    var mut diagnostics = Vec::new();
 
-    let mut mapping = HashMap::new();
+    var mut mapping = HashMap::new();
 
-    let mist_src = format!(".mist{MAIN_SEPARATOR}src");
+    var mist_src = format!(".mist{MAIN_SEPARATOR}src");
 
-    for message in cargo_metadata::Message::parse_stream(&mut reader) {
-        match message {
-            Ok(Message::CompilerMessage(msg)) => {
-                for span in &msg.message.spans {
-                    if span.is_primary {
-                        let rust_path = root.join(&span.file_name);
+    for (message : cargo_metadata::Message::parse_stream(&mut reader)) {
+        match (message) {
+            Ok[Message::CompilerMessage[msg]] => {
+                for (span : &msg.message.spans) {
+                    if (span.is_primary) {
+                        var rust_path = root.join(&span.file_name);
 
-                        let mist_file = span
+                        var mist_file = span
                             .file_name
                             .replacen(&mist_src, "src", 1)
                             .trim_end_matches(".rs")
                             .to_string()
                             + ".mist";
 
-                        let mist_path = root.join(&mist_file);
+                        var mist_path = root.join(&mist_file);
 
-                        if !fs::exists(&mist_path).expect("Unable to check if mist file exists") {
+                        if (!fs::exists(&mist_path).expect("Unable to check if mist file exists")) {
                             diagnostics.push(MistDiagnostic::Rust(msg));
                             break;
                         }
 
-                        let map = mapping.entry(rust_path.clone()).or_insert_with(|| {
-                            get_mapping(
+                        var map = mapping.entry(rust_path.clone()).or_insert_with(|| {
+                            rev_mapper::get_mapping(
                                 &fs::read_to_string(rust_path)
-                                    .expect("Failed to read file for mapping"),
+                                    .expect("Failed to read file for mapping")
                             )
                         });
 
-                        let mist_span =
-                            find_mapping(&map, &RustMap(span.line_end, span.column_start))
+                        var [_, rev_mapper::MistMap[line, column]] =
+                            rev_mapper::find_mapping(&map, &rev_mapper::RustMap(span.line_end, span.column_start))
                                 .expect("Unable to find mapping");
 
-                        let mist_msg = MistDiagnosticMessage {
+                        var mist_msg = MistDiagnosticMessage {
                             message: format!(
                                 "{}: {}",
                                 msg.message.message,
                                 span.label.clone().unwrap_or_default()
                             ),
-                            file_name: if is_root {
+                            file_name: if (is_root) {
                                 mist_file
                             } else {
                                 mist_path.to_string_lossy().to_string()
                             },
                             file_path: mist_path,
-                            line: mist_span.1.0,
-                            column: mist_span.1.1,
+                            line: line,
+                            column: column
                         };
 
-                        match msg.message.level {
+                        match (msg.message.level) {
                             cargo_metadata::diagnostic::DiagnosticLevel::Error => {
                                 diagnostics.push(MistDiagnostic::Error(mist_msg))
                             }
@@ -109,14 +110,14 @@ pub fn build(mut args: Vec<String>, root: PathBuf) -> bool {
                 }
             }
 
-            Ok(Message::BuildFinished(finish)) => {
+            Ok[Message::BuildFinished[finish]] => {
                 print_diagnostics(&diagnostics);
 
-                let mut raw_reader = reader.into_inner();
-                let mut stdout = std::io::stdout();
+                var mut raw_reader = reader.into_inner();
+                var mut stdout = std::io::stdout();
 
                 std::io::copy(&mut raw_reader, &mut stdout)
-                    .map_err(|v| v.to_string())
+                    .map_err(|var v| v.to_string())
                     .expect("(Mist) Failed to copy IO");
 
                 command.wait().unwrap();
@@ -124,7 +125,7 @@ pub fn build(mut args: Vec<String>, root: PathBuf) -> bool {
                 return finish.success;
             }
 
-            Ok(Message::TextLine(text)) => println!("{text}"),
+            Ok[Message::TextLine[text]] => println!("{text}");
             _ => {}
         }
     }
@@ -132,13 +133,13 @@ pub fn build(mut args: Vec<String>, root: PathBuf) -> bool {
     false
 }
 
-pub fn print_diagnostics(diagnostics: &Vec<MistDiagnostic>) {
-    let mut files = HashMap::new();
+pub void print_diagnostics(Vec<MistDiagnostic>* diagnostics) {
+    var mut files = HashMap::new();
 
-    for diag in diagnostics {
-        match diag {
-            MistDiagnostic::Error(msg) => {
-                let line = get_line(&mut files, &msg);
+    for (diag : diagnostics) {
+        match (diag) {
+            MistDiagnostic::Error[msg] => {
+                var line = get_line(&mut files, &msg);
 
                 println!(
                     "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}",
@@ -150,8 +151,8 @@ pub fn print_diagnostics(diagnostics: &Vec<MistDiagnostic>) {
                 )
             }
 
-            MistDiagnostic::Warning(msg) => {
-                let line = get_line(&mut files, &msg);
+            MistDiagnostic::Warning[msg] => {
+                var line = get_line(&mut files, &msg);
 
                 println!(
                     "\n{}:{}:{}\n \x1b[33mWarning\x1b[0m: {}\n\t{}",
@@ -163,18 +164,18 @@ pub fn print_diagnostics(diagnostics: &Vec<MistDiagnostic>) {
                 )
             }
 
-            MistDiagnostic::Rust(rs) => println!("{rs}"),
+            MistDiagnostic::Rust[rs] => println!("{rs}");
         }
     }
 }
 
-pub fn get_line(
-    files: &mut HashMap<PathBuf, Vec<String>>,
-    msg: &MistDiagnosticMessage,
-) -> Option<String> {
-    let src_path = msg.file_path.clone();
+pub Option<String> get_line(
+    HashMap<PathBuf, Vec<String>> mut* files,
+    MistDiagnosticMessage* msg,
+) {
+    var src_path = msg.file_path.clone();
 
-    let lines = files.entry(src_path.clone()).or_insert_with(|| {
+    var lines = files.entry(src_path.clone()).or_insert_with(|| {
         fs::read_to_string(src_path)
             .expect("Unable to read mist file")
             .lines()
@@ -183,5 +184,5 @@ pub fn get_line(
             .collect()
     });
 
-    lines.get(msg.line - 1).map(|v| v.trim().to_string())
+    lines.get(msg.line - 1).map(|var v| v.trim().to_string())
 }

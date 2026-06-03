@@ -1,5 +1,4 @@
 use <std::fs>;
-use <std::path::Path>;
 use <std::path::PathBuf>;
 use <std::process>;
 use <std::time>;
@@ -8,7 +7,7 @@ use <std::env>;
 use <mist_parser::error>;
 use <crate::modules>;
 
-pub PathBuf build(bool force) {
+pub PathBuf transpile() {
     var start = time::Instant::now();
 
     var root = env::current_dir().expect("Unable to find project root");
@@ -16,7 +15,7 @@ pub PathBuf build(bool force) {
     PathBuf src = root.join("src");
     PathBuf out = root.join(".mist/src");
 
-    var master = modules::master_package(src.join("main.mist"), out.join("main.rs"));
+    var master = modules::master_package(src.join("main.mist"));
 
     master.transpile(&out);
 
@@ -32,6 +31,16 @@ pub PathBuf build(bool force) {
 
 impl modules::Module {
     String transpile(self*, PathBuf* parent_dir) {
+        if (!self.path.is_dir() && self.path.extension().and_then(|var v| v.to_str()) != Some("mist")) {
+            var file_name = self.path.file_name()
+                .and_then(|var s| s.to_str())
+                .expect("Failed to get file name");
+
+            fs::copy(&self.path, parent_dir.join(&file_name)).expect("Failed to copy SideFile");
+
+            return String::new();
+        }
+
         PathBuf dir = self.output_dir(&parent_dir);
         PathBuf output_file = self.output_path(&parent_dir);
 
@@ -44,6 +53,10 @@ impl modules::Module {
         }
 
         if (self.path.is_dir()) {
+            if (output.len() == 0) {
+                return String::new();
+            }
+
             var res = fs::write(&output_file, output);
 
             if (res.is_err()) {

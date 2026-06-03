@@ -9,25 +9,27 @@ pub class Module {
     pub PathBuf path;
     pub Vec<Self> children;
 
-    pub constructor(String name, PathBuf mist_path, PathBuf rust_path) {
+    pub constructor(PathBuf mist_path) {
         self.children = new Vec();
-        self.name = name;
+        self.name = mist_path.file_stem()
+            .and_then(|var s| s.to_str())
+            .expect("Failed to get module name")
+            .to_string();
         self.path = mist_path;
 
         if (self.path.is_dir()) {
             PathBuf dir = self.path.clone();
 
-            // Behavior 2: It's a directory node. Check for gateway package.mist first.
             PathBuf pkg_gate = self.path.join("package.mist");
             if (pkg_gate.exists()) {
                 self.path = pkg_gate;
             }
-            
-            self.scan_directory(&dir, &rust_path);
+
+            self.scan_directory(&dir);
         }
     }
 
-    void scan_directory(self mut*, Path* search_dir, Path* rust_path) {
+    void scan_directory(self mut*, Path* search_dir) {
         var entries = match (fs::read_dir(search_dir)) {
             Ok[entries] => entries;
             Err[e] => {
@@ -51,18 +53,7 @@ pub class Module {
                 continue;
             }
 
-            String child_name = child_path.file_stem()
-                .and_then(|var s| s.to_str())
-                .expect("Failed to get module name")
-                .to_string();
-
-            PathBuf child_output = rust_path.join(&child_name).with_extension("rs");
-
-            if (!child_path.is_dir() && should_skip(&child_path, &child_output)) {
-                continue;
-            }
-
-            self.children.push(new Module(child_name, child_path, child_output));
+            self.children.push(new Module(child_path));
         }
     }
 
@@ -83,35 +74,13 @@ pub class Module {
     }
 }
 
-pub Module master_package(PathBuf mist_path, PathBuf rust_path) {
-    String name = mist_path.file_stem()
-        .and_then(|var s| s.to_str())
-        .expect("Failed to get module name")
-        .to_string();
+pub Module master_package(PathBuf mist_path) {
+    var mut root_mod = new Module(mist_path.clone());
 
-    var mut root_mod = new Module(name, mist_path.clone(), rust_path.clone());
+    Path* parent_dir = mist_path.parent()
+        .expect("Failed to get parent directory of root file");
 
-    if (!mist_path.is_dir()) {
-        PathBuf parent_dir = mist_path.parent()
-            .expect("Failed to get parent directory of root file")
-            .to_path_buf();
-            
-        root_mod.scan_directory(&parent_dir, &rust_path);
-    }
+    root_mod.scan_directory(parent_dir);
 
     root_mod
-}
-
-bool should_skip(Path* source, Path* output) {
-    var src_time = fs::metadata(source)
-        .ok()
-        .and_then(|var v| v.modified().ok());
-
-    var out_time = fs::metadata(output)
-        .ok()
-        .and_then(|var v| v.modified().ok());
-
-    out_time
-        .map(|var out_time| out_time >= src_time.unwrap())
-        .unwrap_or_default()
 }

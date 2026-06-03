@@ -1,0 +1,3 @@
+pub void hello() {
+    println!("Hello")
+}
