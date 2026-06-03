@@ -31,6 +31,16 @@ pub PathBuf transpile() {
 
 impl modules::Module {
     String transpile(self*, PathBuf* parent_dir) {
+        if (!self.path.is_dir() && self.path.extension().and_then(|var v| v.to_str()) != Some("mist")) {
+            var file_name = self.path.file_name()
+                .and_then(|var s| s.to_str())
+                .expect("Failed to get file name");
+
+            fs::copy(&self.path, parent_dir.join(&file_name)).expect("Failed to copy SideFile");
+
+            return String::new();
+        }
+
         PathBuf dir = self.output_dir(&parent_dir);
         PathBuf output_file = self.output_path(&parent_dir);
 
@@ -43,6 +53,10 @@ impl modules::Module {
         }
 
         if (self.path.is_dir()) {
+            if (output.len() == 0) {
+                return String::new();
+            }
+
             var res = fs::write(&output_file, output);
 
             if (res.is_err()) {
