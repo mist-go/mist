@@ -15,7 +15,7 @@ pub PathBuf transpile() {
     PathBuf src = root.join("src");
     PathBuf out = root.join(".mist/src");
 
-    var master = modules::master_package(src.join("main.mist"), out.join("main.rs"));
+    var master = modules::master_package(src.join("main.mist"));
 
     master.transpile(&out);
 

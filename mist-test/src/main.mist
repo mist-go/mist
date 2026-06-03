@@ -1,22 +1,3 @@
 void main() {
-    var mut app_instance = new app::Application("mist-app");
-
-    app_instance.boot();
-    app_instance.run();
-}
-
-void do_stuff() {
-    vec!(1, 2, 3).into_iter().map(Option<i32> |var v| {Some(v)}).collect::<Vec<_>>();
-
-    if (43==69) testing1();
-}
-
-i32 testing1() {
-
-    i32 v = if (0 == 0) {
-        0
-    } else {
-        1
-    };
-    v
+    test_package::hello();
 }
