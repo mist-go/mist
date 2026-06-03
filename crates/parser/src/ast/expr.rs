@@ -40,10 +40,20 @@ pub enum Pattern {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub enum MacroDelimiter {
+    Paren,
+    Bracket,
+    Brace,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum Postfix {
     FieldAccess(Identifier, Option<Generics>),
     Call(Vec<Expression>),
-    MacroCall(String),
+    MacroCall {
+        inner: String,
+        delimiter: MacroDelimiter,
+    },
     StructCall(Vec<(Identifier, Expression)>),
     Assign(String, Box<Expression>),
     Index(Expression),
@@ -58,7 +68,6 @@ pub enum Prefix {
     Ref,
     RefMut,
     Deref,
-    New(Option<Generics>),
     Not,
     Neg,
     Closure(Option<TypeExpr>, Vec<VarDecl>),
@@ -89,5 +98,19 @@ impl Expression {
         } else {
             false
         }
+    }
+}
+
+impl From<Path> for ExprPath {
+    fn from(path: Path) -> Self {
+        Self(
+            path.0
+                .into_iter()
+                .map(|v| ExprPathSegment {
+                    ident: v,
+                    generics: None,
+                })
+                .collect(),
+        )
     }
 }

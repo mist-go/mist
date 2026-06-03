@@ -106,12 +106,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Prefix {
             Rule::deref_px => Self::Deref,
             Rule::mut_ref_px => Self::RefMut,
             Rule::ref_px => Self::Ref,
-            Rule::new_px => Self::New(
-                pair.into_inner()
-                    .next()
-                    .map(|v| v.try_into().get())
-                    .transpose()?,
-            ),
             Rule::not_px => Self::Not,
             Rule::neg_px => Self::Neg,
             Rule::closure => {
@@ -161,7 +155,18 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
                 ast_expr!(Postfix::Index(Expression::try_from(inner.next().unwrap())))
             }
 
-            Rule::macro_call_px => Ok(Postfix::MacroCall(inner.as_str().to_string())),
+            Rule::macro_call_paren => Ok(Postfix::MacroCall {
+                inner: inner.as_str().to_string(),
+                delimiter: MacroDelimiter::Paren,
+            }),
+            Rule::macro_call_bracket => Ok(Postfix::MacroCall {
+                inner: inner.as_str().to_string(),
+                delimiter: MacroDelimiter::Bracket,
+            }),
+            Rule::macro_call_brace => Ok(Postfix::MacroCall {
+                inner: inner.as_str().to_string(),
+                delimiter: MacroDelimiter::Brace,
+            }),
 
             Rule::as_px => {
                 ast_expr!(Postfix::As(inner.next().unwrap().try_into()))

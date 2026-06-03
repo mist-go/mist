@@ -38,7 +38,11 @@ impl GenRust for Literal {
             Self::Tuple(values) => {
                 cg.add("(");
 
-                for val in values {
+                for (i, val) in values.iter().enumerate() {
+                    if i > 0 {
+                        cg.add(", ");
+                    }
+
                     val.gen_rust(ctx, cg);
                 }
 
@@ -87,7 +91,6 @@ impl GenRust for Expression {
             } => {
                 prefixes.gen_rust(ctx, cg);
                 initial.gen_rust(ctx, cg);
-                cg.add(&Some(prefixes).get_rust());
                 for postfix in postfixes {
                     postfix.gen_rust(ctx, cg);
                 }
@@ -117,7 +120,6 @@ impl GenRust for Prefix {
             Self::Ref => cg.add("&"),
             Self::RefMut => cg.add("&mut "),
             Self::Not => cg.add("!"),
-            Self::New(_) => cg.add(""),
             Self::Neg => cg.add("-"),
             Self::Closure(ty, args) => {
                 cg.add("|");
@@ -148,30 +150,6 @@ impl GenRust for Vec<Prefix> {
     }
 }
 
-impl GetRust for Option<&Vec<Prefix>> {
-    fn get_rust(&self) -> String {
-        if let Some(prefixes) = self {
-            prefixes
-                .into_iter()
-                .last()
-                .map(|p| match p {
-                    Prefix::New(generics) => format!(
-                        "::new{}",
-                        generics
-                            .clone()
-                            .map(|v| format!("::{}", v.get_rust()))
-                            .unwrap_or_default(),
-                    ),
-                    _ => String::new(),
-                })
-                .unwrap_or_default()
-                .to_string()
-        } else {
-            String::new()
-        }
-    }
-}
-
 impl GenRust for Postfix {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         match self {
@@ -198,10 +176,15 @@ impl GenRust for Postfix {
                 cg.add(")");
             }
 
-            Postfix::MacroCall(inner) => {
-                cg.add("!(");
+            Postfix::MacroCall { inner, delimiter } => {
+                let (open, close) = match delimiter {
+                    MacroDelimiter::Paren => ("!(", ")"),
+                    MacroDelimiter::Bracket => ("![", "]"),
+                    MacroDelimiter::Brace => ("!{", "}"),
+                };
+                cg.add(open);
                 cg.add(inner);
-                cg.add(")");
+                cg.add(close);
             }
 
             Postfix::StructCall(fields) => {
