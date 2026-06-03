@@ -196,12 +196,21 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &Spanned<ClassConstructor>) {
 
         cg.add_indented(&format!("this.constructor("));
 
-        for (i, param) in self.1.item.params.0.iter().enumerate() {
+        for (i, param) in self
+            .1
+            .item
+            .params
+            .0
+            .iter()
+            .map(|v| expr_pattern(&v.name))
+            .enumerate()
+        {
             if i > 0 {
                 cg.add(", ");
             }
 
-            param.name.gen_rust(ctx, cg);
+            ctx.expr_ensure_semicolon = false;
+            param.gen_rust(ctx, cg);
         }
 
         cg.addln(");");
@@ -234,6 +243,24 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &Spanned<ClassConstructor>) {
             },
         }
         .gen_rust(ctx, cg);
+    }
+}
+
+pub fn expr_pattern(pat: &Pattern) -> Expression {
+    match pat {
+        Pattern::Literal(v) => Expression::Literal(v.clone()),
+        Pattern::Path(_, v) => Expression::Path(v.clone().into()),
+        Pattern::Tuple(items) => Expression::Literal(Literal::Tuple(
+            items.iter().map(|v| expr_pattern(&v)).collect(),
+        )),
+        Pattern::NamedTuple(path, items) => Expression::Fix {
+            initial: Box::new(Expression::Path(path.clone().into())),
+            prefixes: Vec::new(),
+            postfixes: vec![Postfix::Call(
+                items.iter().map(|v| expr_pattern(&v)).collect(),
+            )],
+        },
+        Pattern::Struct(_, _) => unimplemented!(),
     }
 }
 

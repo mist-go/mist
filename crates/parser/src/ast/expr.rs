@@ -100,3 +100,17 @@ impl Expression {
         }
     }
 }
+
+impl From<Path> for ExprPath {
+    fn from(path: Path) -> Self {
+        Self(
+            path.0
+                .into_iter()
+                .map(|v| ExprPathSegment {
+                    ident: v,
+                    generics: None,
+                })
+                .collect(),
+        )
+    }
+}
