@@ -1,6 +1,6 @@
 [package]
 name = "mist-parser"
-version = "0.1.7-alpha.2"
+version = "0.2.0-alpha.0"
 edition = "2024"
 description = "The Mist programming language parser"
 license = "Apache-2.0"
