@@ -40,10 +40,20 @@ pub enum Pattern {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub enum MacroDelimiter {
+    Paren,
+    Bracket,
+    Brace,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum Postfix {
     FieldAccess(Identifier, Option<Generics>),
     Call(Vec<Expression>),
-    MacroCall(String),
+    MacroCall {
+        inner: String,
+        delimiter: MacroDelimiter,
+    },
     StructCall(Vec<(Identifier, Expression)>),
     Assign(String, Box<Expression>),
     Index(Expression),

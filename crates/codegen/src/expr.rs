@@ -172,10 +172,15 @@ impl GenRust for Postfix {
                 cg.add(")");
             }
 
-            Postfix::MacroCall(inner) => {
-                cg.add("!(");
+            Postfix::MacroCall { inner, delimiter } => {
+                let (open, close) = match delimiter {
+                    MacroDelimiter::Paren => ("!(", ")"),
+                    MacroDelimiter::Bracket => ("![", "]"),
+                    MacroDelimiter::Brace => ("!{", "}"),
+                };
+                cg.add(open);
                 cg.add(inner);
-                cg.add(")");
+                cg.add(close);
             }
 
             Postfix::StructCall(fields) => {

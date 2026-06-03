@@ -475,7 +475,9 @@ array = {
 macro_inner_v = @{
     string_lit
   | ("(" ~ macro_inner_v* ~ ")")
-  | (!("(" | ")") ~ ANY)
+  | ("[" ~ macro_inner_v* ~ "]")
+  | ("{" ~ macro_inner_v* ~ "}")
+  | (!("(" | ")" | "[" | "]" | "{" | "}") ~ ANY)
 }
 
 // ------------------------------------------------------
@@ -511,9 +513,9 @@ call_px = {
     "(" ~ (expr ~ ("," ~ expr)*)? ~ ")"
 }
 
-macro_call_px = {
-    "!" ~ "(" ~ macro_inner_v* ~ ")"
-}
+macro_call_paren   = { "!" ~ "(" ~ macro_inner_v* ~ ")" }
+macro_call_bracket = { "!" ~ "[" ~ macro_inner_v* ~ "]" }
+macro_call_brace   = { "!" ~ "{" ~ macro_inner_v* ~ "}" }
 
 struct_field_decl = {
     identifier ~ ":" ~ expr
@@ -546,7 +548,9 @@ decrement = {
 postfix = {
     field_px
   | call_px
-  | macro_call_px
+  | macro_call_paren
+  | macro_call_bracket
+  | macro_call_brace
   | struct_px
   | index_px
   | as_px
