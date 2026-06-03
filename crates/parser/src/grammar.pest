@@ -75,7 +75,7 @@ program = {
 
 visibility = { "pub" ~ ("(" ~ static_path ~ ")")? }
 mutable    = { "mut" }
-var        = { "var" }
+let_kw     = { "let" }
 
 // ======================================================
 // GENERICS
@@ -190,7 +190,7 @@ attributes = {
 // DECLARATION HELPERS
 // ======================================================
 var_decl = {
-    (var | type_expr) ~ pattern
+    (let_kw | type_expr) ~ pattern
 }
 
 field = {

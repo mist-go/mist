@@ -54,7 +54,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDecl {
                 let type_ = inner
                     .next()
                     .and_then(|pair| {
-                        if pair.as_str().trim() == "var" {
+                        if pair.as_rule() == Rule::let_kw {
                             None
                         } else {
                             Some(TypeExpr::try_from(pair))
