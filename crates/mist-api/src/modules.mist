@@ -22,12 +22,14 @@ pub class Module {
             if (pkg_gate.exists()) {
                 self.path = pkg_gate;
             }
-            
+
             self.scan_directory(&dir, &rust_path);
         }
     }
 
     void scan_directory(self mut*, Path* search_dir, Path* rust_path) {
+        fs::create_dir_all(rust_path).expect("Failed to create dir");
+
         var entries = match (fs::read_dir(search_dir)) {
             Ok[entries] => entries;
             Err[e] => {
@@ -51,6 +53,16 @@ pub class Module {
                 continue;
             }
 
+            if (!child_path.is_dir() && child_path.extension().and_then(|var v| v.to_str()) != Some("mist")) {
+                var file_name = child_path.file_name()
+                    .and_then(|var s| s.to_str())
+                    .expect("Failed to get file name");
+
+                fs::copy(&child_path, rust_path.join(&file_name)).expect("Failed to copy SideFile");
+
+                continue;
+            }
+
             String child_name = child_path.file_stem()
                 .and_then(|var s| s.to_str())
                 .expect("Failed to get module name")
@@ -58,7 +70,7 @@ pub class Module {
 
             PathBuf child_output = rust_path.join(&child_name).with_extension("rs");
 
-            if (!child_path.is_dir() && should_skip(&child_path, &child_output)) {
+            if (should_skip(&child_path, &child_output)) {
                 continue;
             }
 
@@ -92,11 +104,13 @@ pub Module master_package(PathBuf mist_path, PathBuf rust_path) {
     var mut root_mod = new Module(name, mist_path.clone(), rust_path.clone());
 
     if (!mist_path.is_dir()) {
-        PathBuf parent_dir = mist_path.parent()
-            .expect("Failed to get parent directory of root file")
-            .to_path_buf();
-            
-        root_mod.scan_directory(&parent_dir, &rust_path);
+        Path* parent_dir = mist_path.parent()
+            .expect("Failed to get parent directory of root file");
+
+        Path* rust_path = rust_path.parent()
+            .expect("Failed to get parent directory of rust path");
+
+        root_mod.scan_directory(parent_dir, rust_path);
     }
 
     root_mod
