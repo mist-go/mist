@@ -8,18 +8,18 @@ use <mist_parser::error>;
 use <crate::modules>;
 
 pub PathBuf transpile() {
-    var start = time::Instant::now();
+    let start = time::Instant::now();
 
-    var root = env::current_dir().expect("Unable to find project root");
+    let root = env::current_dir().expect("Unable to find project root");
 
     PathBuf src = root.join("src");
     PathBuf out = root.join(".mist/src");
 
-    var master = modules::master_package(src.join("main.mist"));
+    let master = modules::master_package(src.join("main.mist"));
 
     master.transpile(&out);
 
-    var elapsed = start.elapsed();
+    let elapsed = start.elapsed();
     
     println!(
         "\x1b[32m\nTranspile successful\x1b[0m in \x1b[34m{:.2?}\x1b[0m",
@@ -31,9 +31,9 @@ pub PathBuf transpile() {
 
 impl modules::Module {
     String transpile(self*, PathBuf* parent_dir) {
-        if (!self.path.is_dir() && self.path.extension().and_then(|var v| v.to_str()) != Some("mist")) {
-            var file_name = self.path.file_name()
-                .and_then(|var s| s.to_str())
+        if (!self.path.is_dir() && self.path.extension().and_then(|let v| v.to_str()) != Some("mist")) {
+            let file_name = self.path.file_name()
+                .and_then(|let s| s.to_str())
                 .expect("Failed to get file name");
 
             fs::copy(&self.path, parent_dir.join(&file_name)).expect("Failed to copy SideFile");
@@ -44,7 +44,7 @@ impl modules::Module {
         PathBuf dir = self.output_dir(&parent_dir);
         PathBuf output_file = self.output_path(&parent_dir);
 
-        var _ = fs::create_dir_all(&dir);
+        let _ = fs::create_dir_all(&dir);
 
         String mut output = String::new();
 
@@ -57,7 +57,7 @@ impl modules::Module {
                 return String::new();
             }
 
-            var res = fs::write(&output_file, output);
+            let res = fs::write(&output_file, output);
 
             if (res.is_err()) {
                 eprintln!(
@@ -86,16 +86,16 @@ void transpile_file(PathBuf* path, PathBuf* output_file, str* mod_decl) {
         }
     };
 
-    var mut gc = mist_codegen::RustCodegen::new();
+    let mut gc = mist_codegen::RustCodegen::new();
 
     String output = gc.generate(match (mist_parser::parse(&source)) {
         Ok[ast] => ast;
         Err[e] => {
             match (e) {
                 error::ParseError::Ast[e] => {
-                    var start_pos = e.span.start_pos().line_col();
+                    let start_pos = e.span.start_pos().line_col();
 
-                    var span = e.span.as_str();
+                    let span = e.span.as_str();
 
                     eprintln!(
                         "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}{}\t{}",
@@ -120,7 +120,7 @@ void transpile_file(PathBuf* path, PathBuf* output_file, str* mod_decl) {
         }
     });
 
-    var res = fs::write(&output_file, format!("{mod_decl}{output}"));
+    let res = fs::write(&output_file, format!("{mod_decl}{output}"));
 
     if (res.is_err()) {
         eprintln!(
