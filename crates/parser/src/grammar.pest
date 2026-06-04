@@ -486,7 +486,7 @@ macro_inner_v = @{
 // ------------------------------------------------------
 
 expr_path_segment = {
-    identifier ~ ("::" ~ generics)?
+    identifier ~ generics?
 }
 
 expr_path = {
@@ -507,7 +507,11 @@ primary = {
 // ------------------------------------------------------
 
 field_px = {
-    "." ~ identifier ~ ("::" ~ generics)?
+    "." ~ identifier ~ generics?
+}
+
+tuple_field_px = {
+    "." ~ integer ~ generics?
 }
 
 call_px = {
@@ -548,6 +552,7 @@ decrement = {
 
 postfix = {
     field_px
+  | tuple_field_px
   | call_px
   | macro_call_paren
   | macro_call_bracket

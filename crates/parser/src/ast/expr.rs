@@ -50,6 +50,7 @@ pub enum MacroDelimiter {
 #[derive(Debug, Clone, Serialize)]
 pub enum Postfix {
     FieldAccess(Identifier, Option<Generics>),
+    TupleFieldAccess(u8, Option<Generics>),
     Call(Vec<Expression>),
     MacroCall {
         inner: String,
