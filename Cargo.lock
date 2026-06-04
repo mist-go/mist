@@ -457,7 +457,7 @@ dependencies = [
 
 [[package]]
 name = "mist-api"
-version = "0.2.0-alpha.0"
+version = "0.2.1-alpha.0"
 dependencies = [
  "cargo_metadata",
  "mist-codegen",
@@ -468,14 +468,14 @@ dependencies = [
 
 [[package]]
 name = "mist-codegen"
-version = "0.2.0-alpha.0"
+version = "0.2.1-alpha.0"
 dependencies = [
  "mist-parser",
 ]
 
 [[package]]
 name = "mist-lang"
-version = "0.2.0-alpha.0"
+version = "0.2.1-alpha.0"
 dependencies = [
  "mist-analyzer",
  "mist-api",
@@ -483,7 +483,7 @@ dependencies = [
 
 [[package]]
 name = "mist-parser"
-version = "0.2.0-alpha.0"
+version = "0.2.1-alpha.0"
 dependencies = [
  "pest",
  "pest_derive",
