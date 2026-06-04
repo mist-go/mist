@@ -146,8 +146,12 @@ named_tuple_pattern = {
     static_path ~ "[" ~ multi_pat_template ~ "]"
 }
 
+struct_destruct = {
+    identifier ~ (":" ~ pattern)?
+}
+
 struct_pattern = {
-    static_path ~ "{" ~ multi_pat_template ~ "}"
+    static_path ~ "{" ~ (struct_destruct ~ ("," ~ struct_destruct)*)? ~ "}"
 }
 
 path_pattern = {

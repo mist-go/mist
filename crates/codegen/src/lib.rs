@@ -248,8 +248,12 @@ impl GenRust for Pattern {
             Self::Struct(path, inner) => {
                 cg.add(&path.get_rust());
                 cg.add(" {");
-                for pat in inner {
-                    pat.gen_rust(ctx, cg);
+                for (name, pat) in inner {
+                    cg.add(&name.get_rust());
+                    if let Some(pat) = pat {
+                        cg.add(": ");
+                        pat.gen_rust(ctx, cg);
+                    }
                     cg.add(",");
                 }
                 cg.add("}");

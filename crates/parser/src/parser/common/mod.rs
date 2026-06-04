@@ -71,7 +71,16 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
 
             Rule::struct_pattern => ast_expr!(Pattern::Struct(
                 Path::try_from(inner.next().unwrap()),
-                collect_recovered_map(inner, |v| Self::try_from(v).map(Box::new)),
+                collect_recovered_map(inner, |v| {
+                    let mut inner = v.into_inner();
+                    ast_expr!((
+                        Identifier::try_from(inner.next().unwrap()),
+                        inner
+                            .next()
+                            .map(|v| Self::try_from(v).map(Box::new).get_map(Box::new))
+                            .transpose()
+                    ))
+                }),
             )),
 
             Rule::literal => ast_expr!(Pattern::Literal(pair.try_into())),
