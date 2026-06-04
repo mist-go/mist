@@ -30,7 +30,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
                 VarDecl {
                     name: name.clone(),
                     type_: Some(TypeExpr(
-                        TypeExprKind::Path(Path(vec![Identifier("Self".to_string())])),
+                        TypeExprKind::Path(Path(vec![Identifier("Self".to_string())]), None),
                         if is_ref {
                             vec![if mutable {
                                 TypePostfix::RefMut

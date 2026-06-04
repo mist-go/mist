@@ -80,10 +80,10 @@ let_kw     = { "let" }
 // ======================================================
 // GENERICS
 // ======================================================
-generic_decl  = { lifetime | (identifier ~ (":" ~ type_expr_param ~ ("+" ~ type_expr_param)*)?) }
+generic_decl  = { lifetime | (identifier ~ (":" ~ generic ~ ("+" ~ generic)*)?) }
 generics_decl = { "<" ~ (generic_decl ~ ("," ~ generic_decl)*)? ~ ">" }
 
-generic  = { lifetime | type_expr_param }
+generic  = { lifetime | type_expr }
 generics = { "<" ~ (generic ~ ("," ~ generic)*)? ~ ">" }
 
 // ======================================================
@@ -95,7 +95,7 @@ tuple_type = {
 }
 
 path_type = {
-    static_path ~ ("<" ~ (type_expr_param ~ ("," ~ type_expr_param)*)? ~ ">")?
+    static_path ~ generics?
 }
 
 ref_type = {
@@ -112,11 +112,6 @@ type_expr = {
 
 lifetime = {
     "'" ~ identifier
-}
-
-type_expr_param = {
-    type_expr
-  | lifetime
 }
 
 // ======================================================
@@ -308,7 +303,7 @@ impl_decl = {
 // ======================================================
 // Traits
 // ======================================================
-trait_requirements = { ":" ~ type_expr_param ~ ("+" ~ type_expr_param)* }
+trait_requirements = { ":" ~ generic ~ ("+" ~ generic)* }
 
 trait_item = _{
     function_decl

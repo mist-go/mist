@@ -2,7 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_ensure, ast_expr,
-    error::{AstError, GetLength, IntoErr, collect_recovered},
+    error::{AstError, IntoErr, collect_recovered},
     parser::{consume_rule, listen_rule},
 };
 
@@ -53,14 +53,10 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExprKind {
         match rule {
             Rule::tuple_type => ast_expr!(TypeExprKind::Tuple(collect_recovered(inner))),
             Rule::path_type => {
-                let path = Path::try_from(inner.next().unwrap());
-                let params = collect_recovered(inner);
-
-                if params.len() == 0 {
-                    ast_expr!(TypeExprKind::Path(path))
-                } else {
-                    ast_expr!(TypeExprKind::PathParams(path, params))
-                }
+                ast_expr!(TypeExprKind::Path(
+                    Path::try_from(inner.next().unwrap()),
+                    inner.next().map(Generics::try_from).transpose()
+                ))
             }
             _ => AstError::bug_unimplemented(pair),
         }
@@ -75,11 +71,11 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
         let mut inner = pair.clone().into_inner();
 
         match rule {
+            Rule::generic => Self::try_from(inner.next().unwrap()),
             Rule::type_expr => ast_expr!(TypeExpr(
                 inner.next().unwrap().try_into(),
                 collect_recovered(inner),
             )),
-            Rule::type_expr_param => Self::try_from(inner.next().unwrap()),
             Rule::lifetime => ast_expr!(TypeExprKind::Lifetime(inner.next().unwrap().try_into()))
                 .get_map(TypeExpr::no_px)
                 .map(TypeExpr::no_px),

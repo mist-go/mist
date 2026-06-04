@@ -208,19 +208,14 @@ pub fn get_static_type_path(path: &Path) -> String {
 impl GetRust for TypeExprKind {
     fn get_rust(&self) -> String {
         match self {
-            TypeExprKind::Path(path) => get_static_type_path(path),
-            TypeExprKind::Lifetime(name) => format!("'{}", name.get_rust()),
-            TypeExprKind::PathParams(path, params) => {
-                format!(
-                    "{}<{}>",
-                    get_static_type_path(path),
-                    params
-                        .into_iter()
-                        .map(|t| t.get_rust())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                )
+            TypeExprKind::Path(path, generics) => {
+                if let Some(generics) = generics {
+                    format!("{}{}", get_static_type_path(path), generics.get_rust())
+                } else {
+                    get_static_type_path(path)
+                }
             }
+            TypeExprKind::Lifetime(name) => format!("'{}", name.get_rust()),
             TypeExprKind::Tuple(types) => format!(
                 "({})",
                 types

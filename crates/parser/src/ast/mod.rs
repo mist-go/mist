@@ -31,8 +31,7 @@ pub enum TypePostfix {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum TypeExprKind {
-    Path(Path),
-    PathParams(Path, Vec<TypeExpr>),
+    Path(Path, Option<Generics>),
     Tuple(Vec<TypeExpr>),
     Lifetime(Identifier),
 }
@@ -54,9 +53,10 @@ impl From<GenericDecl> for Generic {
     fn from(value: GenericDecl) -> Self {
         match value {
             GenericDecl::Lifetime(life) => Generic::Lifetime(life),
-            GenericDecl::Type(ty, _) => {
-                Generic::Type(TypeExpr(TypeExprKind::Path(Path(vec![ty])), Vec::new()))
-            }
+            GenericDecl::Type(ty, _) => Generic::Type(TypeExpr(
+                TypeExprKind::Path(Path(vec![ty]), None),
+                Vec::new(),
+            )),
         }
     }
 }
