@@ -56,7 +56,7 @@ pub enum Postfix {
         inner: String,
         delimiter: MacroDelimiter,
     },
-    StructCall(Vec<(Identifier, Expression)>),
+    StructCall(Vec<(Identifier, Option<Expression>)>),
     Assign(String, Box<Expression>),
     Index(Expression),
     As(TypeExpr),

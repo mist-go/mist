@@ -155,7 +155,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
                 let mut pi = p.into_inner();
                 Ok((
                     Identifier::try_from(pi.next().unwrap())?,
-                    Expression::try_from(pi.next().unwrap()).get()?,
+                    pi.next().map(Expression::try_from).transpose().get()?,
                 ))
             }))),
 

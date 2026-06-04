@@ -200,8 +200,10 @@ impl GenRust for Postfix {
 
                 for (name, expr) in fields {
                     cg.add(&name.get_rust());
-                    cg.add(": ");
-                    expr.gen_rust(ctx, cg);
+                    if let Some(expr) = expr {
+                        cg.add(": ");
+                        expr.gen_rust(ctx, cg);
+                    }
                     cg.add(",");
                 }
 

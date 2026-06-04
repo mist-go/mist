@@ -523,7 +523,7 @@ macro_call_bracket = { "!" ~ "[" ~ macro_inner_v* ~ "]" }
 macro_call_brace   = { "!" ~ "{" ~ macro_inner_v* ~ "}" }
 
 struct_field_decl = {
-    identifier ~ ":" ~ expr
+    identifier ~ (":" ~ expr)?
 }
 
 struct_px = {
