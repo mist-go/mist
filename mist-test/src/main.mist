@@ -1,7 +1,3 @@
-class Bro {
-    constructor([str*, str*] [idk, bro]) {}
-}
-
 void main() {
     test_package::hello();
 }
