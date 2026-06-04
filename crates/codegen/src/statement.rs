@@ -90,12 +90,14 @@ impl GenRust for Statement {
                 else_branch,
             } => {
                 cg.add("if ");
+                ctx.expr_ensure_semicolon = false;
                 initial.condition.gen_rust(ctx, cg);
                 cg.add(" ");
                 cg.ensure_brackets_body(ctx, &initial.body);
 
                 for else_if_branch in else_if {
-                    cg.add("else if");
+                    cg.add(" else if ");
+                    ctx.expr_ensure_semicolon = false;
                     else_if_branch.condition.gen_rust(ctx, cg);
                     cg.add(" ");
                     cg.ensure_brackets_body(ctx, &else_if_branch.body);

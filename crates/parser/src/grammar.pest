@@ -399,7 +399,7 @@ control_flow = {
 
 statement_branch = { "(" ~ expr ~ ")" ~ statement_body }
 
-else_if = {
+else_if = _{
     "else" ~ "if" ~ statement_branch
 }
 

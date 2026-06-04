@@ -1,5 +1,3 @@
 void main() {
     test_package::hello();
-
-    let idk = Bro::new();
 }
