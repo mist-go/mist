@@ -1,11 +1,11 @@
-use <std::fs>;
-use <std::path::PathBuf>;
-use <std::process>;
-use <std::time>;
-use <std::env>;
+use std::fs;
+use std::path::PathBuf;
+use std::process;
+use std::time;
+use std::env;
 
-use <mist_parser::error>;
-use <crate::modules>;
+use mist_parser::error;
+use crate::modules;
 
 pub PathBuf transpile() {
     let start = time::Instant::now();

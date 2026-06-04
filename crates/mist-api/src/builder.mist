@@ -1,13 +1,13 @@
-use <std::collections::HashMap>;
-use <std::env>;
-use <std::fs>;
-use <std::path::MAIN_SEPARATOR>;
-use <std::path::PathBuf>;
-use <std::process::Command>;
-use <std::process::Stdio>;
-use <cargo_metadata::CompilerMessage>;
-use <cargo_metadata::Message>;
-use <mist_parser::rev_mapper>;
+use std::collections::HashMap;
+use std::env;
+use std::fs;
+use std::path::MAIN_SEPARATOR;
+use std::path::PathBuf;
+use std::process::Command;
+use std::process::Stdio;
+use cargo_metadata::CompilerMessage;
+use cargo_metadata::Message;
+use mist_parser::rev_mapper;
 
 #[derive(Debug, Clone)]
 pub struct MistDiagnosticMessage {
