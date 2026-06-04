@@ -42,7 +42,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ClassItem {
                 Ok(ClassItem::ImplDecl(pair.try_into().get()?))
             }
 
-            Rule::method => Ok(ClassItem::Method(pair.try_into().get()?)),
+            Rule::function_decl => Ok(ClassItem::Method(pair.try_into().get()?)),
 
             _ => AstError::bug_unimplemented(pair),
         }

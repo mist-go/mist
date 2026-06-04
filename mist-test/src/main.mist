@@ -1,9 +1,3 @@
-class Bro {
-    constructor() {}
-
-    void idk_man(i32 bro) {}
-}
-
 void main() {
     test_package::hello();
 

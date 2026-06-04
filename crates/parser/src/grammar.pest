@@ -285,13 +285,9 @@ method_args = _{
     ((self_param ~ ("," ~ param_list)?) | param_list) ~ ","?
 }
 
-method = {
-    visibility? ~ type_expr ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ (block | semicolon)
-}
-
 class_item = _{
     impl_decl
-  | method
+  | function_decl
 }
 
 class_decl = {
@@ -302,11 +298,11 @@ class_decl = {
 // IMPL
 // ======================================================
 impl_for_decl = {
-    "impl" ~ generics_decl? ~ type_expr ~ "for" ~ type_expr ~ "{" ~ method* ~ "}"
+    "impl" ~ generics_decl? ~ type_expr ~ "for" ~ type_expr ~ "{" ~ function_decl* ~ "}"
 }
 
 impl_decl = {
-    "impl" ~ generics_decl? ~ type_expr ~ "{" ~ method* ~ "}"
+    "impl" ~ generics_decl? ~ type_expr ~ "{" ~ function_decl* ~ "}"
 }
 
 // ======================================================
@@ -315,7 +311,7 @@ impl_decl = {
 trait_requirements = { ":" ~ type_expr_param ~ ("+" ~ type_expr_param)* }
 
 trait_item = _{
-    method
+    function_decl
 }
 
 trait_decl = {
@@ -327,7 +323,7 @@ trait_decl = {
 // ======================================================
 
 function_decl = {
-    visibility? ~ type_expr ~ identifier ~ "(" ~ param_list ~ ")" ~ block
+    visibility? ~ type_expr ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ (block | semicolon)
 }
 
 // ======================================================
