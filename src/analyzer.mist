@@ -1,4 +1,4 @@
-use <mist_analyzer>;
+use mist_analyzer;
 
 void main() {
     mist_analyzer::start();

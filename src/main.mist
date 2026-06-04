@@ -1,8 +1,8 @@
-use <std::process>;
-use <std::env>;
-use <std::fs>;
-use <mist_api::builder>;
-use <mist_api::transpiler>;
+use std::process;
+use std::env;
+use std::fs;
+use mist_api::builder;
+use mist_api::transpiler;
 
 void main() {
     Vec<String> args = env::args().collect();
