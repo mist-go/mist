@@ -77,6 +77,14 @@ macro_rules! ast_expr {
         analyzer.build(v)
     }};
 
+    (( $($v:expr),* $(,)? )) => {{
+        let mut analyzer = $crate::error::AstErrorAnalyzer(None);
+
+        let v = ( $(analyzer.get($v).get()?),* );
+
+        analyzer.build(v)
+    }};
+
     ($($item:ident)::+) => {
         $($item)::+
     };

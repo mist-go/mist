@@ -134,20 +134,26 @@ literal = {
 // PATTERNS
 // ======================================================
 
+etc_pattern = { ".." }
+
 multi_pat_template = _{
-    (pattern ~ ("," ~ pattern)*)?
+    ((pattern | etc_pattern) ~ ("," ~ (pattern | etc_pattern))*)?
 }
 
 tuple_pattern = {
-    "[" ~ pattern ~ "," ~ multi_pat_template ~ "]"
+    "[" ~ (pattern | etc_pattern) ~ "," ~ multi_pat_template ~ "]"
 }
 
 named_tuple_pattern = {
     static_path ~ "[" ~ multi_pat_template ~ "]"
 }
 
+struct_destruct = {
+    identifier ~ (":" ~ pattern)?
+}
+
 struct_pattern = {
-    static_path ~ "{" ~ multi_pat_template ~ "}"
+    static_path ~ "{" ~ ((struct_destruct | etc_pattern) ~ ("," ~ (struct_destruct | etc_pattern))*)? ~ "}"
 }
 
 path_pattern = {
@@ -210,7 +216,7 @@ param_list = {
 // ======================================================
 
 import = {
-    visibility? ~ "use" ~ "<" ~ static_path ~ ">" ~ semicolon
+    visibility? ~ "use" ~ static_path ~ semicolon
 }
 
 mod_package = {

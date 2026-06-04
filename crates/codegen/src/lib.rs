@@ -236,6 +236,8 @@ impl GetRust for TypeExprKind {
 impl GenRust for Pattern {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         match self {
+            Self::Etc => cg.add(".."),
+            Self::Literal(lit) => lit.gen_rust(ctx, cg),
             Self::Path(mutable, path) => {
                 if *mutable {
                     cg.add("mut ");
@@ -243,15 +245,26 @@ impl GenRust for Pattern {
 
                 cg.add(&path.get_rust())
             }
-            Self::Literal(lit) => lit.gen_rust(ctx, cg),
-
             Self::Struct(path, inner) => {
                 cg.add(&path.get_rust());
                 cg.add(" {");
-                for pat in inner {
-                    pat.gen_rust(ctx, cg);
-                    cg.add(",");
+
+                for (idx, i) in inner.iter().enumerate() {
+                    if idx > 0 {
+                        cg.add(", ");
+                    }
+
+                    if let Some((name, pat)) = i {
+                        cg.add(&name.get_rust());
+                        if let Some(pat) = pat {
+                            cg.add(": ");
+                            pat.gen_rust(ctx, cg);
+                        }
+                    } else {
+                        cg.add("..");
+                    }
                 }
+
                 cg.add("}");
             }
 

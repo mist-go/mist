@@ -14,7 +14,7 @@ void main() {
 
     match (args[1].as_str()) {
         "run" | "build" | "check" | "r" | "b" | "c" => {
-            var root = transpiler::transpile();
+            let root = transpiler::transpile();
 
             println!("");
 
@@ -69,7 +69,7 @@ void print_usage() {
 void init_project(Vec<String> mut args) {
     args.remove(0);
 
-    new process::Command("cargo")
+    process::Command::new("cargo")
         .args(args)
         .stdout(process::Stdio::inherit())
         .stderr(process::Stdio::inherit())

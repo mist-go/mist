@@ -71,7 +71,21 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
 
             Rule::struct_pattern => ast_expr!(Pattern::Struct(
                 Path::try_from(inner.next().unwrap()),
-                collect_recovered_map(inner, |v| Self::try_from(v).map(Box::new)),
+                collect_recovered_map(inner, |v| {
+                    if v.as_rule() == Rule::etc_pattern {
+                        return Ok(None);
+                    }
+
+                    let mut inner = dbg!(v).into_inner();
+                    Some(ast_expr!((
+                        Identifier::try_from(inner.next().unwrap()),
+                        inner
+                            .next()
+                            .map(|v| Self::try_from(v).map(Box::new).get_map(Box::new))
+                            .transpose()
+                    )))
+                    .transpose()
+                }),
             )),
 
             Rule::literal => ast_expr!(Pattern::Literal(pair.try_into())),
@@ -80,6 +94,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
                 Ok(listen_rule(&mut inner, Rule::mutable)) as AstResult<'_, bool>,
                 inner.next().unwrap().try_into()
             )),
+
+            Rule::etc_pattern => Ok(Pattern::Etc),
 
             _ => AstError::bug_unimplemented(pair),
         }
