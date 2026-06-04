@@ -80,10 +80,10 @@ let_kw     = { "let" }
 // ======================================================
 // GENERICS
 // ======================================================
-generic_decl  = { lifetime | (identifier ~ (":" ~ type_expr_param ~ ("+" ~ type_expr_param)*)?) }
+generic_decl  = { lifetime | (identifier ~ (":" ~ generic ~ ("+" ~ generic)*)?) }
 generics_decl = { "<" ~ (generic_decl ~ ("," ~ generic_decl)*)? ~ ">" }
 
-generic  = { lifetime | type_expr_param }
+generic  = { lifetime | type_expr }
 generics = { "<" ~ (generic ~ ("," ~ generic)*)? ~ ">" }
 
 // ======================================================
@@ -95,7 +95,7 @@ tuple_type = {
 }
 
 path_type = {
-    static_path ~ ("<" ~ (type_expr_param ~ ("," ~ type_expr_param)*)? ~ ">")?
+    static_path ~ generics?
 }
 
 ref_type = {
@@ -112,11 +112,6 @@ type_expr = {
 
 lifetime = {
     "'" ~ identifier
-}
-
-type_expr_param = {
-    type_expr
-  | lifetime
 }
 
 // ======================================================
@@ -281,13 +276,13 @@ self_param = {
     "self" ~ mutable? ~ deref_px?
 }
 
-method = {
-    visibility? ~ type_expr ~ identifier ~ generics_decl? ~ "(" ~ self_param? ~ ("," ~ param_list)? ~ ")" ~ block
+method_args = _{
+    ((self_param ~ ("," ~ param_list)?) | param_list) ~ ","?
 }
 
 class_item = _{
     impl_decl
-  | method
+  | function_decl
 }
 
 class_decl = {
@@ -298,25 +293,20 @@ class_decl = {
 // IMPL
 // ======================================================
 impl_for_decl = {
-    "impl" ~ generics_decl? ~ type_expr ~ "for" ~ type_expr ~ "{" ~ method* ~ "}"
+    "impl" ~ generics_decl? ~ type_expr ~ "for" ~ type_expr ~ "{" ~ function_decl* ~ "}"
 }
 
 impl_decl = {
-    "impl" ~ generics_decl? ~ type_expr ~ "{" ~ method* ~ "}"
+    "impl" ~ generics_decl? ~ type_expr ~ "{" ~ function_decl* ~ "}"
 }
 
 // ======================================================
 // Traits
 // ======================================================
-trait_requirements = { ":" ~ type_expr_param ~ ("+" ~ type_expr_param)* }
-
-method_no_body = {
-    visibility? ~ type_expr ~ identifier ~ generics_decl? ~ "(" ~ self_param? ~ ("," ~ param_list)? ~ ")" ~ semicolon
-}
+trait_requirements = { ":" ~ generic ~ ("+" ~ generic)* }
 
 trait_item = _{
-    method
-  | method_no_body
+    function_decl
 }
 
 trait_decl = {
@@ -328,7 +318,7 @@ trait_decl = {
 // ======================================================
 
 function_decl = {
-    visibility? ~ type_expr ~ identifier ~ "(" ~ param_list ~ ")" ~ block
+    visibility? ~ type_expr ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ (block | semicolon)
 }
 
 // ======================================================
@@ -404,7 +394,7 @@ control_flow = {
 
 statement_branch = { "(" ~ expr ~ ")" ~ statement_body }
 
-else_if = {
+else_if = _{
     "else" ~ "if" ~ statement_branch
 }
 
@@ -491,7 +481,7 @@ macro_inner_v = @{
 // ------------------------------------------------------
 
 expr_path_segment = {
-    identifier ~ ("::" ~ generics)?
+    identifier ~ generics?
 }
 
 expr_path = {
@@ -512,7 +502,11 @@ primary = {
 // ------------------------------------------------------
 
 field_px = {
-    "." ~ identifier ~ ("::" ~ generics)?
+    "." ~ identifier ~ generics?
+}
+
+tuple_field_px = {
+    "." ~ integer ~ generics?
 }
 
 call_px = {
@@ -524,7 +518,7 @@ macro_call_bracket = { "!" ~ "[" ~ macro_inner_v* ~ "]" }
 macro_call_brace   = { "!" ~ "{" ~ macro_inner_v* ~ "}" }
 
 struct_field_decl = {
-    identifier ~ ":" ~ expr
+    identifier ~ (":" ~ expr)?
 }
 
 struct_px = {
@@ -553,6 +547,7 @@ decrement = {
 
 postfix = {
     field_px
+  | tuple_field_px
   | call_px
   | macro_call_paren
   | macro_call_bracket

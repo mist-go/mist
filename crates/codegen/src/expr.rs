@@ -153,6 +153,14 @@ impl GenRust for Vec<Prefix> {
 impl GenRust for Postfix {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         match self {
+            Postfix::TupleFieldAccess(field, generics) => cg.add(&format!(
+                ".{}{}",
+                field,
+                generics
+                    .iter()
+                    .map(|v| format!("::{}", v.get_rust()))
+                    .collect::<String>()
+            )),
             Postfix::FieldAccess(field, generics) => cg.add(&format!(
                 ".{}{}",
                 field.get_rust(),
@@ -192,8 +200,10 @@ impl GenRust for Postfix {
 
                 for (name, expr) in fields {
                     cg.add(&name.get_rust());
-                    cg.add(": ");
-                    expr.gen_rust(ctx, cg);
+                    if let Some(expr) = expr {
+                        cg.add(": ");
+                        expr.gen_rust(ctx, cg);
+                    }
                     cg.add(",");
                 }
 

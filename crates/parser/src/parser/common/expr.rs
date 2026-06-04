@@ -141,13 +141,21 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
                 ))
             }
 
+            Rule::tuple_field_px => {
+                ast_expr!(Postfix::TupleFieldAccess(
+                    Ok(inner.next().unwrap().as_str().parse().unwrap_or(255_u8))
+                        as AstResult<'_, u8>,
+                    inner.next().map(Generics::try_from).transpose(),
+                ))
+            }
+
             Rule::call_px => ast_expr!(Postfix::Call(collect_recovered(inner))),
 
             Rule::struct_px => ast_expr!(Postfix::StructCall(collect_recovered_map(inner, |p| {
                 let mut pi = p.into_inner();
                 Ok((
                     Identifier::try_from(pi.next().unwrap())?,
-                    Expression::try_from(pi.next().unwrap()).get()?,
+                    pi.next().map(Expression::try_from).transpose().get()?,
                 ))
             }))),
 

@@ -235,7 +235,7 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &Spanned<ClassConstructor>) {
         let mut constructor_params = vec![VarDecl {
             name: Pattern::Path(false, Path(vec![Identifier(String::from("self"))])),
             type_: Some(TypeExpr(
-                TypeExprKind::Path(Path(vec![Identifier(String::from("Self"))])),
+                TypeExprKind::Path(Path(vec![Identifier(String::from("Self"))]), None),
                 vec![TypePostfix::RefMut],
             )),
         }];
@@ -423,8 +423,10 @@ impl GenRust for TopLevelKind {
                             let mut impl_ = impl_.clone();
 
                             impl_.item.trait_ = Some(impl_.item.target);
-                            impl_.item.target =
-                                TypeExpr(TypeExprKind::Path(Path(vec![name.clone()])), Vec::new());
+                            impl_.item.target = TypeExpr(
+                                TypeExprKind::Path(Path(vec![name.clone()]), None),
+                                Vec::new(),
+                            );
 
                             impl_.gen_rust(ctx, cg);
                         }

@@ -10,7 +10,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
     type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        ast_ensure!(pair, Rule::function_decl, Rule::method, Rule::method_no_body => {
+        ast_ensure!(pair, Rule::function_decl => {
         let mut inner = pair.into_inner();
             let visibility = Visibility::try_from(&mut inner);
             let return_type = TypeExpr::try_from(inner.next().unwrap());
@@ -30,7 +30,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
                 VarDecl {
                     name: name.clone(),
                     type_: Some(TypeExpr(
-                        TypeExprKind::Path(Path(vec![Identifier("Self".to_string())])),
+                        TypeExprKind::Path(Path(vec![Identifier("Self".to_string())]), None),
                         if is_ref {
                             vec![if mutable {
                                 TypePostfix::RefMut

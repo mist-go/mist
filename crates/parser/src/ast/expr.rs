@@ -50,12 +50,13 @@ pub enum MacroDelimiter {
 #[derive(Debug, Clone, Serialize)]
 pub enum Postfix {
     FieldAccess(Identifier, Option<Generics>),
+    TupleFieldAccess(u8, Option<Generics>),
     Call(Vec<Expression>),
     MacroCall {
         inner: String,
         delimiter: MacroDelimiter,
     },
-    StructCall(Vec<(Identifier, Expression)>),
+    StructCall(Vec<(Identifier, Option<Expression>)>),
     Assign(String, Box<Expression>),
     Index(Expression),
     As(TypeExpr),
