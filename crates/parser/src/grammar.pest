@@ -210,7 +210,7 @@ param_list = {
 // ======================================================
 
 import = {
-    visibility? ~ "use" ~ "<" ~ static_path ~ ">" ~ semicolon
+    visibility? ~ "use" ~ static_path ~ semicolon
 }
 
 mod_package = {
