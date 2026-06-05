@@ -192,7 +192,7 @@ attributes = {
 // DECLARATION HELPERS
 // ======================================================
 var_decl = {
-    "let" ~ WHITESPACE ~ pattern ~ type_expr?
+    "let" ~ pattern ~ type_expr?
 }
 
 field = {
@@ -323,7 +323,7 @@ trait_decl = {
 // ======================================================
 
 function_decl = {
-    visibility? ~ type_expr ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ (block | semicolon)
+    visibility? ~ "fn" ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ type_expr? ~ (block | semicolon)
 }
 
 // ======================================================

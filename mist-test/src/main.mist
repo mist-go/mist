@@ -1,9 +1,9 @@
-void main() {}
+fn main() {}
 
 struct MyStruct<'a> {
     name *'a String
 }
 
-i32 add(a i32, b i32) {
+fn add(a i32, b i32) i32 {
     a + b
 }

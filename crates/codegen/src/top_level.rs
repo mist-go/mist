@@ -88,8 +88,11 @@ impl GenRust for FunctionDecl {
             param.gen_rust(ctx, cg);
         }
 
-        cg.add(") -> ");
-        cg.add(&self.return_type.get_rust());
+        cg.add(") ");
+        if let Some(return_type) = &self.return_type {
+            cg.add("-> ");
+            cg.add(&return_type.get_rust());
+        }
 
         if let Some(body) = &self.body {
             cg.add(" ");
@@ -254,7 +257,7 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &Spanned<ClassConstructor>) {
                 name: Identifier(String::from("constructor")),
                 generics: self.1.item.generics.clone(),
                 params: ParamList(constructor_params),
-                return_type: TypeExpr::Tuple(Vec::new()),
+                return_type: Some(TypeExpr::Tuple(Vec::new())),
                 body: Some(self.1.item.body.clone()),
             },
         }
