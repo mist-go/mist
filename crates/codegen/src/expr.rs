@@ -69,7 +69,11 @@ impl GenRust for Expression {
             Expression::Array(values) => {
                 cg.add("[");
 
-                for val in values {
+                for (i, val) in values.iter().enumerate() {
+                    if i > 0 {
+                        cg.add(", ");
+                    }
+
                     val.gen_rust(ctx, cg);
                 }
 
