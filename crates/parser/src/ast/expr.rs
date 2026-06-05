@@ -7,6 +7,11 @@ pub enum Expression {
     Literal(Literal),
     Path(ExprPath),
     Statement(Box<Statement>),
+    Closure {
+        return_type: Option<TypeExpr>,
+        params: Vec<VarDecl>,
+        body: Box<Expression>,
+    },
     Fix {
         initial: Box<Expression>,
         prefixes: Vec<Prefix>,
@@ -72,7 +77,6 @@ pub enum Prefix {
     Deref,
     Not,
     Neg,
-    Closure(Option<TypeExpr>, Vec<VarDecl>),
 }
 
 #[derive(Debug, Clone, Serialize)]

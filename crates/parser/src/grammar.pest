@@ -30,6 +30,7 @@ keyword = {
   | "false"
   | "dyn"
   | "loop"
+  | "fn"
 }
 
 identifier = @{
@@ -448,7 +449,7 @@ match_stmt = {
 // CLOSURES
 // ------------------------------------------------------
 
-closure = { type_expr? ~ "|" ~ param_list ~ "|" }
+closure = { type_expr? ~ "fn" ~ "(" ~ param_list ~ ")" ~ expr }
 
 // ------------------------------------------------------
 // TUPLES & ARRAYS
@@ -490,6 +491,7 @@ expr_path = {
 
 primary = {
     control_flow
+  | closure
   | basic_stmt
   | literal
   | expr_path
@@ -571,8 +573,7 @@ not_px     = { "!" }
 neg_px     = { "-" }
 
 prefix = {
-    closure
-  | deref_px
+    deref_px
   | mut_ref_px
   | ref_px
   | not_px

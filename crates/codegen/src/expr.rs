@@ -101,6 +101,32 @@ impl GenRust for Expression {
                 cg.add(op);
                 rhs.gen_rust(ctx, cg);
             }
+
+            Expression::Closure {
+                return_type,
+                params,
+                body,
+            } => {
+                cg.add("|");
+                for (i, arg) in params.iter().enumerate() {
+                    if i > 0 {
+                        cg.add(", ");
+                    }
+
+                    arg.gen_rust(ctx, cg);
+                }
+                cg.add("| ");
+
+                if let Some(ty) = return_type {
+                    cg.add("-> ");
+                    cg.add(&ty.get_rust());
+                    cg.add(" ");
+
+                    cg.ensure_brackets_expr(ctx, body);
+                } else {
+                    body.gen_rust(ctx, cg);
+                }
+            }
         }
 
         if ensure_semicolon {
@@ -114,30 +140,13 @@ impl GenRust for Expression {
 }
 
 impl GenRust for Prefix {
-    fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
+    fn gen_rust(&self, _ctx: &mut Context, cg: &mut RustCodegen) {
         match self {
             Self::Deref => cg.add("*"),
             Self::Ref => cg.add("&"),
             Self::RefMut => cg.add("&mut "),
             Self::Not => cg.add("!"),
             Self::Neg => cg.add("-"),
-            Self::Closure(ty, args) => {
-                cg.add("|");
-                for (i, arg) in args.iter().enumerate() {
-                    if i > 0 {
-                        cg.add(", ");
-                    }
-
-                    arg.gen_rust(ctx, cg);
-                }
-                cg.add("| ");
-
-                if let Some(ty) = ty {
-                    cg.add("-> ");
-                    cg.add(&ty.get_rust());
-                    cg.add(" ");
-                }
-            }
         }
     }
 }

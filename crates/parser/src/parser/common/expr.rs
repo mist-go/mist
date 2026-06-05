@@ -75,6 +75,16 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                 ))
             }
 
+            Rule::closure => {
+                ast_expr!(Self::Closure {
+                    return_type: consume_rule(&mut inner, Rule::type_expr)
+                        .map(TypeExpr::try_from)
+                        .transpose(),
+                    params: collect_recovered(inner.next().unwrap().into_inner()),
+                    body: Expression::try_from(inner.next().unwrap()).map(Box::new),
+                })
+            }
+
             Rule::primary => pair.into_inner().next().unwrap().try_into(),
             Rule::static_path => ast_expr!(Expression::Path(pair.try_into())),
             Rule::literal => ast_expr!(Expression::Literal(pair.try_into())),
@@ -108,16 +118,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Prefix {
             Rule::ref_px => Self::Ref,
             Rule::not_px => Self::Not,
             Rule::neg_px => Self::Neg,
-            Rule::closure => {
-                let mut inner = pair.into_inner();
-
-                return ast_expr!(Self::Closure(
-                    consume_rule(&mut inner, Rule::type_expr)
-                        .map(TypeExpr::try_from)
-                        .transpose(),
-                    collect_recovered(inner.next().unwrap().into_inner())
-                ));
-            }
 
             _ => return AstError::bug_unimplemented(pair),
         })
