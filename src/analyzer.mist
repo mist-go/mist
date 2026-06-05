@@ -1,5 +1,5 @@
 use mist_analyzer;
 
-void main() {
+fn main() {
     mist_analyzer::start();
 }

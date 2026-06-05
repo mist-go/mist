@@ -4,8 +4,8 @@ use std::fs;
 use mist_api::builder;
 use mist_api::transpiler;
 
-void main() {
-    Vec<String> args = env::args().collect();
+fn main() {
+    let args Vec<String> = env::args().collect();
 
     if (args.len() < 2) {
         print_usage();
@@ -44,7 +44,7 @@ void main() {
     }
 }
 
-void print_usage() {
+fn print_usage() {
     println!("Mist - the mist compiler\n");
     println!("󰖟 View our documentation! \x1b[35mhttps://mist.selimaj.dev\x1b[0m");
     println!(" Follow us on github!    \x1b[35mhttps://github.com/mist-go\x1b[0m\n");
@@ -66,7 +66,7 @@ void print_usage() {
     println!(" \x1b[36m mist help\x1b[0m              print this message\n");
 }
 
-void init_project(Vec<String> mut args) {
+fn init_project(mut args Vec<String>) {
     args.remove(0);
 
     process::Command::new("cargo")
@@ -77,14 +77,14 @@ void init_project(Vec<String> mut args) {
         .spawn()
         .expect("Failed to run cargo").wait().expect("Unable to wait");
 
-    bool is_lib = fs::metadata("src/lib.rs").is_ok();
+    let is_lib bool = fs::metadata("src/lib.rs").is_ok();
 
     if (is_lib) {
         fs::remove_file("src/lib.rs").expect("Failed to remove src/lib.rs");
-        fs::write("src/lib.mist", "void test() {\n}").expect("Failed to create src/lib.mist");
+        fs::write("src/lib.mist", "fn test() {\n}").expect("Failed to create src/lib.mist");
     } else {
         fs::remove_file("src/main.rs").expect("Failed to remove src/main.rs");
-        fs::write("src/main.mist", "void main() {\n    println!(\"Hello, World!\");\n}\n").expect("Failed to create src/main.mist");
+        fs::write("src/main.mist", "fn main() {\n    println!(\"Hello, World!\");\n}\n").expect("Failed to create src/main.mist");
     }
 
     inject_mist_target(is_lib);
@@ -92,10 +92,10 @@ void init_project(Vec<String> mut args) {
     println!("\n\x1b[34minfo\x1b[0m: Please open Cargo.toml and adjust `\x1b[35mname\x1b[0m = ` as needed, Thank you for using Mist!\n");
 }
 
-void inject_mist_target(bool is_lib) {
-    String toml_content = fs::read_to_string("Cargo.toml").expect("Failed to read Cargo.toml");
+fn inject_mist_target(is_lib bool) {
+    let toml_content String = fs::read_to_string("Cargo.toml").expect("Failed to read Cargo.toml");
 
-    str* inject = if (is_lib) {
+    let inject *str = if (is_lib) {
         "\n[lib]\nname = \"my_lib\"\npath = \".mist/src/lib.rs\"\n"
     } else {
         "\n[[bin]]\nname = \"my_bin\"\npath = \".mist/src/main.rs\"\n"
