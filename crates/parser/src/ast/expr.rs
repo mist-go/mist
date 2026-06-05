@@ -7,6 +7,8 @@ pub enum Expression {
     Literal(Literal),
     Path(ExprPath),
     Statement(Box<Statement>),
+    Array(Vec<Expression>),
+    ArrayRepeat(Box<Expression>, Box<Expression>),
     Closure {
         return_type: Option<TypeExpr>,
         params: Vec<VarDecl>,
@@ -31,8 +33,6 @@ pub enum Literal {
     Float(f64),
     Bool(bool),
     Tuple(Vec<Expression>),
-    Array(Vec<Expression>),
-    ArrayRepeat(Box<Expression>, Box<Expression>),
 }
 
 #[derive(Debug, Clone, Serialize)]

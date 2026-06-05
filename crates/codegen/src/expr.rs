@@ -48,24 +48,6 @@ impl GenRust for Literal {
 
                 cg.add(")");
             }
-
-            Self::Array(values) => {
-                cg.add("[");
-
-                for val in values {
-                    val.gen_rust(ctx, cg);
-                }
-
-                cg.add("]");
-            }
-
-            Self::ArrayRepeat(value, repeat) => {
-                cg.add("[");
-                value.gen_rust(ctx, cg);
-                cg.add("; ");
-                repeat.gen_rust(ctx, cg);
-                cg.add("]");
-            }
         }
     }
 }
@@ -84,6 +66,22 @@ impl GenRust for Expression {
             Expression::Path(path) => cg.add(&path.get_rust()),
             Expression::Literal(literal) => literal.gen_rust(ctx, cg),
             Expression::Statement(stmt) => stmt.gen_rust(ctx, cg),
+            Expression::Array(values) => {
+                cg.add("[");
+
+                for val in values {
+                    val.gen_rust(ctx, cg);
+                }
+
+                cg.add("]");
+            }
+            Expression::ArrayRepeat(value, repeat) => {
+                cg.add("[");
+                value.gen_rust(ctx, cg);
+                cg.add("; ");
+                repeat.gen_rust(ctx, cg);
+                cg.add("]");
+            }
             Expression::Fix {
                 initial,
                 prefixes,
