@@ -34,6 +34,8 @@ class NamedCounter : Counter {
     pub String name;
 
     pub constructor(i32 start, String name) {
+        self._super = Counter::new(start);
+
         self.name = name;
     }
 
