@@ -1,0 +1,58 @@
+pub class Counter {
+    pub count i32;
+
+    pub constructor(start i32) {
+        self.count = start;
+    }
+
+    pub fn increment(*mut self) {
+        self.count++;
+    }
+
+    pub fn get(*self) i32 {
+        self.count
+    }
+}
+
+pub fn test_class_create() {
+    let c = Counter::new(0);
+    assert_eq!(c.get(), 0);
+}
+
+pub fn test_class_method() {
+    let mut c = Counter::new(5);
+    c.increment();
+    assert_eq!(c.get(), 6);
+}
+
+pub fn test_class_field_access() {
+    let c = Counter::new(42);
+    assert_eq!(c.count, 42);
+}
+
+class NamedCounter : Counter {
+    pub name String;
+
+    pub constructor(start i32, name String) {
+        self._super = Counter::new(start);
+
+        self.name = name;
+    }
+
+    pub fn get_name(*self) String {
+        self.name.clone()
+    }
+}
+
+pub fn test_class_inherit() {
+    let nc = NamedCounter::new(10, "test".to_string());
+    assert_eq!(nc.get_name(), "test");
+    assert_eq!(nc.count, 10);
+}
+
+pub fn run_tests() {
+    test_class_create();
+    test_class_method();
+    test_class_field_access();
+    test_class_inherit();
+}

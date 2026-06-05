@@ -1,17 +1,18 @@
-fn main() {}
+fn main() {
+    println!("running common tests...");
+    common::expr_test::run_tests();
+    common::statement_test::run_tests();
+    common::decl_test::run_tests();
+    common::types_test::run_tests();
 
-struct MyStruct<'a> {
-    name *'a String
-}
+    println!("running items tests...");
+    items::function_test::run_tests();
+    items::struct_test::run_tests();
+    items::enum_test::run_tests();
+    items::class_test::run_tests();
+    items::trait_test::run_tests();
+    items::impl_test::run_tests();
+    items::attribute_test::run_tests();
 
-fn add(a i32, b i32) i32 {
-    a + b
-}
-
-class MyClass {
-    name String;
-
-    constructor() {}
-
-    fn my_func(*mut self) {}
+    println!("\x1b[32m\nAll tests passed!\x1b[0m");
 }
