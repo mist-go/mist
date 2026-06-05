@@ -1,39 +1,39 @@
 trait Speak {
-    String speak(self*);
+    fn speak(*self) String;
+}
+
+trait Greet : Speak {
+    fn greet(*self) String;
 }
 
 struct Dog {
-    String name,
+    name String,
 }
 
 impl Speak for Dog {
-    String speak(self*) {
+    fn speak(*self) String {
         "woof".to_string()
     }
 }
 
-pub void test_trait_impl() {
-    let d = Dog { name: "Rex".to_string() };
-    assert_eq!(d.speak(), "woof");
-}
-
-trait Greet : Speak {
-    String greet(self*);
-}
-
 impl Greet for Dog {
-    String greet(self*) {
+    fn greet(*self) String {
         "hello".to_string()
     }
 }
 
-pub void test_trait_with_requirement() {
+pub fn test_trait_impl() {
+    let d = Dog { name: "Rex".to_string() };
+    assert_eq!(d.speak(), "woof");
+}
+
+pub fn test_trait_with_requirement() {
     let d = Dog { name: "Buddy".to_string() };
     assert_eq!(d.speak(), "woof");
     assert_eq!(d.greet(), "hello");
 }
 
-pub void run_tests() {
+pub fn run_tests() {
     test_trait_impl();
     test_trait_with_requirement();
 }

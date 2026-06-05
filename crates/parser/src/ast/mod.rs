@@ -18,19 +18,13 @@ pub struct Identifier(pub String);
 pub struct ParamList(pub Vec<VarDecl>);
 
 #[derive(Debug, Clone, Serialize)]
-pub struct TypeExpr(pub TypeExprKind, pub Vec<TypePostfix>);
-
-#[derive(Debug, Clone, Serialize)]
-pub enum TypePostfix {
-    Ref,
-    RefMut,
-    RefLifetime(Identifier),
-    RefMutLifetime(Identifier),
-    Dyn,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub enum TypeExprKind {
+pub enum TypeExpr {
+    Ref {
+        lifetime: Option<Identifier>,
+        mutable: bool,
+        ty: Box<TypeExpr>,
+    },
+    Dyn(Box<TypeExpr>),
     Path(Path, Option<Generics>),
     Tuple(Vec<TypeExpr>),
     Lifetime(Identifier),
@@ -43,20 +37,11 @@ pub struct Spanned<T> {
     pub item: T,
 }
 
-impl TypeExpr {
-    pub fn no_px(kind: TypeExprKind) -> Self {
-        Self(kind, Vec::new())
-    }
-}
-
 impl From<GenericDecl> for Generic {
     fn from(value: GenericDecl) -> Self {
         match value {
             GenericDecl::Lifetime(life) => Generic::Lifetime(life),
-            GenericDecl::Type(ty, _) => Generic::Type(TypeExpr(
-                TypeExprKind::Path(Path(vec![ty]), None),
-                Vec::new(),
-            )),
+            GenericDecl::Type(ty, _) => Generic::Type(TypeExpr::Path(Path(vec![ty]), None)),
         }
     }
 }

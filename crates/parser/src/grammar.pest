@@ -31,6 +31,7 @@ keyword = {
   | "dyn"
   | "loop"
   | "fn"
+  | "unsafe"
 }
 
 identifier = @{
@@ -76,7 +77,6 @@ program = {
 
 visibility = { "pub" ~ ("(" ~ static_path ~ ")")? }
 mutable    = { "mut" }
-let_kw     = { "let" }
 
 // ======================================================
 // GENERICS
@@ -100,15 +100,15 @@ path_type = {
 }
 
 ref_type = {
-    mutable? ~ lifetime? ~ "*"
+    "*" ~ lifetime? ~ mutable? ~ type_expr
 }
 
 dyn_type = {
-    "dyn"
+    "dyn" ~ type_expr
 }
 
 type_expr = {
-    (path_type | tuple_type) ~ (ref_type | dyn_type)*
+    (path_type | tuple_type | ref_type | dyn_type)
 }
 
 lifetime = {
@@ -192,11 +192,15 @@ attributes = {
 // DECLARATION HELPERS
 // ======================================================
 var_decl = {
-    (let_kw | type_expr) ~ pattern
+    "let" ~ pattern ~ type_expr?
 }
 
 field = {
-    visibility? ~ type_expr ~ identifier
+    visibility? ~ identifier ~ type_expr
+}
+
+param = {
+    pattern ~ type_expr?
 }
 
 field_list = {
@@ -204,7 +208,7 @@ field_list = {
 }
 
 param_list = {
-    (var_decl ~ ("," ~ var_decl)* ~ ","?)?
+    (param ~ ("," ~ param)* ~ ","?)?
 }
 
 // ======================================================
@@ -274,7 +278,7 @@ class_field = {
 }
 
 self_param = {
-    "self" ~ mutable? ~ deref_px?
+    (deref_px ~ lifetime?)? ~ mutable? ~ "self"
 }
 
 method_args = _{
@@ -319,7 +323,7 @@ trait_decl = {
 // ======================================================
 
 function_decl = {
-    visibility? ~ type_expr ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ (block | semicolon)
+    visibility? ~ "fn" ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ type_expr? ~ (block | semicolon)
 }
 
 // ======================================================
@@ -449,7 +453,10 @@ match_stmt = {
 // CLOSURES
 // ------------------------------------------------------
 
-closure = { type_expr? ~ "fn" ~ "(" ~ param_list ~ ")" ~ expr }
+closure = {
+    "fn" ~ "(" ~ param_list ~ ")" ~ type_expr? ~ block
+  | "fn" ~ "(" ~ param_list ~ ")" ~ type_expr? ~ "->" ~ expr
+}
 
 // ------------------------------------------------------
 // TUPLES & ARRAYS
@@ -628,4 +635,3 @@ bin_op = {
 expr = { term ~ (bin_op ~ term)* }
 
 term = { prefix* ~ primary ~ postfix* }
-

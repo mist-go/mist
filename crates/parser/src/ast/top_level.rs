@@ -97,7 +97,7 @@ pub struct FunctionDecl {
     pub name: Identifier,
     pub generics: GenericsDecl,
     pub params: ParamList,
-    pub return_type: TypeExpr,
+    pub return_type: Option<TypeExpr>,
     pub body: Option<Block>,
 }
 

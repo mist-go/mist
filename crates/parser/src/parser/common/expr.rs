@@ -77,10 +77,10 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
 
             Rule::closure => {
                 ast_expr!(Expression::Closure {
+                    params: collect_recovered(inner.next().unwrap().into_inner()),
                     return_type: consume_rule(&mut inner, Rule::type_expr)
                         .map(TypeExpr::try_from)
                         .transpose(),
-                    params: collect_recovered(inner.next().unwrap().into_inner()),
                     body: Expression::try_from(inner.next().unwrap()).map(Box::new),
                 })
             }
@@ -109,7 +109,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                     )),
                 }
             }
-            Rule::statement | Rule::basic_stmt | Rule::control_flow => ast_expr!(
+            Rule::statement | Rule::basic_stmt | Rule::control_flow | Rule::block => ast_expr!(
                 Expression::Statement(pair.try_into().get_map(Box::new).map(Box::new))
             ),
 
