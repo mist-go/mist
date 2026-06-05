@@ -2,66 +2,9 @@ use crate::{
     Rule,
     ast::*,
     ast_ensure, ast_expr,
-    error::{AstError, IntoErr, collect_recovered},
+    error::{AstError, AstResult, IntoErr, collect_recovered},
     parser::{consume_rule, listen_rule},
 };
-
-impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypePostfix {
-    type Error = AstError<'a, Self>;
-
-    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        let rule = pair.as_rule();
-        let mut inner = pair.clone().into_inner();
-
-        match rule {
-            Rule::ref_type => {
-                let mutable = listen_rule(&mut inner, Rule::mutable);
-                let lifetime = consume_rule(&mut inner, Rule::lifetime)
-                    .map(|pair| Identifier::try_from(pair.into_inner().next().unwrap()))
-                    .transpose()
-                    .get()?;
-
-                Ok(if mutable {
-                    if let Some(lifetime) = lifetime {
-                        TypePostfix::RefMutLifetime(lifetime)
-                    } else {
-                        TypePostfix::RefMut
-                    }
-                } else {
-                    if let Some(lifetime) = lifetime {
-                        TypePostfix::RefLifetime(lifetime)
-                    } else {
-                        TypePostfix::Ref
-                    }
-                })
-            }
-
-            Rule::dyn_type => Ok(TypePostfix::Dyn),
-
-            _ => AstError::bug_unimplemented(pair),
-        }
-    }
-}
-
-impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExprKind {
-    type Error = AstError<'a, Self>;
-
-    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        let rule = pair.as_rule();
-        let mut inner = pair.clone().into_inner();
-
-        match rule {
-            Rule::tuple_type => ast_expr!(TypeExprKind::Tuple(collect_recovered(inner))),
-            Rule::path_type => {
-                ast_expr!(TypeExprKind::Path(
-                    Path::try_from(inner.next().unwrap()),
-                    inner.next().map(Generics::try_from).transpose()
-                ))
-            }
-            _ => AstError::bug_unimplemented(pair),
-        }
-    }
-}
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
     type Error = AstError<'a, Self>;
@@ -72,13 +15,27 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
 
         match rule {
             Rule::generic => Self::try_from(inner.next().unwrap()),
-            Rule::type_expr => ast_expr!(TypeExpr(
-                inner.next().unwrap().try_into(),
-                collect_recovered(inner),
-            )),
-            Rule::lifetime => ast_expr!(TypeExprKind::Lifetime(inner.next().unwrap().try_into()))
-                .get_map(TypeExpr::no_px)
-                .map(TypeExpr::no_px),
+            Rule::type_expr => inner.next().unwrap().try_into(),
+            Rule::lifetime => ast_expr!(TypeExpr::Lifetime(inner.next().unwrap().try_into())),
+
+            Rule::tuple_type => ast_expr!(TypeExpr::Tuple(collect_recovered(inner))),
+            Rule::path_type => {
+                ast_expr!(TypeExpr::Path(
+                    Path::try_from(inner.next().unwrap()),
+                    inner.next().map(Generics::try_from).transpose()
+                ))
+            }
+
+            Rule::ref_type => {
+                ast_expr!(TypeExpr::Ref {
+                    lifetime: consume_rule(&mut inner, Rule::lifetime)
+                        .map(|v| v.into_inner().next().map(Identifier::try_from))
+                        .unwrap_or_default()
+                        .transpose(),
+                    mutable: Ok(listen_rule(&mut inner, Rule::mutable)) as AstResult<bool>,
+                    ty: TypeExpr::try_from(inner.next().unwrap()).map(Box::new),
+                })
+            }
 
             _ => AstError::bug_unimplemented(pair),
         }

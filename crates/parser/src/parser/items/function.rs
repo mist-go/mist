@@ -26,21 +26,15 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
                 let mutable = listen_rule(&mut param_inner, Rule::mutable);
                 let is_ref = listen_rule(&mut param_inner, Rule::deref_px);
                 let name = Pattern::Path(mutable && !is_ref, Path(vec![Identifier(String::from("self"))]));
+                let self_ty = TypeExpr::Path(Path(vec![Identifier(String::from("Self"))]), None);
 
                 VarDecl {
                     name: name.clone(),
-                    type_: Some(TypeExpr(
-                        TypeExprKind::Path(Path(vec![Identifier("Self".to_string())]), None),
-                        if is_ref {
-                            vec![if mutable {
-                                TypePostfix::RefMut
-                            } else {
-                                TypePostfix::Ref
-                            }]
-                        } else {
-                            Vec::new()
-                        },
-                    )),
+                    type_: Some(if is_ref {
+                        TypeExpr::Ref { lifetime: None, mutable, ty: Box::new(self_ty) }
+                    } else {
+                        self_ty
+                    }),
                 }
             });
 
