@@ -205,7 +205,7 @@ impl GetRust for TypeExpr {
                 let mutable = if *mutable { "mut " } else { "" };
 
                 if let Some(lifetime) = lifetime {
-                    format!("&{}{mutable}{}", lifetime.get_rust(), ty.get_rust())
+                    format!("&'{} {mutable}{}", lifetime.get_rust(), ty.get_rust())
                 } else {
                     format!("&{mutable}{}", ty.get_rust())
                 }

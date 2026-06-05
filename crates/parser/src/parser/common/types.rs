@@ -36,6 +36,11 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
                     ty: TypeExpr::try_from(inner.next().unwrap()).map(Box::new),
                 })
             }
+            Rule::dyn_type => {
+                ast_expr!(TypeExpr::Dyn(
+                    TypeExpr::try_from(inner.next().unwrap()).map(Box::new),
+                ))
+            }
 
             _ => AstError::bug_unimplemented(pair),
         }
