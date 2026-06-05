@@ -2,7 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_ensure, ast_expr,
-    error::{AstError, AstResult, IntoErr, collect_recovered},
+    error::{AstError, AstResult, IntoErr},
     parser::{consume_rule, listen_rule},
 };
 
@@ -62,13 +62,5 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
                 body: body,
             })
         })
-    }
-}
-
-impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ParamList {
-    type Error = AstError<'a, Self>;
-
-    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        Ok(ParamList(collect_recovered(pair.into_inner()).get()?))
     }
 }

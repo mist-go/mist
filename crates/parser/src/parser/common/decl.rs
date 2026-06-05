@@ -2,7 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_expr,
-    error::{AstError, IntoErr},
+    error::{AstError, IntoErr, collect_recovered},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDeclStmt {
@@ -48,25 +48,12 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDecl {
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
-            Rule::var_decl => {
+            Rule::var_decl | Rule::param => {
                 let mut inner = pair.into_inner();
 
-                let type_ = inner
-                    .next()
-                    .and_then(|pair| {
-                        if pair.as_rule() == Rule::let_kw {
-                            None
-                        } else {
-                            Some(TypeExpr::try_from(pair))
-                        }
-                    })
-                    .transpose();
-
-                let name = Pattern::try_from(inner.next().unwrap());
-
                 ast_expr!(VarDecl {
-                    type_: type_,
-                    name: name,
+                    name: Pattern::try_from(inner.next().unwrap()),
+                    type_: inner.next().map(TypeExpr::try_from).transpose(),
                 })
             }
 
@@ -85,12 +72,20 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDecl {
 
                 ast_expr!(FieldDecl {
                     visibility: Visibility::try_from(&mut inner),
-                    type_: TypeExpr::try_from(inner.next().unwrap()),
                     name: Identifier::try_from(inner.next().unwrap()),
+                    type_: TypeExpr::try_from(inner.next().unwrap()),
                 })
             }
 
             _ => AstError::bug_unimplemented(pair),
         }
+    }
+}
+
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ParamList {
+    type Error = AstError<'a, Self>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        Ok(ParamList(collect_recovered(pair.into_inner()).get()?))
     }
 }

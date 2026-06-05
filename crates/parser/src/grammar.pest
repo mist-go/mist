@@ -192,7 +192,7 @@ attributes = {
 // DECLARATION HELPERS
 // ======================================================
 var_decl = {
-    "let" ~ WHITESPACE ~ pattern ~ type_expr
+    "let" ~ WHITESPACE ~ pattern ~ type_expr?
 }
 
 field = {
@@ -200,7 +200,7 @@ field = {
 }
 
 param = {
-    pattern ~ type_expr
+    pattern ~ type_expr?
 }
 
 field_list = {
