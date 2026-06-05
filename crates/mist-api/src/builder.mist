@@ -11,11 +11,11 @@ use mist_parser::rev_mapper;
 
 #[derive(Debug, Clone)]
 pub struct MistDiagnosticMessage {
-    pub String message,
-    pub PathBuf file_path,
-    pub String file_name,
-    pub usize line,
-    pub usize column,
+    pub message String,
+    pub file_path PathBuf,
+    pub file_name String ,
+    pub line usize,
+    pub column usize,
 }
 
 #[derive(Debug, Clone)]
@@ -25,7 +25,7 @@ pub enum MistDiagnostic {
     Rust[CompilerMessage],
 }
 
-pub bool build(Vec<String> mut args, PathBuf root) {
+pub fn build(mut args Vec<String>, root PathBuf) bool {
     args.remove(0);
     args.insert(1, "--message-format=json".to_string());
 
@@ -68,7 +68,7 @@ pub bool build(Vec<String> mut args, PathBuf root) {
                             break;
                         }
 
-                        let map = mapping.entry(rust_path.clone()).or_insert_with(|| {
+                        let map = mapping.entry(rust_path.clone()).or_insert_with(fn() {
                             rev_mapper::get_mapping(
                                 &fs::read_to_string(rust_path)
                                     .expect("Failed to read file for mapping")
@@ -117,7 +117,7 @@ pub bool build(Vec<String> mut args, PathBuf root) {
                 let mut stdout = std::io::stdout();
 
                 std::io::copy(&mut raw_reader, &mut stdout)
-                    .map_err(|let v| v.to_string())
+                    .map_err(fn(v) -> v.to_string())
                     .expect("(Mist) Failed to copy IO");
 
                 command.wait().unwrap();
@@ -133,7 +133,7 @@ pub bool build(Vec<String> mut args, PathBuf root) {
     false
 }
 
-pub void print_diagnostics(Vec<MistDiagnostic>* diagnostics) {
+pub fn print_diagnostics(diagnostics *Vec<MistDiagnostic>) {
     let mut files = HashMap::new();
 
     for (diag : diagnostics) {
@@ -169,13 +169,13 @@ pub void print_diagnostics(Vec<MistDiagnostic>* diagnostics) {
     }
 }
 
-pub Option<String> get_line(
-    HashMap<PathBuf, Vec<String>> mut* files,
-    MistDiagnosticMessage* msg,
-) {
+pub fn get_line(
+    files *mut HashMap<PathBuf, Vec<String>>,
+    msg *MistDiagnosticMessage,
+) Option<String> {
     let src_path = msg.file_path.clone();
 
-    let lines = files.entry(src_path.clone()).or_insert_with(|| {
+    let lines = files.entry(src_path.clone()).or_insert_with(fn() {
         fs::read_to_string(src_path)
             .expect("Unable to read mist file")
             .lines()
@@ -184,5 +184,5 @@ pub Option<String> get_line(
             .collect()
     });
 
-    lines.get(msg.line - 1).map(|let v| v.trim().to_string())
+    lines.get(msg.line - 1).map(fn(v) -> v.trim().to_string())
 }

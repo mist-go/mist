@@ -2,4 +2,4 @@ pub mod builder;
 pub mod transpiler;
 pub mod modules;
 
-void main() {}
+fn main() {}

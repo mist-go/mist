@@ -7,13 +7,13 @@ use std::env;
 use mist_parser::error;
 use crate::modules;
 
-pub PathBuf transpile() {
+pub fn transpile() PathBuf {
     let start = time::Instant::now();
 
     let root = env::current_dir().expect("Unable to find project root");
 
-    PathBuf src = root.join("src");
-    PathBuf out = root.join(".mist/src");
+    let src = root.join("src");
+    let out = root.join(".mist/src");
 
     let master = modules::master_package(src.join("main.mist"));
 
@@ -30,10 +30,10 @@ pub PathBuf transpile() {
 }
 
 impl modules::Module {
-    String transpile(self*, PathBuf* parent_dir) {
-        if (!self.path.is_dir() && self.path.extension().and_then(|let v| v.to_str()) != Some("mist")) {
+    fn transpile(*self, parent_dir *PathBuf) String {
+        if (!self.path.is_dir() && self.path.extension().and_then(fn(v) -> v.to_str()) != Some("mist")) {
             let file_name = self.path.file_name()
-                .and_then(|let s| s.to_str())
+                .and_then(fn(s) -> s.to_str())
                 .expect("Failed to get file name");
 
             fs::copy(&self.path, parent_dir.join(&file_name)).expect("Failed to copy SideFile");
@@ -41,12 +41,12 @@ impl modules::Module {
             return String::new();
         }
 
-        PathBuf dir = self.output_dir(&parent_dir);
-        PathBuf output_file = self.output_path(&parent_dir);
+        let dir = self.output_dir(&parent_dir);
+        let output_file = self.output_path(&parent_dir);
 
         let _ = fs::create_dir_all(&dir);
 
-        String mut output = String::new();
+        let mut output = String::new();
 
         for (child : &self.children) {
             output.push_str(&child.transpile(&dir));
@@ -76,8 +76,8 @@ impl modules::Module {
     }
 }
 
-void transpile_file(PathBuf* path, PathBuf* output_file, str* mod_decl) {
-    String source = match (fs::read_to_string(path)) {
+fn transpile_file(path *PathBuf, output_file *PathBuf, mod_decl *str) {
+    let source = match (fs::read_to_string(path)) {
         Ok[s] => s;
         Err[e] => {
             eprintln!("error: failed to read file {}\n  {}", path.display(), e);
@@ -88,7 +88,7 @@ void transpile_file(PathBuf* path, PathBuf* output_file, str* mod_decl) {
 
     let mut gc = mist_codegen::RustCodegen::new();
 
-    String output = gc.generate(match (mist_parser::parse(&source)) {
+    let output = gc.generate(match (mist_parser::parse(&source)) {
         Ok[ast] => ast;
         Err[e] => {
             match (e) {

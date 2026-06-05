@@ -5,22 +5,22 @@ use std::process;
 
 #[derive(Debug)]
 pub class Module {
-    pub String name;
-    pub PathBuf path;
-    pub Vec<Self> children;
+    pub name String;
+    pub path PathBuf;
+    pub children Vec<Self>;
 
-    pub constructor(PathBuf mist_path) {
+    pub constructor(mist_path PathBuf) {
         self.children = Vec::new();
         self.name = mist_path.file_stem()
-            .and_then(|let s| s.to_str())
+            .and_then(fn(s) -> s.to_str())
             .expect("Failed to get module name")
             .to_string();
         self.path = mist_path;
 
         if (self.path.is_dir()) {
-            PathBuf dir = self.path.clone();
+            let dir = self.path.clone();
 
-            PathBuf pkg_gate = self.path.join("package.mist");
+            let pkg_gate = self.path.join("package.mist");
             if (pkg_gate.exists()) {
                 self.path = pkg_gate;
             }
@@ -29,7 +29,7 @@ pub class Module {
         }
     }
 
-    void scan_directory(self mut*, Path* search_dir) {
+    fn scan_directory(*mut self, search_dir *Path) {
         let entries = match (fs::read_dir(search_dir)) {
             Ok[entries] => entries;
             Err[e] => {
@@ -47,7 +47,7 @@ pub class Module {
                 }
             };
 
-            PathBuf child_path = entry.path();
+            let child_path = entry.path();
 
             if (child_path == self.path) {
                 continue;
@@ -57,7 +57,7 @@ pub class Module {
         }
     }
 
-    pub PathBuf output_dir(self*, PathBuf* parent_dir) {
+    pub fn output_dir(*self, parent_dir *PathBuf) PathBuf {
         if (self.path.is_dir() || Some("package.mist") == self.path.file_name().unwrap().to_str()) {
             parent_dir.join(&self.name)
         } else {
@@ -65,7 +65,7 @@ pub class Module {
         }
     }
 
-    pub PathBuf output_path(self*, PathBuf* parent_dir) {
+    pub fn output_path(*self, parent_dir *PathBuf) PathBuf {
         if (self.path.is_dir() || Some("package.mist") == self.path.file_name().unwrap().to_str()) {
             parent_dir.join(&self.name).join("mod.rs")
         } else {
@@ -74,10 +74,10 @@ pub class Module {
     }
 }
 
-pub Module master_package(PathBuf mist_path) {
+pub fn master_package(mist_path PathBuf) Module {
     let mut root_mod = Module::new(mist_path.clone());
 
-    Path* parent_dir = mist_path.parent()
+    let parent_dir = mist_path.parent()
         .expect("Failed to get parent directory of root file");
 
     root_mod.scan_directory(parent_dir);
