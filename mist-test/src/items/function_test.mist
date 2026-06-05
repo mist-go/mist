@@ -1,0 +1,62 @@
+pub void test_basic_function() {
+    void greet() {
+        let x = 1;
+        x++;
+    }
+    greet();
+}
+
+pub void test_fn_params() {
+    Int add(Int a, Int b) {
+        a + b
+    }
+    assert_eq!(add(2, 3), 5);
+}
+
+pub void test_fn_return() -> Int {
+    42
+}
+
+pub void test_fn_early_return() -> Int {
+    return 100;
+    0
+}
+
+pub void test_fn_mut_param(Int mut x) -> Int {
+    x = x + 10;
+    x
+}
+
+pub void test_method_call() {
+    String s = "hello";
+    assert_eq!(s.len(), 5);
+    assert_eq!(s.to_uppercase(), "HELLO");
+}
+
+pub void test_nested_fn_calls() {
+    Int add(Int a, Int b) {
+        a + b
+    }
+    Int triple(Int x) {
+        add(x, add(x, x))
+    }
+    assert_eq!(triple(5), 15);
+}
+
+pub void test_recursive_fn() {
+    Int factorial(Int n) {
+        if (n <= 1) { 1 } else { n * factorial(n - 1) }
+    }
+    assert_eq!(factorial(5), 120);
+}
+
+pub void run_tests() {
+    test_basic_function();
+    test_fn_params();
+    assert_eq!(test_fn_return(), 42);
+    assert_eq!(test_fn_early_return(), 100);
+    assert_eq!(test_fn_mut_param(5), 15);
+    test_method_call();
+    test_nested_fn_calls();
+    test_recursive_fn();
+}

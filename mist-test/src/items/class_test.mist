@@ -1,0 +1,56 @@
+pub class Counter {
+    pub Int count;
+
+    pub constructor(Int start) {
+        self.count = start;
+    }
+
+    pub void increment(self mut*) {
+        self.count++;
+    }
+
+    pub Int get(self*) -> Int {
+        self.count
+    }
+}
+
+pub void test_class_create() {
+    let c = Counter::new(0);
+    assert_eq!(c.get(), 0);
+}
+
+pub void test_class_method() {
+    let mut c = Counter::new(5);
+    c.increment();
+    assert_eq!(c.get(), 6);
+}
+
+pub void test_class_field_access() {
+    let c = Counter::new(42);
+    assert_eq!(c.count, 42);
+}
+
+class NamedCounter : Counter {
+    pub String name;
+
+    pub constructor(Int start, String name) {
+        self.name = name;
+    }
+
+    pub String get_name(self*) -> String {
+        self.name
+    }
+}
+
+pub void test_class_inherit() {
+    let nc = NamedCounter::new(10, "test");
+    assert_eq!(nc.get_name(), "test");
+    assert_eq!(nc.count, 10);
+}
+
+pub void run_tests() {
+    test_class_create();
+    test_class_method();
+    test_class_field_access();
+    test_class_inherit();
+}
