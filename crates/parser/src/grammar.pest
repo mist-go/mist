@@ -31,6 +31,7 @@ keyword = {
   | "dyn"
   | "loop"
   | "fn"
+  | "unsafe"
 }
 
 identifier = @{
@@ -100,15 +101,15 @@ path_type = {
 }
 
 ref_type = {
-    mutable? ~ lifetime? ~ "*"
+    "*" ~ lifetime? ~ mutable? ~ type_expr
 }
 
 dyn_type = {
-    "dyn"
+    "dyn" ~ type_expr
 }
 
 type_expr = {
-    (path_type | tuple_type) ~ (ref_type | dyn_type)*
+    (path_type | tuple_type | ref_type | dyn_type)
 }
 
 lifetime = {
@@ -628,4 +629,3 @@ bin_op = {
 expr = { term ~ (bin_op ~ term)* }
 
 term = { prefix* ~ primary ~ postfix* }
-
