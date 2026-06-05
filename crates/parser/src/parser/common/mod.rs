@@ -76,7 +76,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
                         return Ok(None);
                     }
 
-                    let mut inner = dbg!(v).into_inner();
+                    let mut inner = v.into_inner();
                     Some(ast_expr!((
                         Identifier::try_from(inner.next().unwrap()),
                         inner

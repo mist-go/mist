@@ -1,0 +1,21 @@
+#[derive(Debug)]
+pub struct Debuggable {
+    i32 value,
+}
+
+pub void test_derive_attribute() {
+    let d = Debuggable { value: 42 };
+    assert_eq!(d.value, 42);
+}
+
+#[allow(unused_variables)]
+pub void test_allow_attribute() {
+    let x = 42;
+    let y = "unused";
+    assert_eq!(x, 42);
+}
+
+pub void run_tests() {
+    test_derive_attribute();
+    test_allow_attribute();
+}

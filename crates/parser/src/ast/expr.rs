@@ -7,6 +7,13 @@ pub enum Expression {
     Literal(Literal),
     Path(ExprPath),
     Statement(Box<Statement>),
+    Array(Vec<Expression>),
+    ArrayRepeat(Box<Expression>, Box<Expression>),
+    Closure {
+        return_type: Option<TypeExpr>,
+        params: Vec<VarDecl>,
+        body: Box<Expression>,
+    },
     Fix {
         initial: Box<Expression>,
         prefixes: Vec<Prefix>,
@@ -26,8 +33,6 @@ pub enum Literal {
     Float(f64),
     Bool(bool),
     Tuple(Vec<Expression>),
-    Array(Vec<Expression>),
-    ArrayRepeat(Box<Expression>, Box<Expression>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -72,7 +77,6 @@ pub enum Prefix {
     Deref,
     Not,
     Neg,
-    Closure(Option<TypeExpr>, Vec<VarDecl>),
 }
 
 #[derive(Debug, Clone, Serialize)]
