@@ -156,18 +156,6 @@ impl GetRust for Path {
     }
 }
 
-impl GetRust for TypePostfix {
-    fn get_rust(&self) -> String {
-        match self {
-            TypePostfix::Ref => format!("&"),
-            TypePostfix::RefMut => format!("&mut "),
-            TypePostfix::RefLifetime(lifetime) => format!("&'{} ", lifetime.get_rust()),
-            TypePostfix::RefMutLifetime(lifetime) => format!("&'{} mut ", lifetime.get_rust()),
-            TypePostfix::Dyn => format!("dyn "),
-        }
-    }
-}
-
 impl GetRust for Visibility {
     fn get_rust(&self) -> String {
         match self {
@@ -186,12 +174,47 @@ impl GetRust for Identifier {
 
 impl GetRust for TypeExpr {
     fn get_rust(&self) -> String {
-        self.1
-            .iter()
-            .map(TypePostfix::get_rust)
-            .rev()
-            .collect::<String>()
-            + &self.0.get_rust()
+        match self {
+            // TypePostfix::Ref => format!("&"),
+            // TypePostfix::RefMut => format!("&mut "),
+            // TypePostfix::RefLifetime(lifetime) => format!("&'{} ", lifetime.get_rust()),
+            // TypePostfix::RefMutLifetime(lifetime) => format!("&'{} mut ", lifetime.get_rust()),
+            // TypePostfix::Dyn => format!("dyn "),
+            Self::Path(path, generics) => {
+                if let Some(generics) = generics {
+                    format!("{}{}", get_static_type_path(path), generics.get_rust())
+                } else {
+                    get_static_type_path(path)
+                }
+            }
+            Self::Lifetime(name) => format!("'{}", name.get_rust()),
+            Self::Tuple(types) => format!(
+                "({})",
+                types
+                    .into_iter()
+                    .map(|t| t.get_rust())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+
+            Self::Ref {
+                lifetime,
+                mutable,
+                ty,
+            } => {
+                let mutable = if *mutable { "mut " } else { "" };
+
+                if let Some(lifetime) = lifetime {
+                    format!("&{}{mutable}{}", lifetime.get_rust(), ty.get_rust())
+                } else {
+                    format!("&{mutable}{}", ty.get_rust())
+                }
+            }
+
+            Self::Dyn(ty) => {
+                format!("dyn {}", ty.get_rust())
+            }
+        }
     }
 }
 
@@ -202,29 +225,6 @@ pub fn get_static_type_path(path: &Path) -> String {
         format!("()")
     } else {
         rust_path
-    }
-}
-
-impl GetRust for TypeExprKind {
-    fn get_rust(&self) -> String {
-        match self {
-            TypeExprKind::Path(path, generics) => {
-                if let Some(generics) = generics {
-                    format!("{}{}", get_static_type_path(path), generics.get_rust())
-                } else {
-                    get_static_type_path(path)
-                }
-            }
-            TypeExprKind::Lifetime(name) => format!("'{}", name.get_rust()),
-            TypeExprKind::Tuple(types) => format!(
-                "({})",
-                types
-                    .into_iter()
-                    .map(|t| t.get_rust())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
-        }
     }
 }
 

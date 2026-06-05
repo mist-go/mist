@@ -234,10 +234,14 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &Spanned<ClassConstructor>) {
 
         let mut constructor_params = vec![VarDecl {
             name: Pattern::Path(false, Path(vec![Identifier(String::from("self"))])),
-            type_: Some(TypeExpr(
-                TypeExprKind::Path(Path(vec![Identifier(String::from("Self"))]), None),
-                vec![TypePostfix::RefMut],
-            )),
+            type_: Some(TypeExpr::Ref {
+                lifetime: None,
+                mutable: true,
+                ty: Box::new(TypeExpr::Path(
+                    Path(vec![Identifier(String::from("Self"))]),
+                    None,
+                )),
+            }),
         }];
 
         constructor_params.append(&mut self.1.item.params.0.clone());
@@ -250,7 +254,7 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &Spanned<ClassConstructor>) {
                 name: Identifier(String::from("constructor")),
                 generics: self.1.item.generics.clone(),
                 params: ParamList(constructor_params),
-                return_type: TypeExpr::no_px(TypeExprKind::Tuple(Vec::new())),
+                return_type: TypeExpr::Tuple(Vec::new()),
                 body: Some(self.1.item.body.clone()),
             },
         }
@@ -423,10 +427,7 @@ impl GenRust for TopLevelKind {
                             let mut impl_ = impl_.clone();
 
                             impl_.item.trait_ = Some(impl_.item.target);
-                            impl_.item.target = TypeExpr(
-                                TypeExprKind::Path(Path(vec![name.clone()]), None),
-                                Vec::new(),
-                            );
+                            impl_.item.target = TypeExpr::Path(Path(vec![name.clone()]), None);
 
                             impl_.gen_rust(ctx, cg);
                         }
