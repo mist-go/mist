@@ -453,7 +453,10 @@ match_stmt = {
 // CLOSURES
 // ------------------------------------------------------
 
-closure = { type_expr? ~ "fn" ~ "(" ~ param_list ~ ")" ~ expr }
+closure = {
+    "fn" ~ "(" ~ param_list ~ ")" ~ type_expr? ~ block
+  | "fn" ~ "(" ~ param_list ~ ")" ~ type_expr? ~ "->" ~ expr
+}
 
 // ------------------------------------------------------
 // TUPLES & ARRAYS
