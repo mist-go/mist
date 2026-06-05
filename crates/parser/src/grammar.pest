@@ -278,7 +278,7 @@ class_field = {
 }
 
 self_param = {
-    "self" ~ mutable? ~ deref_px?
+    (deref_px ~ lifetime?)? ~ mutable? ~ "self"
 }
 
 method_args = _{

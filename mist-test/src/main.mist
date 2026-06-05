@@ -7,3 +7,11 @@ struct MyStruct<'a> {
 fn add(a i32, b i32) i32 {
     a + b
 }
+
+class MyClass {
+    name String;
+
+    constructor() {}
+
+    fn my_func(*mut self) {}
+}
