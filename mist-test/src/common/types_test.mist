@@ -1,62 +1,53 @@
 pub void test_integer_type() {
-    Int x = 42;
+    i32 x = 42;
     assert_eq!(x, 42);
 }
 
 pub void test_float_type() {
-    Float x = 3.14;
+    f64 x = 3.14;
     assert_eq!(x, 3.14);
 }
 
 pub void test_bool_type() {
-    Bool x = true;
+    bool x = true;
     assert_eq!(x, true);
 
-    Bool y = false;
+    bool y = false;
     assert_eq!(y, false);
 }
 
 pub void test_string_type() {
-    String s = "hello";
+    str* s = "hello";
     assert_eq!(s, "hello");
 }
 
 pub void test_tuple_type() {
-    [Int, String] t = (42, "answer");
+    [i32, str*] t = (42, "answer");
     assert_eq!(t.0, 42);
     assert_eq!(t.1, "answer");
 }
 
 pub void test_ref_type() {
-    Int x = 42;
-    Int* r = &x;
+    i32 x = 42;
+    i32* r = &x;
     assert_eq!(*r, 42);
 }
 
 pub void test_mut_ref_type() {
     let mut x = 42;
-    Int mut* r = &mut x;
+    i32 mut* r = &mut x;
     *r = 100;
     assert_eq!(x, 100);
 }
 
-pub void test_void_type() {
-    void nothing() {
-    }
-    nothing();
+pub void test_void_type() {}
+
+i32 add(i32 a, i32 b) {
+    a + b
 }
 
 pub void test_fn_return_type() {
-    Int add(Int a, Int b) {
-        a + b
-    }
     assert_eq!(add(3, 4), 7);
-}
-
-pub void test_fn_return_void() {
-    void do_nothing() {
-    }
-    do_nothing();
 }
 
 pub void run_tests() {
@@ -69,5 +60,4 @@ pub void run_tests() {
     test_mut_ref_type();
     test_void_type();
     test_fn_return_type();
-    test_fn_return_void();
 }

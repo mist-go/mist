@@ -1,6 +1,6 @@
 enum OptionInt {
     None,
-    Some(Int),
+    Some[i32],
 }
 
 pub void test_enum_named() {
@@ -20,8 +20,8 @@ pub void test_enum_tuple() {
 }
 
 enum Shape {
-    Circle { Int radius },
-    Rect { Int w, Int h },
+    Circle { i32 radius },
+    Rect { i32 w, i32 h },
 }
 
 pub void test_enum_struct() {

@@ -1,10 +1,10 @@
 struct Vector2 {
-    Int x,
-    Int y,
+    i32 x,
+    i32 y,
 }
 
 impl Vector2 {
-    pub Int magnitude(self*) -> Int {
+    pub i32 magnitude(self*) {
         self.x * self.x + self.y * self.y
     }
 }

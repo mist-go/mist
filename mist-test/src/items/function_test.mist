@@ -1,52 +1,54 @@
+void greet() {
+    let mut x = 1;
+    x++;
+}
+
 pub void test_basic_function() {
-    void greet() {
-        let x = 1;
-        x++;
-    }
     greet();
 }
 
+i32 add(i32 a, i32 b) {
+    a + b
+}
+
 pub void test_fn_params() {
-    Int add(Int a, Int b) {
-        a + b
-    }
     assert_eq!(add(2, 3), 5);
 }
 
-pub void test_fn_return() -> Int {
+pub i32 test_fn_return() {
     42
 }
 
-pub void test_fn_early_return() -> Int {
+pub i32 test_fn_early_return() {
     return 100;
     0
 }
 
-pub void test_fn_mut_param(Int mut x) -> Int {
+pub i32 test_fn_mut_param(i32 mut x) {
     x = x + 10;
     x
 }
 
 pub void test_method_call() {
-    String s = "hello";
+    str* s = "hello";
     assert_eq!(s.len(), 5);
     assert_eq!(s.to_uppercase(), "HELLO");
 }
 
+i32 triple(i32 x) {
+    add(x, add(x, x))
+}
+
 pub void test_nested_fn_calls() {
-    Int add(Int a, Int b) {
-        a + b
-    }
-    Int triple(Int x) {
-        add(x, add(x, x))
-    }
     assert_eq!(triple(5), 15);
 }
 
+i32 factorial(i32 n) {
+    if (n <= 1) 1
+    else (n) * (factorial(n - 1))
+}
+
 pub void test_recursive_fn() {
-    Int factorial(Int n) {
-        if (n <= 1) { 1 } else { n * factorial(n - 1) }
-    }
     assert_eq!(factorial(5), 120);
 }
 

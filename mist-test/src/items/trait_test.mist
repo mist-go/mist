@@ -8,12 +8,12 @@ struct Dog {
 
 impl Speak for Dog {
     String speak(self*) {
-        "woof"
+        "woof".to_string()
     }
 }
 
 pub void test_trait_impl() {
-    let d = Dog { name: "Rex" };
+    let d = Dog { name: "Rex".to_string() };
     assert_eq!(d.speak(), "woof");
 }
 
@@ -23,12 +23,12 @@ trait Greet : Speak {
 
 impl Greet for Dog {
     String greet(self*) {
-        "hello"
+        "hello".to_string()
     }
 }
 
 pub void test_trait_with_requirement() {
-    let d = Dog { name: "Buddy" };
+    let d = Dog { name: "Buddy".to_string() };
     assert_eq!(d.speak(), "woof");
     assert_eq!(d.greet(), "hello");
 }

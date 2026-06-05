@@ -1,7 +1,7 @@
 pub class Counter {
-    pub Int count;
+    pub i32 count;
 
-    pub constructor(Int start) {
+    pub constructor(i32 start) {
         self.count = start;
     }
 
@@ -9,7 +9,7 @@ pub class Counter {
         self.count++;
     }
 
-    pub Int get(self*) -> Int {
+    pub i32 get(self*) {
         self.count
     }
 }
@@ -33,17 +33,17 @@ pub void test_class_field_access() {
 class NamedCounter : Counter {
     pub String name;
 
-    pub constructor(Int start, String name) {
+    pub constructor(i32 start, String name) {
         self.name = name;
     }
 
-    pub String get_name(self*) -> String {
-        self.name
+    pub String get_name(self*) {
+        self.name.clone()
     }
 }
 
 pub void test_class_inherit() {
-    let nc = NamedCounter::new(10, "test");
+    let nc = NamedCounter::new(10, "test".to_string());
     assert_eq!(nc.get_name(), "test");
     assert_eq!(nc.count, 10);
 }

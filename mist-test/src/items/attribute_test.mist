@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub struct Debuggable {
-    Int value,
+    i32 value,
 }
 
 pub void test_derive_attribute() {

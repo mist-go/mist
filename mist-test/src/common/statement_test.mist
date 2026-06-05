@@ -2,10 +2,10 @@ pub void test_var_decl() {
     let x = 42;
     assert_eq!(x, 42);
 
-    Int y = 10;
+    i32 y = 10;
     assert_eq!(y, 10);
 
-    String name = "mist";
+    str* name = "mist";
     assert_eq!(name, "mist");
 }
 
@@ -109,6 +109,7 @@ pub void test_match_literal() {
         1 => { result = 10; }
         2 => { result = 20; }
         3 => { result = 30; }
+        _ => panic!();
     }
     assert_eq!(result, 20);
 }
@@ -120,6 +121,7 @@ pub void test_match_or_pattern() {
     match (x) {
         1 | 2 => { result = 100; }
         3 => { result = 200; }
+        _ => panic!();
     }
     assert_eq!(result, 100);
 }
