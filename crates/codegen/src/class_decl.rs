@@ -137,7 +137,7 @@ pub fn class_decl(
     cg.add_indentedln("#[allow(invalid_value)]");
     cg.add_indentedln(&constructor_comment);
 
-    (fields, constructor).gen_rust(ctx, cg);
+    (fields, constructor, inherits.is_some()).gen_rust(ctx, cg);
 
     for mut method in methods {
         match method.item.visibility {
@@ -200,7 +200,13 @@ pub fn class_decl(
     }
 }
 
-impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &Spanned<ClassConstructor>) {
+impl GenRust
+    for (
+        &Vec<Spanned<FieldDeclStmt>>,
+        &Spanned<ClassConstructor>,
+        bool,
+    )
+{
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         cg.add_indented(&format!(
             "{}fn new{}(",
@@ -263,6 +269,10 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &Spanned<ClassConstructor>) {
         }
 
         cg.addln(");");
+
+        if self.2 {
+            cg.add("this._super._m_oop.0 = &Self::__SUPER_V_TABLE as *const *const std::ffi::c_void;");
+        }
 
         cg.add_indentedln("this");
 
