@@ -32,6 +32,7 @@ keyword = {
   | "loop"
   | "fn"
   | "unsafe"
+  | "override"
 }
 
 identifier = @{
@@ -324,8 +325,10 @@ trait_decl = {
 // FUNCTIONS
 // ======================================================
 
+override_kw = { "override" }
+
 function_decl = {
-    visibility? ~ "fn" ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ type_expr? ~ (block | semicolon)
+    visibility? ~ override_kw? ~ "fn" ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ type_expr? ~ (block | semicolon)
 }
 
 // ======================================================

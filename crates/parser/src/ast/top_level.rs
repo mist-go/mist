@@ -94,6 +94,7 @@ pub struct ClassConstructor {
 #[derive(Debug, Clone, Serialize)]
 pub struct FunctionDecl {
     pub visibility: Visibility,
+    pub is_override: bool,
     pub name: Identifier,
     pub generics: GenericsDecl,
     pub params: ParamList,

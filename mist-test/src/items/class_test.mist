@@ -42,6 +42,10 @@ class NamedCounter : Counter {
     pub fn get_name(*self) String {
         self.name.clone()
     }
+
+    pub override fn increment(*mut self) {
+        println!("OK!!");
+    }
 }
 
 pub fn test_class_inherit() {

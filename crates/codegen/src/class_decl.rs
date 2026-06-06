@@ -71,7 +71,7 @@ pub fn class_decl(
     let v_table = methods
         .iter()
         .filter_map(|method| match method.item.visibility {
-            Visibility::Public => Some(method.item.name.clone()),
+            Visibility::Public => Some((method.item.name.clone(), method.item.is_override)),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -83,14 +83,14 @@ pub fn class_decl(
         for (i, method_name) in v_table.iter().enumerate() {
             cg.add_indentedln(&format!(
                 "pub const __FN_{}: usize = {i};",
-                method_name.0.to_uppercase()
+                method_name.0.0.to_uppercase()
             ));
         }
 
         cg.add_indentedln("pub const __V_TABLE: [*const std::ffi::c_void; Self::__V_COUNT] = [");
         cg.indent += 1;
 
-        for method_name in v_table {
+        for (method_name, _) in &v_table {
             cg.add_indented("Self::__m_");
             cg.add(&method_name.get_rust());
             cg.add(" as *const std::ffi::c_void");
@@ -99,6 +99,37 @@ pub fn class_decl(
 
         cg.indent -= 1;
         cg.add_indentedln("];");
+    }
+
+    // Super V Table
+    if let Some(inherits) = inherits {
+        cg.add_indented(&format!(
+            "pub const __SUPER_V_TABLE: [*const std::ffi::c_void; {}",
+            inherits.get_rust()
+        ));
+
+        cg.addln("::__V_COUNT] = {");
+        cg.indent += 1;
+
+        cg.add_indented("let mut table = ");
+        cg.add(&inherits.get_rust());
+        cg.addln("::__V_TABLE;");
+
+        for (name, is_override) in v_table {
+            if is_override {
+                cg.add_indentedln(&format!(
+                    "table[{}::__FN_{}] = Self::__m_{} as *const std::ffi::c_void;",
+                    inherits.get_rust(),
+                    name.0.to_uppercase(),
+                    name.get_rust()
+                ));
+            }
+        }
+
+        cg.add_indentedln("table");
+
+        cg.indent -= 1;
+        cg.add_indentedln("};");
     }
 
     let constructor_comment = constructor.get_comment();
@@ -257,6 +288,7 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &Spanned<ClassConstructor>) {
             column: self.1.column,
             item: FunctionDecl {
                 visibility: self.1.item.visibility.clone(),
+                is_override: false,
                 name: Identifier(String::from("constructor")),
                 generics: self.1.item.generics.clone(),
                 params: ParamList(constructor_params),
