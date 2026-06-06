@@ -112,7 +112,66 @@ pub fn class_decl(
         {
             let body = method.item.body;
 
-            method.item.body = Some(Block(Vec::new(), None));
+            method.item.body = Some(Block {
+                is_unsafe: false,
+                statements: Vec::new(),
+                soft_return: Some(Spanned {
+                    line: 1,
+                    column: 1,
+                    item: Expression::Statement(Box::new(Statement::Block(Block {
+                        is_unsafe: true,
+                        statements: vec![Spanned {
+                            line: 1,
+                            column: 1,
+                            item: Expression::Statement(Box::new(Statement::VarDecl(
+                                VarDeclStmt {
+                                    decl: VarDecl {
+                                        name: Pattern::Path(
+                                            false,
+                                            Path(vec![Identifier(String::from("func_ptr"))]),
+                                        ),
+                                        type_: None,
+                                    },
+                                    init: Some(Expression::Fix {
+                                        initial: Box::new(Expression::Path(ExprPath(vec![
+                                            ExprPathSegment {
+                                                ident: Identifier(String::from("self")),
+                                                generics: None,
+                                            },
+                                        ]))),
+                                        prefixes: vec![Prefix::Deref],
+                                        postfixes: vec![
+                                            Postfix::FieldAccess(
+                                                Identifier(String::from("_m_oop")),
+                                                None,
+                                            ),
+                                            Postfix::TupleFieldAccess(0, None),
+                                            Postfix::FieldAccess(
+                                                Identifier(String::from("add")),
+                                                None,
+                                            ),
+                                            Postfix::Call(vec![Expression::Path(ExprPath(vec![
+                                                ExprPathSegment {
+                                                    ident: Identifier(String::from("Self")),
+                                                    generics: None,
+                                                },
+                                                ExprPathSegment {
+                                                    ident: Identifier(format!(
+                                                        "__FN_{}",
+                                                        method.item.name.0.to_uppercase()
+                                                    )),
+                                                    generics: None,
+                                                },
+                                            ]))]),
+                                        ],
+                                    }),
+                                },
+                            ))),
+                        }],
+                        soft_return: None,
+                    }))),
+                }),
+            });
 
             method.gen_rust(ctx, cg);
             method.item.body = body;

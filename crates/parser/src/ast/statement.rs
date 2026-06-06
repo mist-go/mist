@@ -3,10 +3,12 @@ use serde::Serialize;
 use super::*;
 
 #[derive(Debug, Clone, Serialize, Default)]
-pub struct Block(
-    pub Vec<Spanned<Expression>>,
-    pub Option<Spanned<Expression>>,
-);
+pub struct Block {
+    pub is_unsafe: bool,
+
+    pub statements: Vec<Spanned<Expression>>,
+    pub soft_return: Option<Spanned<Expression>>,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub enum StatementBody {

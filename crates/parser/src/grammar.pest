@@ -63,6 +63,8 @@ static_path = {
     identifier ~ ("::" ~ identifier)*
 }
 
+unsafe_kw = { "unsafe" }
+
 // ======================================================
 // PROGRAM
 // ======================================================
@@ -340,7 +342,7 @@ top_level = {
 // ======================================================
 
 block = {
-    "{" ~ statement_list ~ expr? ~ "}"
+    unsafe_kw? ~ "{" ~ statement_list ~ expr? ~ "}"
 }
 
 statement_list = {
