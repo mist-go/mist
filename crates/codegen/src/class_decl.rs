@@ -142,7 +142,9 @@ pub fn class_decl(
     for mut method in methods {
         match method.item.visibility {
             Visibility::Public => {
-                gen_method_point(&method.item, ctx, cg);
+                if !method.item.is_override {
+                    gen_method_point(&method.item, ctx, cg);
+                }
 
                 method.item.name.0.insert_str(0, "__m_");
             }
@@ -271,7 +273,9 @@ impl GenRust
         cg.addln(");");
 
         if self.2 {
-            cg.add("this._super._m_oop.0 = &Self::__SUPER_V_TABLE as *const *const std::ffi::c_void;");
+            cg.add_indentedln(
+                "this._super._m_oop.0 = &Self::__SUPER_V_TABLE as *const *const std::ffi::c_void;",
+            );
         }
 
         cg.add_indentedln("this");
