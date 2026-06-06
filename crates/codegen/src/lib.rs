@@ -176,11 +176,6 @@ impl GetRust for Identifier {
 impl GetRust for TypeExpr {
     fn get_rust(&self) -> String {
         match self {
-            // TypePostfix::Ref => format!("&"),
-            // TypePostfix::RefMut => format!("&mut "),
-            // TypePostfix::RefLifetime(lifetime) => format!("&'{} ", lifetime.get_rust()),
-            // TypePostfix::RefMutLifetime(lifetime) => format!("&'{} mut ", lifetime.get_rust()),
-            // TypePostfix::Dyn => format!("dyn "),
             Self::Path(path, generics) => {
                 if let Some(generics) = generics {
                     format!("{}{}", get_static_type_path(path), generics.get_rust())
@@ -191,6 +186,14 @@ impl GetRust for TypeExpr {
             Self::Lifetime(name) => format!("'{}", name.get_rust()),
             Self::Tuple(types) => format!(
                 "({})",
+                types
+                    .into_iter()
+                    .map(|t| t.get_rust())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Self::StaticFn(types) => format!(
+                "fn({})",
                 types
                     .into_iter()
                     .map(|t| t.get_rust())

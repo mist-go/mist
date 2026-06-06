@@ -26,6 +26,7 @@ pub enum TypeExpr {
     },
     Dyn(Box<TypeExpr>),
     Path(Path, Option<Generics>),
+    StaticFn(Vec<TypeExpr>),
     Tuple(Vec<TypeExpr>),
     Lifetime(Identifier),
 }
