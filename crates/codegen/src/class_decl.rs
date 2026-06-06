@@ -25,6 +25,8 @@ pub fn class_decl(
     ));
     cg.indent += 1;
 
+    cg.add_indentedln("pub _m_oop: (*const *const std::ffi::c_void, *mut std::ffi::c_void),");
+
     if let Some(inherits) = inherits {
         cg.add_indented("pub _super: ");
         cg.add(&inherits.get_rust());
@@ -57,6 +59,48 @@ pub fn class_decl(
     ));
     cg.indent += 1;
 
+    let methods = items
+        .clone()
+        .into_iter()
+        .filter_map(|item| match item {
+            ClassItem::ImplDecl(_) => None,
+            ClassItem::Method(method) => Some(method),
+        })
+        .collect::<Vec<_>>();
+
+    let v_table = methods
+        .iter()
+        .filter_map(|method| match method.item.visibility {
+            Visibility::Public => Some(method.item.name.clone()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    // V TABLE
+    {
+        cg.add_indentedln(&format!("pub const __V_COUNT: usize = {};", v_table.len()));
+
+        for (i, method_name) in v_table.iter().enumerate() {
+            cg.add_indentedln(&format!(
+                "pub const __FN_{}: usize = {i};",
+                method_name.0.to_uppercase()
+            ));
+        }
+
+        cg.add_indentedln("pub const __V_TABLE: [*const std::ffi::c_void; Self::__V_COUNT] = [");
+        cg.indent += 1;
+
+        for method_name in v_table {
+            cg.add_indented("Self::__m_");
+            cg.add(&method_name.get_rust());
+            cg.add(" as *const std::ffi::c_void");
+            cg.addln(",");
+        }
+
+        cg.indent -= 1;
+        cg.add_indentedln("];");
+    }
+
     let constructor_comment = constructor.get_comment();
 
     cg.add_indentedln("#[allow(invalid_value)]");
@@ -64,11 +108,18 @@ pub fn class_decl(
 
     (fields, constructor).gen_rust(ctx, cg);
 
-    for item in items.clone() {
-        match item {
-            ClassItem::ImplDecl(_) => {}
-            ClassItem::Method(method) => method.gen_rust(ctx, cg),
+    for mut method in methods {
+        {
+            let body = method.item.body;
+
+            method.item.body = Some(Block(Vec::new(), None));
+
+            method.gen_rust(ctx, cg);
+            method.item.body = body;
         }
+
+        method.item.name.0.insert_str(0, "__m_");
+        method.gen_rust(ctx, cg);
     }
 
     cg.indent -= 1;
