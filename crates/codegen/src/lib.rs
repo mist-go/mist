@@ -192,14 +192,33 @@ impl GetRust for TypeExpr {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            Self::StaticFn(types) => format!(
-                "fn({})",
-                types
-                    .into_iter()
-                    .map(|t| t.get_rust())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
+            Self::StaticFn(types, return_type) => {
+                if let Some(return_type) = return_type {
+                    format!(
+                        "fn({}) -> {}",
+                        types
+                            .into_iter()
+                            .map(|t| t.get_rust())
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                        return_type.get_rust()
+                    )
+                } else {
+                    format!(
+                        "fn({})",
+                        types
+                            .into_iter()
+                            .map(|t| t.get_rust())
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    )
+                }
+            }
+
+            Self::UnsafePtr { mutable, ty } => {
+                let mutable = if *mutable { "mut " } else { "const " };
+                format!("*{mutable}{}", ty.get_rust())
+            }
 
             Self::Ref {
                 lifetime,

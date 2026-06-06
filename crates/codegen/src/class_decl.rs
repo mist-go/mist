@@ -317,13 +317,26 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
 
     param_types.remove(0);
 
-    // param_types.insert(0, );
+    param_types.insert(
+        0,
+        TypeExpr::UnsafePtr {
+            mutable: true,
+            ty: Box::new(TypeExpr::Path(
+                Path(vec![
+                    Identifier(String::from("std")),
+                    Identifier(String::from("ffi")),
+                    Identifier(String::from("c_void")),
+                ]),
+                None,
+            )),
+        },
+    );
 
-    cg.add(&TypeExpr::StaticFn(param_types).get_rust());
+    cg.add(&TypeExpr::StaticFn(param_types, method.return_type.clone().map(Box::new)).get_rust());
 
     cg.addln(" = std::mem::transmute(func_ptr);");
 
-    cg.add_indentedln("func(self._m_oop.1);");
+    cg.add_indentedln("func(self._m_oop.1)");
 
     cg.indent -= 1;
     cg.add_indentedln("}");
