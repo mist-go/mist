@@ -120,54 +120,133 @@ pub fn class_decl(
                     column: 1,
                     item: Expression::Statement(Box::new(Statement::Block(Block {
                         is_unsafe: true,
-                        statements: vec![Spanned {
-                            line: 1,
-                            column: 1,
-                            item: Expression::Statement(Box::new(Statement::VarDecl(
-                                VarDeclStmt {
-                                    decl: VarDecl {
-                                        name: Pattern::Path(
-                                            false,
-                                            Path(vec![Identifier(String::from("func_ptr"))]),
-                                        ),
-                                        type_: None,
+                        statements: vec![
+                            Spanned {
+                                line: 1,
+                                column: 1,
+                                item: Expression::Statement(Box::new(Statement::VarDecl(
+                                    VarDeclStmt {
+                                        decl: VarDecl {
+                                            name: Pattern::Path(
+                                                false,
+                                                Path(vec![Identifier(String::from("func_ptr"))]),
+                                            ),
+                                            type_: None,
+                                        },
+                                        init: Some(Expression::Fix {
+                                            initial: Box::new(Expression::Path(ExprPath(vec![
+                                                ExprPathSegment {
+                                                    ident: Identifier(String::from("self")),
+                                                    generics: None,
+                                                },
+                                            ]))),
+                                            prefixes: vec![Prefix::Deref],
+                                            postfixes: vec![
+                                                Postfix::FieldAccess(
+                                                    Identifier(String::from("_m_oop")),
+                                                    None,
+                                                ),
+                                                Postfix::TupleFieldAccess(0, None),
+                                                Postfix::FieldAccess(
+                                                    Identifier(String::from("add")),
+                                                    None,
+                                                ),
+                                                Postfix::Call(vec![Expression::Path(ExprPath(
+                                                    vec![
+                                                        ExprPathSegment {
+                                                            ident: Identifier(String::from("Self")),
+                                                            generics: None,
+                                                        },
+                                                        ExprPathSegment {
+                                                            ident: Identifier(format!(
+                                                                "__FN_{}",
+                                                                method.item.name.0.to_uppercase()
+                                                            )),
+                                                            generics: None,
+                                                        },
+                                                    ],
+                                                ))]),
+                                            ],
+                                        }),
                                     },
-                                    init: Some(Expression::Fix {
-                                        initial: Box::new(Expression::Path(ExprPath(vec![
-                                            ExprPathSegment {
-                                                ident: Identifier(String::from("self")),
-                                                generics: None,
-                                            },
-                                        ]))),
-                                        prefixes: vec![Prefix::Deref],
-                                        postfixes: vec![
-                                            Postfix::FieldAccess(
-                                                Identifier(String::from("_m_oop")),
-                                                None,
+                                ))),
+                            },
+                            Spanned {
+                                line: 1,
+                                column: 1,
+                                item: Expression::Statement(Box::new(Statement::VarDecl(
+                                    VarDeclStmt {
+                                        decl: VarDecl {
+                                            name: Pattern::Path(
+                                                false,
+                                                Path(vec![Identifier(String::from("func"))]),
                                             ),
-                                            Postfix::TupleFieldAccess(0, None),
-                                            Postfix::FieldAccess(
-                                                Identifier(String::from("add")),
-                                                None,
-                                            ),
-                                            Postfix::Call(vec![Expression::Path(ExprPath(vec![
+                                            type_: Some(TypeExpr::StaticFn(
+                                                method
+                                                    .item
+                                                    .params
+                                                    .0
+                                                    .clone()
+                                                    .into_iter()
+                                                    .filter_map(|v| {
+                                                        Some(match v.type_? {
+                                                            TypeExpr::Ref {
+                                                                lifetime,
+                                                                mutable,
+                                                                ty,
+                                                            } => {
+                                                                
+                                                            }
+
+                                                            TypeExpr::Path(p, g) => {
+                                                                if g.is_some() {}
+                                                            }
+
+                                                            a => a,
+                                                        })
+                                                    })
+                                                    .collect(),
+                                            )),
+                                        },
+                                        init: Some(Expression::Fix {
+                                            initial: Box::new(Expression::Path(ExprPath(vec![
                                                 ExprPathSegment {
-                                                    ident: Identifier(String::from("Self")),
+                                                    ident: Identifier(String::from("self")),
                                                     generics: None,
                                                 },
-                                                ExprPathSegment {
-                                                    ident: Identifier(format!(
-                                                        "__FN_{}",
-                                                        method.item.name.0.to_uppercase()
-                                                    )),
-                                                    generics: None,
-                                                },
-                                            ]))]),
-                                        ],
-                                    }),
-                                },
-                            ))),
-                        }],
+                                            ]))),
+                                            prefixes: vec![Prefix::Deref],
+                                            postfixes: vec![
+                                                Postfix::FieldAccess(
+                                                    Identifier(String::from("_m_oop")),
+                                                    None,
+                                                ),
+                                                Postfix::TupleFieldAccess(0, None),
+                                                Postfix::FieldAccess(
+                                                    Identifier(String::from("add")),
+                                                    None,
+                                                ),
+                                                Postfix::Call(vec![Expression::Path(ExprPath(
+                                                    vec![
+                                                        ExprPathSegment {
+                                                            ident: Identifier(String::from("Self")),
+                                                            generics: None,
+                                                        },
+                                                        ExprPathSegment {
+                                                            ident: Identifier(format!(
+                                                                "__FN_{}",
+                                                                method.item.name.0.to_uppercase()
+                                                            )),
+                                                            generics: None,
+                                                        },
+                                                    ],
+                                                ))]),
+                                            ],
+                                        }),
+                                    },
+                                ))),
+                            },
+                        ],
                         soft_return: None,
                     }))),
                 }),
