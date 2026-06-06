@@ -199,10 +199,14 @@ impl GenRust for (&Vec<Spanned<FieldDeclStmt>>, &Spanned<ClassConstructor>) {
             param.gen_rust(ctx, cg);
         }
 
-        cg.addln(") -> Self {");
+        cg.addln(") -> Box<Self> {");
         cg.indent += 1;
 
-        cg.add_indentedln("let mut this: Self = unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
+        cg.add_indentedln("let mut this = Box::new(unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() });");
+        cg.add_indentedln("let this_ptr = &mut *this as *mut Self as *mut std::ffi::c_void;");
+        cg.add_indentedln(
+            "this._m_oop = (&Self::__V_TABLE as *const *const std::ffi::c_void, this_ptr);",
+        );
 
         for field in self.0 {
             let comment = field.get_comment();
