@@ -28,9 +28,9 @@ pub fn class_decl(
     cg.add_indentedln("pub _m_oop: (*const *const std::ffi::c_void, *mut std::ffi::c_void),");
 
     if let Some(inherits) = inherits {
-        cg.add_indented("pub _super: ");
+        cg.add_indented("pub _super: Box<");
         cg.add(&inherits.get_rust());
-        cg.addln(",");
+        cg.addln(">,");
     }
 
     for field in fields.clone() {
