@@ -1,3 +1,4 @@
+pub mod class_decl;
 pub mod expr;
 pub mod statement;
 pub mod top_level;
