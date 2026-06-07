@@ -184,9 +184,9 @@ impl GetRust for TypeExpr {
         match self {
             Self::Path(path, generics) => {
                 if let Some(generics) = generics {
-                    format!("{}{}", get_static_type_path(path), generics.get_rust())
+                    format!("{}{}", path.get_rust(), generics.get_rust())
                 } else {
-                    get_static_type_path(path)
+                    path.get_rust()
                 }
             }
             Self::Lifetime(name) => format!("'{}", name.get_rust()),
@@ -244,16 +244,6 @@ impl GetRust for TypeExpr {
                 format!("dyn {}", ty.get_rust())
             }
         }
-    }
-}
-
-pub fn get_static_type_path(path: &Path) -> String {
-    let rust_path = path.get_rust();
-
-    if rust_path == "void" {
-        format!("()")
-    } else {
-        rust_path
     }
 }
 
