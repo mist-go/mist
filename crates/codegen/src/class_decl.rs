@@ -16,6 +16,10 @@ pub fn class_decl(
     constructor: &Spanned<ClassConstructor>,
     items: &Vec<ClassItem>,
 ) {
+    if let Some(inherits) = inherits {
+        ctx.expr_super = Some(get_type_path(inherits));
+    }
+
     // Struct decl
     cg.addln(&format!(
         "{}struct {}{} {{",
@@ -200,6 +204,8 @@ pub fn class_decl(
         cg.indent -= 1;
         cg.addln("}");
     }
+
+    ctx.expr_super = None;
 }
 
 impl GenRust
@@ -393,4 +399,14 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
 
     cg.indent -= 1;
     cg.add_indentedln("}");
+}
+
+pub fn get_type_path(ty: &TypeExpr) -> Path {
+    match ty {
+        TypeExpr::Path(p, _) => p.clone(),
+        TypeExpr::Dyn(v) => get_type_path(v),
+        TypeExpr::Ref { ty, .. } => get_type_path(ty),
+        TypeExpr::UnsafePtr { ty, .. } => get_type_path(ty),
+        _ => unimplemented!(),
+    }
 }

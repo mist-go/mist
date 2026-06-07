@@ -7,6 +7,7 @@ use mist_parser::ast::*;
 
 pub struct Context {
     pub expr_ensure_semicolon: bool,
+    pub expr_super: Option<Path>,
 }
 
 pub trait GenRust {
@@ -15,6 +16,10 @@ pub trait GenRust {
 
 pub trait GetRust {
     fn get_rust(&self) -> String;
+    fn get_rust_ctx(&self, cx: &mut Context) -> String {
+        let _ = cx;
+        self.get_rust()
+    }
 }
 
 #[derive(Default)]
@@ -57,6 +62,7 @@ impl RustCodegen {
     pub fn generate(&mut self, toplevels: Vec<TopLevel>) -> String {
         let mut ctx = Context {
             expr_ensure_semicolon: true,
+            expr_super: None,
         };
 
         for tl in toplevels {

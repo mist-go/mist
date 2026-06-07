@@ -13,7 +13,7 @@ pub class Animal {
 pub class Dog : Animal {
     constructor() {
         unsafe {
-            std::ptr::write(&mut self._super, Animal::new());
+            std::ptr::write(&mut super, Super::new());
         }
     }
 

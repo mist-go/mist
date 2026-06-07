@@ -12,6 +12,30 @@ impl GetRust for ExprPath {
             .collect::<Vec<_>>()
             .join("::")
     }
+
+    fn get_rust_ctx(&self, cx: &mut Context) -> String {
+        let mut a = self.clone();
+
+        if let Some(path) = &cx.expr_super {
+            if self.0[0].ident.0 == "super" {
+                a.0[0].ident.0 = String::from("self._super");
+            } else if self.0[0].ident.0 == "Super" {
+                a.0[0].ident = path.0[0].clone();
+
+                if path.0.len() > 1 {
+                    a.0.splice(
+                        1..1,
+                        path.0.clone().into_iter().skip(1).map(|v| ExprPathSegment {
+                            ident: v,
+                            generics: None,
+                        }),
+                    );
+                }
+            }
+        }
+
+        a.get_rust()
+    }
 }
 
 impl GetRust for ExprPathSegment {
@@ -63,7 +87,7 @@ impl GenRust for Expression {
         };
 
         match self {
-            Expression::Path(path) => cg.add(&path.get_rust()),
+            Expression::Path(path) => cg.add(&path.get_rust_ctx(ctx)),
             Expression::Literal(literal) => literal.gen_rust(ctx, cg),
             Expression::Statement(stmt) => stmt.gen_rust(ctx, cg),
             Expression::Array(values) => {
