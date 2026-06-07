@@ -1,3 +1,4 @@
+pub mod class_decl;
 pub mod expr;
 pub mod statement;
 pub mod top_level;
@@ -6,6 +7,7 @@ use mist_parser::ast::*;
 
 pub struct Context {
     pub expr_ensure_semicolon: bool,
+    pub expr_super: Option<Path>,
 }
 
 pub trait GenRust {
@@ -14,6 +16,10 @@ pub trait GenRust {
 
 pub trait GetRust {
     fn get_rust(&self) -> String;
+    fn get_rust_ctx(&self, cx: &mut Context) -> String {
+        let _ = cx;
+        self.get_rust()
+    }
 }
 
 #[derive(Default)]
@@ -56,6 +62,7 @@ impl RustCodegen {
     pub fn generate(&mut self, toplevels: Vec<TopLevel>) -> String {
         let mut ctx = Context {
             expr_ensure_semicolon: true,
+            expr_super: None,
         };
 
         for tl in toplevels {
@@ -175,16 +182,11 @@ impl GetRust for Identifier {
 impl GetRust for TypeExpr {
     fn get_rust(&self) -> String {
         match self {
-            // TypePostfix::Ref => format!("&"),
-            // TypePostfix::RefMut => format!("&mut "),
-            // TypePostfix::RefLifetime(lifetime) => format!("&'{} ", lifetime.get_rust()),
-            // TypePostfix::RefMutLifetime(lifetime) => format!("&'{} mut ", lifetime.get_rust()),
-            // TypePostfix::Dyn => format!("dyn "),
             Self::Path(path, generics) => {
                 if let Some(generics) = generics {
-                    format!("{}{}", get_static_type_path(path), generics.get_rust())
+                    format!("{}{}", path.get_rust(), generics.get_rust())
                 } else {
-                    get_static_type_path(path)
+                    path.get_rust()
                 }
             }
             Self::Lifetime(name) => format!("'{}", name.get_rust()),
@@ -196,6 +198,33 @@ impl GetRust for TypeExpr {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
+            Self::StaticFn(types, return_type) => {
+                if let Some(return_type) = return_type {
+                    format!(
+                        "fn({}) -> {}",
+                        types
+                            .into_iter()
+                            .map(|t| t.get_rust())
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                        return_type.get_rust()
+                    )
+                } else {
+                    format!(
+                        "fn({})",
+                        types
+                            .into_iter()
+                            .map(|t| t.get_rust())
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    )
+                }
+            }
+
+            Self::UnsafePtr { mutable, ty } => {
+                let mutable = if *mutable { "mut " } else { "const " };
+                format!("*{mutable}{}", ty.get_rust())
+            }
 
             Self::Ref {
                 lifetime,
@@ -215,16 +244,6 @@ impl GetRust for TypeExpr {
                 format!("dyn {}", ty.get_rust())
             }
         }
-    }
-}
-
-pub fn get_static_type_path(path: &Path) -> String {
-    let rust_path = path.get_rust();
-
-    if rust_path == "void" {
-        format!("()")
-    } else {
-        rust_path
     }
 }
 

@@ -32,6 +32,7 @@ keyword = {
   | "loop"
   | "fn"
   | "unsafe"
+  | "override"
 }
 
 identifier = @{
@@ -62,6 +63,8 @@ semicolon = _{ ";" }
 static_path = {
     identifier ~ ("::" ~ identifier)*
 }
+
+unsafe_kw = { "unsafe" }
 
 // ======================================================
 // PROGRAM
@@ -322,8 +325,10 @@ trait_decl = {
 // FUNCTIONS
 // ======================================================
 
+override_kw = { "override" }
+
 function_decl = {
-    visibility? ~ "fn" ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ type_expr? ~ (block | semicolon)
+    visibility? ~ override_kw? ~ "fn" ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ type_expr? ~ (block | semicolon)
 }
 
 // ======================================================
@@ -340,7 +345,7 @@ top_level = {
 // ======================================================
 
 block = {
-    "{" ~ statement_list ~ expr? ~ "}"
+    unsafe_kw? ~ "{" ~ statement_list ~ expr? ~ "}"
 }
 
 statement_list = {

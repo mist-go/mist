@@ -24,8 +24,13 @@ pub enum TypeExpr {
         mutable: bool,
         ty: Box<TypeExpr>,
     },
+    UnsafePtr {
+        mutable: bool,
+        ty: Box<TypeExpr>,
+    },
     Dyn(Box<TypeExpr>),
     Path(Path, Option<Generics>),
+    StaticFn(Vec<TypeExpr>, Option<Box<TypeExpr>>),
     Tuple(Vec<TypeExpr>),
     Lifetime(Identifier),
 }

@@ -6,16 +6,20 @@ use crate::{GenRust, GetRust, RustCodegen};
 
 impl GenRust for Block {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
+        if self.is_unsafe {
+            cg.add("unsafe ");
+        }
+
         cg.addln("{");
         cg.indent += 1;
 
-        for stmt in &self.0 {
+        for stmt in &self.statements {
             ctx.expr_ensure_semicolon = true;
             stmt.gen_rust(ctx, cg);
             cg.addln("");
         }
 
-        if let Some(soft_return) = &self.1 {
+        if let Some(soft_return) = &self.soft_return {
             ctx.expr_ensure_semicolon = false;
             soft_return.gen_rust(ctx, cg);
             cg.addln("");
