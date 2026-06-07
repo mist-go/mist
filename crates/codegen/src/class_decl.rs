@@ -16,9 +16,13 @@ pub fn class_decl(
     constructor: &Spanned<ClassConstructor>,
     items: &Vec<ClassItem>,
 ) {
-    if let Some(inherits) = inherits {
-        ctx.expr_super = Some(get_type_path(inherits));
-    }
+    let inherits = if let Some(inherits) = inherits {
+        let path = get_type_path(inherits);
+        ctx.expr_super = Some(path.clone());
+        Some((inherits, path))
+    } else {
+        None
+    };
 
     // Struct decl
     cg.addln(&format!(
@@ -29,9 +33,11 @@ pub fn class_decl(
     ));
     cg.indent += 1;
 
-    cg.add_indentedln("pub _m_oop: (&'static [*const std::ffi::c_void; Self::__V_COUNT], *mut std::ffi::c_void),");
+    cg.add_indentedln(
+        "pub _m_oop: (&'static [*const std::ffi::c_void; Self::__V_COUNT], *mut std::ffi::c_void),",
+    );
 
-    if let Some(inherits) = inherits {
+    if let Some((inherits, _)) = inherits {
         cg.add_indented("pub _super: Box<");
         cg.add(&inherits.get_rust());
         cg.addln(">,");
@@ -106,7 +112,7 @@ pub fn class_decl(
     }
 
     // Super V Table
-    if let Some(inherits) = inherits {
+    if let Some((inherits, inherit_path)) = &inherits {
         cg.add_indented(&format!(
             "pub const __SUPER_V_TABLE: [*const std::ffi::c_void; {}",
             inherits.get_rust()
@@ -134,6 +140,54 @@ pub fn class_decl(
 
         cg.indent -= 1;
         cg.add_indentedln("};");
+
+        cg.add_indentedln("const fn __test_vt() {");
+        cg.indent += 1;
+
+        for i in &methods {
+            if i.item.is_override {
+                let mut params = i
+                    .item
+                    .params
+                    .clone()
+                    .0
+                    .into_iter()
+                    .filter_map(|v| v.type_)
+                    .collect::<Vec<_>>();
+
+                if params.len() == 0 {
+                    continue;
+                }
+
+                match params.remove(0) {
+                    TypeExpr::Ref { mutable, .. } => {
+                        cg.add_indented(&inherit_path.get_rust());
+                        cg.add("::__m_");
+                        cg.add(&i.item.name.get_rust());
+                        cg.add(" as ");
+
+                        params.insert(
+                            0,
+                            TypeExpr::Ref {
+                                lifetime: None,
+                                mutable: mutable,
+                                ty: Box::new((*inherits).clone()),
+                            },
+                        );
+
+                        cg.add(
+                            &TypeExpr::StaticFn(params, i.item.return_type.clone().map(Box::new))
+                                .get_rust(),
+                        );
+                        cg.addln(";");
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        cg.indent -= 1;
+        cg.add_indentedln("}");
     }
 
     let constructor_comment = constructor.get_comment();
@@ -175,7 +229,7 @@ pub fn class_decl(
         }
     }
 
-    if let Some(inherits) = inherits {
+    if let Some((inherits, _)) = inherits {
         cg.add("impl std::ops::Deref for ");
         cg.add(&name.get_rust());
 
@@ -249,9 +303,7 @@ impl GenRust
 
         cg.add_indentedln("let mut this = Box::new(unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() });");
         cg.add_indentedln("let this_ptr = &mut *this as *mut Self as *mut std::ffi::c_void;");
-        cg.add_indentedln(
-            "this._m_oop = (&Self::__V_TABLE, this_ptr);",
-        );
+        cg.add_indentedln("this._m_oop = (&Self::__V_TABLE, this_ptr);");
 
         for field in self.0 {
             let comment = field.get_comment();
@@ -279,9 +331,7 @@ impl GenRust
         cg.addln(");");
 
         if self.2 {
-            cg.add_indentedln(
-                "this._super._m_oop.0 = &Self::__SUPER_V_TABLE;",
-            );
+            cg.add_indentedln("this._super._m_oop.0 = &Self::__SUPER_V_TABLE;");
         }
 
         cg.add_indentedln("this");
