@@ -8,6 +8,10 @@ pub class Animal {
     pub fn speak(*self) {
         println!("Unknown");
     }
+
+    pub fn test_speak(*self) {
+        self.speak();
+    }
 }
 
 pub class Dog : Animal {
@@ -25,5 +29,5 @@ pub class Dog : Animal {
 pub fn run_tests() {
     let dawg = Dog::new();
 
-    dawg.speak();
+    dawg.test_speak();
 }

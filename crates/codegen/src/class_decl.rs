@@ -29,7 +29,7 @@ pub fn class_decl(
     ));
     cg.indent += 1;
 
-    cg.add_indentedln("pub _m_oop: (*const *const std::ffi::c_void, *mut std::ffi::c_void),");
+    cg.add_indentedln("pub _m_oop: (&'static [*const std::ffi::c_void; Self::__V_COUNT], *mut std::ffi::c_void),");
 
     if let Some(inherits) = inherits {
         cg.add_indented("pub _super: Box<");
@@ -250,7 +250,7 @@ impl GenRust
         cg.add_indentedln("let mut this = Box::new(unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() });");
         cg.add_indentedln("let this_ptr = &mut *this as *mut Self as *mut std::ffi::c_void;");
         cg.add_indentedln(
-            "this._m_oop = (&Self::__V_TABLE as *const *const std::ffi::c_void, this_ptr);",
+            "this._m_oop = (&Self::__V_TABLE, this_ptr);",
         );
 
         for field in self.0 {
@@ -280,7 +280,7 @@ impl GenRust
 
         if self.2 {
             cg.add_indentedln(
-                "this._super._m_oop.0 = &Self::__SUPER_V_TABLE as *const *const std::ffi::c_void;",
+                "this._super._m_oop.0 = &Self::__SUPER_V_TABLE;",
             );
         }
 
@@ -357,7 +357,7 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
     cg.indent += 1;
 
     cg.add_indentedln(&format!(
-        "let func_ptr = *self._m_oop.0.add(Self::__FN_{});",
+        "let func_ptr = self._m_oop.0[Self::__FN_{}];",
         method.name.0.to_uppercase()
     ));
 
