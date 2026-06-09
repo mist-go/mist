@@ -25,6 +25,23 @@ pub fn class_decl(
 
     let self_ty = get_type_from_path(&self_path);
 
+    let methods = items
+        .clone()
+        .into_iter()
+        .filter_map(|item| match item {
+            ClassItem::ImplDecl(_) => None,
+            ClassItem::Method(method) => Some(method),
+        })
+        .collect::<Vec<_>>();
+
+    let v_table = methods
+        .iter()
+        .filter_map(|method| match method.item.visibility {
+            Visibility::Public => Some((method.item.name.clone(), method.item.is_override.clone())),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
     // Struct decl
     cg.addln(&format!(
         "{}struct {}{} {{",
@@ -35,8 +52,8 @@ pub fn class_decl(
     cg.indent += 1;
 
     cg.add_indentedln(&format!(
-        "pub _m_oop: (&'static [*const std::ffi::c_void; {}::__V_COUNT], *mut std::ffi::c_void),",
-        self_path.get_rust()
+        "pub _m_oop: (&'static [*const std::ffi::c_void; {}], *mut std::ffi::c_void),",
+        v_table.len()
     ));
 
     if let Some(inherits) = inherits {
@@ -61,23 +78,6 @@ pub fn class_decl(
     ));
     cg.indent += 1;
 
-    let methods = items
-        .clone()
-        .into_iter()
-        .filter_map(|item| match item {
-            ClassItem::ImplDecl(_) => None,
-            ClassItem::Method(method) => Some(method),
-        })
-        .collect::<Vec<_>>();
-
-    let v_table = methods
-        .iter()
-        .filter_map(|method| match method.item.visibility {
-            Visibility::Public => Some((method.item.name.clone(), method.item.is_override.clone())),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-
     // V TABLE
     {
         cg.add_indentedln(&format!("pub const __V_COUNT: usize = {};", v_table.len()));
@@ -89,7 +89,10 @@ pub fn class_decl(
             ));
         }
 
-        cg.add_indentedln("pub const __V_TABLE: [*const std::ffi::c_void; Self::__V_COUNT] = [");
+        cg.add_indentedln(&format!(
+            "pub const __V_TABLE: [*const std::ffi::c_void; {}] = [",
+            v_table.len()
+        ));
         cg.indent += 1;
 
         for (method_name, _) in &v_table {
@@ -120,9 +123,10 @@ pub fn class_decl(
         for (name, is_override) in v_table {
             if is_override.is_some() {
                 cg.add_indentedln(&format!(
-                    "table[{}::__FN_{}] = Self::__m_{} as *const std::ffi::c_void;",
+                    "table[{}::__FN_{}] = {}::__m_{} as *const std::ffi::c_void;",
                     inherits.get_rust(),
                     name.0.to_uppercase(),
+                    self_path.get_rust(),
                     name.get_rust()
                 ));
             }
