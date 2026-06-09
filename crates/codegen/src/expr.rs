@@ -111,11 +111,19 @@ impl GenRust for Expression {
                     postfix.gen_rust(ctx, cg);
                 }
             }
-            // Safely integrated to handle the tree structure built by the Pratt Parser
+
             Expression::Binary { lhs, op, rhs } => {
-                lhs.gen_rust(ctx, cg);
-                cg.add(op);
-                rhs.gen_rust(ctx, cg);
+                if op == "->" {
+                    cg.add("unsafe { std::ptr::write(&mut ");
+                    lhs.gen_rust(ctx, cg);
+                    cg.add(", ");
+                    rhs.gen_rust(ctx, cg);
+                    cg.add(") }");
+                } else {
+                    lhs.gen_rust(ctx, cg);
+                    cg.add(op);
+                    rhs.gen_rust(ctx, cg);
+                }
             }
 
             Expression::Closure {

@@ -1,13 +1,18 @@
-pub class Player {
-    pub name String;
-    pub hp i32;
+fn main() {
+    println!("running common tests...");
+    common::expr_test::run_tests();
+    common::statement_test::run_tests();
+    common::decl_test::run_tests();
+    common::types_test::run_tests();
 
-    pub constructor(name *str) {
-        self.hp = 100;
-        self.name.to_string();
-    }
+    println!("running items tests...");
+    items::function_test::run_tests();
+    items::struct_test::run_tests();
+    items::enum_test::run_tests();
+    items::class_test::run_tests();
+    items::trait_test::run_tests();
+    items::impl_test::run_tests();
+    items::attribute_test::run_tests();
 
-    pub fn is_dead(*self) bool {
-        self.hp <= 0
-    }
+    println!("\x1b[32m\nAll tests passed!\x1b[0m");
 }

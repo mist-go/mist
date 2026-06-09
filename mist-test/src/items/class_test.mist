@@ -17,9 +17,7 @@ pub class Animal<T> {
 
 pub class Mammal<T> : Animal<T> {
     constructor() {
-        unsafe {
-            std::ptr::write(&mut super, Super::new());
-        }
+        super -> Super::new();
     }
 
     pub fn args_test(*self, x i32, y *str) {}
@@ -31,9 +29,7 @@ pub class Mammal<T> : Animal<T> {
 
 pub class Dog : Mammal<i32> {
     constructor() {
-        unsafe {
-            std::ptr::write(&mut super, Super::new());
-        }
+        super -> Super::new();
     }
 
     pub override(Animal<i32>) fn speak(*self) {
