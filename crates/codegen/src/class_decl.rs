@@ -535,11 +535,22 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
         method.generics.get_rust(),
     ));
 
-    for (i, param) in method.params.0.iter().enumerate() {
-        if i > 0 {
+    let params = method
+        .params
+        .0
+        .clone()
+        .into_iter()
+        .enumerate()
+        .map(|(idx, mut v)| {
+            v.name = construct_pattern(&v.name, idx);
+            (idx, v)
+        })
+        .collect::<Vec<_>>();
+
+    for (i, param) in &params {
+        if *i > 0 {
             cg.add(", ");
         }
-
         param.gen_rust(ctx, cg);
     }
 
@@ -570,7 +581,9 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
         .filter_map(|v| v.type_)
         .collect();
 
-    param_types.remove(0);
+    if !param_types.is_empty() {
+        param_types.remove(0);
+    }
 
     param_types.insert(
         0,
@@ -588,10 +601,20 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
     );
 
     cg.add(&TypeExpr::StaticFn(param_types, method.return_type.clone().map(Box::new)).get_rust());
-
     cg.addln(" = std::mem::transmute(func_ptr);");
 
-    cg.add_indentedln("func(self._m_oop.1)");
+    cg.add_indented("func(self._m_oop.1");
+
+    for (i, param) in &params {
+        if *i == 0 {
+            continue; // self._m_oop.1 already fulfills it
+        }
+        cg.add(", ");
+        ctx.expr_ensure_semicolon = false;
+        param.name.gen_rust(ctx, cg);
+    }
+
+    cg.addln(");");
 
     cg.indent -= 1;
     cg.add_indentedln("}");

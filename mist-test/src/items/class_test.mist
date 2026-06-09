@@ -21,6 +21,8 @@ pub class Mammal<T> : Animal<T> {
             std::ptr::write(&mut super, Super::new());
         }
     }
+
+    pub fn args_test(*self, x i32, y *str) {}
 }
 
 pub class Dog : Mammal<i32> {
@@ -37,6 +39,8 @@ pub class Dog : Mammal<i32> {
 
 pub fn run_tests() {
     let dawg = Dog::new();
+
+    dawg.args_test(10, "hello");
 
     dawg.test_speak();
 }
