@@ -1,4 +1,4 @@
-# Mist Language: <br/> A C++ inspired langauge in the Rust ecosystem
+# Mist - A Pragmatic Systems Language built on Rust
 
 <!--
 Originally this readme was part of the Carbon Language project, licensed with Apache-2.0
@@ -29,6 +29,6 @@ The `div` reduces the vertical height. The `picture` prevents autolinking.
 - Designed for fast, readable systems code
 
 **Class and type system**
-- class is syntactic sugar for a Rust struct
-- `struct B extends A` provides inheritance-style syntax over struct composition
+- class is syntactic sugar for a Rust struct with V Tables
+- `class B : A` provides inheritance-style syntax over struct composition
 - Classes and structs compile into the same underlying Rust type system model
