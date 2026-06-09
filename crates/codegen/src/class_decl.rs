@@ -52,8 +52,7 @@ pub fn class_decl(
     cg.indent += 1;
 
     cg.add_indentedln(&format!(
-        "pub _m_oop: (&'static [*const std::ffi::c_void; {}], *mut std::ffi::c_void),",
-        v_table.len()
+        "pub _m_oop: (&'static [*const std::ffi::c_void], *mut std::ffi::c_void),",
     ));
 
     if let Some(inherits) = inherits {
@@ -80,8 +79,6 @@ pub fn class_decl(
 
     // V TABLE
     {
-        cg.add_indentedln(&format!("pub const __V_COUNT: usize = {};", v_table.len()));
-
         for (i, method_name) in v_table.iter().enumerate() {
             cg.add_indentedln(&format!(
                 "pub const __FN_{}: usize = {i};",
@@ -108,12 +105,7 @@ pub fn class_decl(
 
     // Super V Table
     if let Some(inherits) = &inherits {
-        cg.add_indented(&format!(
-            "pub const __SUPER_V_TABLE: [*const std::ffi::c_void; {}",
-            inherits.get_rust()
-        ));
-
-        cg.addln("::__V_COUNT] = {");
+        cg.add_indented("pub const __SUPER_V_TABLE: &'static [*const std::ffi::c_void] = &{");
         cg.indent += 1;
 
         cg.add_indented("let mut table = ");
