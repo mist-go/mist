@@ -8,16 +8,16 @@ pub use expr::*;
 pub use statement::*;
 pub use top_level::*;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub struct Path(pub Vec<Identifier>);
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub struct Identifier(pub String);
 
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct ParamList(pub Vec<VarDecl>);
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub enum TypeExpr {
     Ref {
         lifetime: Option<Identifier>,

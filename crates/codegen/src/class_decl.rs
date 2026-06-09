@@ -1,98 +1,151 @@
 use mist_parser::ast::*;
 
-use crate::Context;
+use crate::{Context, GenRust, GetRust, RustCodegen};
 
-use crate::{GenRust, GetRust, RustCodegen};
+// ── Stage 1: Data Collection & Metadata Analysis ──────────────────────
 
-pub fn class_decl(
-    ctx: &mut Context,
-    cg: &mut RustCodegen,
+pub struct ClassProcessedData {
+    visibility: Visibility,
+    name: Identifier,
+    generics: GenericsDecl,
+    inherits: Option<ExprPath>,
+    self_path: ExprPath,
+    self_ty: TypeExpr,
+    fields: Vec<Spanned<FieldDeclStmt>>,
+    constructor: Spanned<ClassConstructor>,
+    items: Vec<ClassItem>,
+    methods: Vec<Spanned<FunctionDecl>>,
+    v_table: Vec<(Identifier, Option<Override>)>,
+}
 
-    visibility: &Visibility,
-    name: &Identifier,
-    generics: &GenericsDecl,
-    inherits: &Option<ExprPath>,
-    fields: &Vec<Spanned<FieldDeclStmt>>,
-    constructor: &Spanned<ClassConstructor>,
-    items: &Vec<ClassItem>,
-) {
-    ctx.expr_super = inherits.clone();
+impl ClassProcessedData {
+    pub fn analyze(
+        visibility: &Visibility,
+        name: &Identifier,
+        generics: &GenericsDecl,
+        inherits: &Option<ExprPath>,
+        fields: &Vec<Spanned<FieldDeclStmt>>,
+        constructor: &Spanned<ClassConstructor>,
+        items: &Vec<ClassItem>,
+    ) -> Self {
+        let self_path = ExprPath(vec![ExprPathSegment {
+            ident: name.clone(),
+            generics: generics.clone().into(),
+        }]);
 
-    let self_path = ExprPath(vec![ExprPathSegment {
-        ident: name.clone(),
-        generics: generics.clone().into(),
-    }]);
+        let self_ty = get_type_from_path(&self_path);
 
-    let self_ty = get_type_from_path(&self_path);
+        let methods = items
+            .clone()
+            .into_iter()
+            .filter_map(|item| match item {
+                ClassItem::ImplDecl(_) => None,
+                ClassItem::Method(method) => Some(method),
+            })
+            .collect::<Vec<_>>();
 
-    let methods = items
-        .clone()
-        .into_iter()
-        .filter_map(|item| match item {
-            ClassItem::ImplDecl(_) => None,
-            ClassItem::Method(method) => Some(method),
-        })
-        .collect::<Vec<_>>();
+        let v_table = methods
+            .iter()
+            .filter_map(|method| match method.item.visibility {
+                Visibility::Public => {
+                    Some((method.item.name.clone(), method.item.is_override.clone()))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
 
-    let v_table = methods
-        .iter()
-        .filter_map(|method| match method.item.visibility {
-            Visibility::Public => Some((method.item.name.clone(), method.item.is_override.clone())),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-
-    // Struct decl
-    cg.addln(&format!(
-        "{}struct {}{} {{",
-        visibility.get_rust(),
-        name.clone().get_rust(),
-        generics.clone().get_rust()
-    ));
-    cg.indent += 1;
-
-    cg.add_indentedln(&format!(
-        "pub _m_oop: (&'static [*const std::ffi::c_void], *mut std::ffi::c_void),",
-    ));
-
-    if let Some(inherits) = inherits {
-        cg.add_indented("pub _super: Box<");
-        cg.add(&get_type_from_path(inherits).get_rust());
-        cg.addln(">,");
+        ClassProcessedData {
+            visibility: visibility.clone(),
+            name: name.clone(),
+            generics: generics.clone(),
+            inherits: inherits.clone(),
+            self_path,
+            self_ty,
+            fields: fields.clone(),
+            constructor: constructor.clone(),
+            items: items.clone(),
+            methods,
+            v_table,
+        }
     }
 
-    for field in fields.clone() {
-        cg.add_indentedln(&field.get_comment());
-        cg.add_indentedln(&field.item.decl.get_rust());
+    // ── Stage 2: Code Emission ───────────────────────────────────────
+
+    pub fn emit(&self, ctx: &mut Context, cg: &mut RustCodegen) {
+        ctx.expr_super = self.inherits.clone();
+
+        self.emit_struct_decl(cg);
+        self.emit_impl_block(ctx, cg);
+        self.emit_impl_decls(ctx, cg);
+        self.emit_deref_impls(cg);
+
+        ctx.expr_super = None;
     }
 
-    cg.indent -= 1;
-    cg.addln("}\n");
+    fn emit_struct_decl(&self, cg: &mut RustCodegen) {
+        cg.addln(&format!(
+            "{}struct {}{} {{",
+            self.visibility.get_rust(),
+            self.name.get_rust(),
+            self.generics.get_rust()
+        ));
+        cg.indent += 1;
 
-    // Constructor
-    cg.addln(&format!(
-        "impl{} {} {{",
-        generics.clone().get_rust(),
-        self_ty.get_rust()
-    ));
-    cg.indent += 1;
+        cg.add_indentedln(
+            "pub _m_oop: (&'static [*const std::ffi::c_void], *mut std::ffi::c_void),",
+        );
 
-    // V TABLE
-    {
-        for (i, method_name) in v_table.iter().enumerate() {
+        if let Some(ref inherits) = self.inherits {
+            cg.add_indented("pub _super: Box<");
+            cg.add(&get_type_from_path(inherits).get_rust());
+            cg.addln(">,");
+        }
+
+        for field in &self.fields {
+            cg.add_indentedln(&field.get_comment());
+            cg.add_indentedln(&field.item.decl.get_rust());
+        }
+
+        cg.indent -= 1;
+        cg.addln("}\n");
+    }
+
+    fn emit_impl_block(&self, ctx: &mut Context, cg: &mut RustCodegen) {
+        cg.addln(&format!(
+            "impl{} {} {{",
+            self.generics.get_rust(),
+            self.self_ty.get_rust()
+        ));
+        cg.indent += 1;
+
+        self.emit_v_table(cg);
+
+        if let Some(ref inherits) = self.inherits {
+            self.emit_super_v_table(cg, inherits);
+        }
+
+        self.emit_constructor(ctx, cg);
+        self.emit_methods(ctx, cg);
+
+        cg.indent -= 1;
+        cg.addln("}\n");
+    }
+
+    fn emit_v_table(&self, cg: &mut RustCodegen) {
+        for (i, (method_name, _)) in self.v_table.iter().enumerate() {
             cg.add_indentedln(&format!(
                 "pub const __FN_{}: usize = {i};",
-                method_name.0.0.to_uppercase()
+                method_name.0.to_uppercase()
             ));
         }
 
         cg.add_indentedln(&format!(
             "pub const __V_TABLE: [*const std::ffi::c_void; {}] = [",
-            v_table.len()
+            self.v_table.len()
         ));
         cg.indent += 1;
 
-        for (method_name, _) in &v_table {
+        for (method_name, _) in &self.v_table {
             cg.add_indented("Self::__m_");
             cg.add(&method_name.get_rust());
             cg.add(" as *const std::ffi::c_void");
@@ -103,8 +156,7 @@ pub fn class_decl(
         cg.add_indentedln("];");
     }
 
-    // Super V Table
-    if let Some(inherits) = &inherits {
+    fn emit_super_v_table(&self, cg: &mut RustCodegen, inherits: &ExprPath) {
         cg.add_indented("pub const __SUPER_V_TABLE: &'static [*const std::ffi::c_void] = &{");
         cg.indent += 1;
 
@@ -112,13 +164,13 @@ pub fn class_decl(
         cg.add(&inherits.get_rust());
         cg.addln("::__V_TABLE;");
 
-        for (name, is_override) in v_table {
+        for (name, is_override) in &self.v_table {
             if is_override.is_some() {
                 cg.add_indentedln(&format!(
                     "table[{}::__FN_{}] = {}::__m_{} as *const std::ffi::c_void;",
                     inherits.get_rust(),
                     name.0.to_uppercase(),
-                    self_path.get_rust(),
+                    self.self_path.get_rust(),
                     name.get_rust()
                 ));
             }
@@ -132,18 +184,18 @@ pub fn class_decl(
         cg.add_indentedln("const fn __test_vt() {");
         cg.indent += 1;
 
-        for i in &methods {
-            if i.item.is_override.is_some() {
-                let mut params = i
+        for method in &self.methods {
+            if method.item.is_override.is_some() {
+                let mut params = method
                     .item
                     .params
-                    .clone()
                     .0
+                    .clone()
                     .into_iter()
                     .filter_map(|v| v.type_)
                     .collect::<Vec<_>>();
 
-                if params.len() == 0 {
+                if params.is_empty() {
                     continue;
                 }
 
@@ -151,21 +203,24 @@ pub fn class_decl(
                     TypeExpr::Ref { mutable, .. } => {
                         cg.add_indented(&inherits.get_rust());
                         cg.add("::__m_");
-                        cg.add(&i.item.name.get_rust());
+                        cg.add(&method.item.name.get_rust());
                         cg.add(" as ");
 
                         params.insert(
                             0,
                             TypeExpr::Ref {
                                 lifetime: None,
-                                mutable: mutable,
+                                mutable,
                                 ty: Box::new(get_type_from_path(inherits)),
                             },
                         );
 
                         cg.add(
-                            &TypeExpr::StaticFn(params, i.item.return_type.clone().map(Box::new))
-                                .get_rust(),
+                            &TypeExpr::StaticFn(
+                                params,
+                                method.item.return_type.clone().map(Box::new),
+                            )
+                            .get_rust(),
                         );
                         cg.addln(";");
                     }
@@ -178,77 +233,100 @@ pub fn class_decl(
         cg.add_indentedln("}");
     }
 
-    let constructor_comment = constructor.get_comment();
+    fn emit_constructor(&self, ctx: &mut Context, cg: &mut RustCodegen) {
+        let constructor_comment = self.constructor.get_comment();
 
-    cg.add_indentedln("#[allow(invalid_value)]");
-    cg.add_indentedln(&constructor_comment);
+        cg.add_indentedln("#[allow(invalid_value)]");
+        cg.add_indentedln(&constructor_comment);
 
-    (fields, constructor, inherits.is_some()).gen_rust(ctx, cg);
-
-    for mut method in methods {
-        match method.item.visibility {
-            Visibility::Public => {
-                if method.item.is_override.is_none() {
-                    gen_method_point(&method.item, ctx, cg);
-                }
-
-                method.item.name.0.insert_str(0, "__m_");
-            }
-            _ => {}
-        }
-
-        method.gen_rust(ctx, cg);
+        (&self.fields, &self.constructor, self.inherits.is_some()).gen_rust(ctx, cg);
     }
 
-    cg.indent -= 1;
-    cg.addln("}\n");
+    fn emit_methods(&self, ctx: &mut Context, cg: &mut RustCodegen) {
+        for method in &self.methods {
+            match method.item.visibility {
+                Visibility::Public => {
+                    if method.item.is_override.is_none() {
+                        gen_method_point(&method.item, ctx, cg);
+                    }
 
-    for item in items {
-        match item {
-            ClassItem::ImplDecl(impl_) => {
+                    let mut prefixed = method.clone();
+                    prefixed.item.name.0.insert_str(0, "__m_");
+                    prefixed.gen_rust(ctx, cg);
+                }
+                _ => {
+                    method.gen_rust(ctx, cg);
+                }
+            }
+        }
+    }
+
+    fn emit_impl_decls(&self, ctx: &mut Context, cg: &mut RustCodegen) {
+        for item in &self.items {
+            if let ClassItem::ImplDecl(impl_) = item {
                 let mut impl_ = impl_.clone();
-
                 impl_.item.trait_ = Some(impl_.item.target);
-                impl_.item.target = TypeExpr::Path(Path(vec![name.clone()]), None);
-
+                impl_.item.target = TypeExpr::Path(Path(vec![self.name.clone()]), None);
                 impl_.gen_rust(ctx, cg);
             }
-            ClassItem::Method(_) => {}
         }
     }
 
-    if let Some(inherits) = inherits {
-        cg.add("impl std::ops::Deref for ");
-        cg.add(&name.get_rust());
+    fn emit_deref_impls(&self, cg: &mut RustCodegen) {
+        if let Some(ref inherits) = self.inherits {
+            cg.add("impl std::ops::Deref for ");
+            cg.add(&self.name.get_rust());
+            cg.addln(" {");
+            cg.indent += 1;
 
-        cg.addln(" {");
-        cg.indent += 1;
+            cg.add_indented("type Target = ");
+            cg.add(&inherits.get_rust());
+            cg.addln(";");
 
-        cg.add_indented("type Target = ");
-        cg.add(&inherits.get_rust());
-        cg.addln(";");
+            cg.add_indentedln("fn deref(&self) -> &Self::Target {&self._super}");
 
-        cg.add_indentedln("fn deref(&self) -> &Self::Target {&self._super}");
+            cg.indent -= 1;
+            cg.addln("}");
 
-        cg.indent -= 1;
-        cg.addln("}");
+            cg.add("impl std::ops::DerefMut for ");
+            cg.add(&self.name.get_rust());
+            cg.addln(" {");
+            cg.indent += 1;
 
-        // Mut
+            cg.add_indentedln("fn deref_mut(&mut self) -> &mut Self::Target {&mut self._super}");
 
-        cg.add("impl std::ops::DerefMut for ");
-        cg.add(&name.get_rust());
-
-        cg.addln(" {");
-        cg.indent += 1;
-
-        cg.add_indentedln("fn deref_mut(&mut self) -> &mut Self::Target {&mut self._super}");
-
-        cg.indent -= 1;
-        cg.addln("}");
+            cg.indent -= 1;
+            cg.addln("}");
+        }
     }
-
-    ctx.expr_super = None;
 }
+
+// ── Public entry point (delegates to the two-stage pipeline) ──────────
+
+pub fn class_decl(
+    ctx: &mut Context,
+    cg: &mut RustCodegen,
+    visibility: &Visibility,
+    name: &Identifier,
+    generics: &GenericsDecl,
+    inherits: &Option<ExprPath>,
+    fields: &Vec<Spanned<FieldDeclStmt>>,
+    constructor: &Spanned<ClassConstructor>,
+    items: &Vec<ClassItem>,
+) {
+    let data = ClassProcessedData::analyze(
+        visibility,
+        name,
+        generics,
+        inherits,
+        fields,
+        constructor,
+        items,
+    );
+    data.emit(ctx, cg);
+}
+
+// ── Constructor code generation (kept as a standalone impl) ───────────
 
 impl GenRust
     for (
@@ -305,7 +383,7 @@ impl GenRust
             }
         }
 
-        cg.add_indented(&format!("this.constructor("));
+        cg.add_indented("this.constructor(");
 
         for (i, param) in params {
             if i > 0 {

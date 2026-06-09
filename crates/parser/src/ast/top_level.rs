@@ -91,7 +91,7 @@ pub struct ClassConstructor {
     pub body: Block,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub struct Override(pub Option<ExprPath>);
 
 #[derive(Debug, Clone, Serialize)]
