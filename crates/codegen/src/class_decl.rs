@@ -454,8 +454,16 @@ impl ClassProcessedData {
 
     fn emit_deref_impls(&self, cg: &mut RustCodegen) {
         if let Some(ref inherits) = self.inherits {
-            cg.add("impl std::ops::Deref for ");
-            cg.add(&self.name.get_rust());
+            let generics_str = self.generics.get_rust();
+            let generics_expr_str = Generics::from(self.generics.clone()).get_rust();
+
+            cg.add(&format!(
+                "impl{} std::ops::Deref for {}{}",
+                generics_str,
+                self.name.get_rust(),
+                generics_expr_str
+            ));
+
             cg.addln(" {");
             cg.indent += 1;
 
@@ -463,17 +471,22 @@ impl ClassProcessedData {
             cg.add(&inherits.get_rust());
             cg.addln(";");
 
-            cg.add_indentedln("fn deref(&self) -> &Self::Target {&self._super}");
+            cg.add_indentedln("fn deref(&self) -> &Self::Target { &self._super }");
 
             cg.indent -= 1;
             cg.addln("}");
 
-            cg.add("impl std::ops::DerefMut for ");
-            cg.add(&self.name.get_rust());
+            cg.add(&format!(
+                "impl{} std::ops::DerefMut for {}{}",
+                generics_str,
+                self.name.get_rust(),
+                generics_expr_str
+            ));
+
             cg.addln(" {");
             cg.indent += 1;
 
-            cg.add_indentedln("fn deref_mut(&mut self) -> &mut Self::Target {&mut self._super}");
+            cg.add_indentedln("fn deref_mut(&mut self) -> &mut Self::Target { &mut self._super }");
 
             cg.indent -= 1;
             cg.addln("}");

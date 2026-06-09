@@ -15,7 +15,7 @@ pub class Animal<T> {
     }
 }
 
-pub class Mammal : Animal<i32> {
+pub class Mammal<T> : Animal<T> {
     constructor() {
         unsafe {
             std::ptr::write(&mut super, Super::new());
@@ -23,7 +23,7 @@ pub class Mammal : Animal<i32> {
     }
 }
 
-pub class Dog : Mammal {
+pub class Dog : Mammal<i32> {
     constructor() {
         unsafe {
             std::ptr::write(&mut super, Super::new());
