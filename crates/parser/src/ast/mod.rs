@@ -51,6 +51,22 @@ impl From<GenericDecl> for Generic {
     }
 }
 
+impl Into<Option<Generics>> for GenericsDecl {
+    fn into(self) -> Option<Generics> {
+        if self.0.len() == 0 {
+            None
+        } else {
+            Some(self.into())
+        }
+    }
+}
+
+impl From<GenericsDecl> for Generics {
+    fn from(value: GenericsDecl) -> Self {
+        Self(value.0.into_iter().map(Generic::from).collect())
+    }
+}
+
 impl<T> Spanned<T> {
     pub fn get_comment(&self) -> String {
         format!("/* {}:{} */", self.line, self.column)

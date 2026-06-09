@@ -18,6 +18,13 @@ pub fn class_decl(
 ) {
     ctx.expr_super = inherits.clone();
 
+    let self_path = ExprPath(vec![ExprPathSegment {
+        ident: name.clone(),
+        generics: generics.clone().into(),
+    }]);
+
+    let self_ty = get_type_from_path(&self_path);
+
     // Struct decl
     cg.addln(&format!(
         "{}struct {}{} {{",
@@ -27,9 +34,10 @@ pub fn class_decl(
     ));
     cg.indent += 1;
 
-    cg.add_indentedln(
-        "pub _m_oop: (&'static [*const std::ffi::c_void; Self::__V_COUNT], *mut std::ffi::c_void),",
-    );
+    cg.add_indentedln(&format!(
+        "pub _m_oop: (&'static [*const std::ffi::c_void; {}::__V_COUNT], *mut std::ffi::c_void),",
+        self_path.get_rust()
+    ));
 
     if let Some(inherits) = inherits {
         cg.add_indented("pub _super: Box<");
@@ -47,19 +55,9 @@ pub fn class_decl(
 
     // Constructor
     cg.addln(&format!(
-        "impl{} {}{} {{",
+        "impl{} {} {{",
         generics.clone().get_rust(),
-        name.clone().get_rust(),
-        format!(
-            "<{}>",
-            generics
-                .clone()
-                .0
-                .into_iter()
-                .map(|v| Generic::from(v).get_rust())
-                .collect::<Vec<_>>()
-                .join(", ")
-        )
+        self_ty.get_rust()
     ));
     cg.indent += 1;
 
@@ -446,11 +444,8 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
 }
 
 pub fn get_type_from_path(path: &ExprPath) -> TypeExpr {
-    let last = path.0.last().unwrap();
-
-    let mut path = path.0.iter().map(|v| v.ident.clone()).collect::<Vec<_>>();
-
-    path.push(last.ident.clone());
-
-    TypeExpr::Path(Path(path), last.generics.clone())
+    TypeExpr::Path(
+        Path(path.0.iter().map(|v| v.ident.clone()).collect::<Vec<_>>()),
+        path.0.last().unwrap().generics.clone(),
+    )
 }
