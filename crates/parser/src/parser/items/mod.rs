@@ -69,8 +69,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                     .transpose()
                     .map(|v| v.unwrap_or_default()),
 
-                inherits: consume_rule(&mut inner, Rule::type_expr)
-                    .map(TypeExpr::try_from)
+                inherits: consume_rule(&mut inner, Rule::expr_path)
+                    .map(ExprPath::try_from)
                     .transpose(),
 
                 fields: collect_recovered(inner.next().unwrap().into_inner()),

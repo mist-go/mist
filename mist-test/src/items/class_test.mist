@@ -21,7 +21,7 @@ pub class Dog : Animal {
         }
     }
 
-    pub override fn speak(*self) {
+    pub override(Animal<i32>) fn speak(*self) {
         println!("Woof!");
     }
 }

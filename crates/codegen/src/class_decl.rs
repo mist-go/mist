@@ -11,18 +11,12 @@ pub fn class_decl(
     visibility: &Visibility,
     name: &Identifier,
     generics: &GenericsDecl,
-    inherits: &Option<TypeExpr>,
+    inherits: &Option<ExprPath>,
     fields: &Vec<Spanned<FieldDeclStmt>>,
     constructor: &Spanned<ClassConstructor>,
     items: &Vec<ClassItem>,
 ) {
-    let inherits = if let Some(inherits) = inherits {
-        let path = get_type_path(inherits);
-        ctx.expr_super = Some(path.clone());
-        Some((inherits, path))
-    } else {
-        None
-    };
+    ctx.expr_super = inherits.clone();
 
     // Struct decl
     cg.addln(&format!(
@@ -37,9 +31,9 @@ pub fn class_decl(
         "pub _m_oop: (&'static [*const std::ffi::c_void; Self::__V_COUNT], *mut std::ffi::c_void),",
     );
 
-    if let Some((inherits, _)) = inherits {
+    if let Some(inherits) = inherits {
         cg.add_indented("pub _super: Box<");
-        cg.add(&inherits.get_rust());
+        cg.add(&get_type_from_path(inherits).get_rust());
         cg.addln(">,");
     }
 
@@ -112,7 +106,7 @@ pub fn class_decl(
     }
 
     // Super V Table
-    if let Some((inherits, inherit_path)) = &inherits {
+    if let Some(inherits) = &inherits {
         cg.add_indented(&format!(
             "pub const __SUPER_V_TABLE: [*const std::ffi::c_void; {}",
             inherits.get_rust()
@@ -161,7 +155,7 @@ pub fn class_decl(
 
                 match params.remove(0) {
                     TypeExpr::Ref { mutable, .. } => {
-                        cg.add_indented(&inherit_path.get_rust());
+                        cg.add_indented(&inherits.get_rust());
                         cg.add("::__m_");
                         cg.add(&i.item.name.get_rust());
                         cg.add(" as ");
@@ -171,7 +165,7 @@ pub fn class_decl(
                             TypeExpr::Ref {
                                 lifetime: None,
                                 mutable: mutable,
-                                ty: Box::new((*inherits).clone()),
+                                ty: Box::new(get_type_from_path(inherits)),
                             },
                         );
 
@@ -229,7 +223,7 @@ pub fn class_decl(
         }
     }
 
-    if let Some((inherits, _)) = inherits {
+    if let Some(inherits) = inherits {
         cg.add("impl std::ops::Deref for ");
         cg.add(&name.get_rust());
 
@@ -451,12 +445,12 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
     cg.add_indentedln("}");
 }
 
-pub fn get_type_path(ty: &TypeExpr) -> Path {
-    match ty {
-        TypeExpr::Path(p, _) => p.clone(),
-        TypeExpr::Dyn(v) => get_type_path(v),
-        TypeExpr::Ref { ty, .. } => get_type_path(ty),
-        TypeExpr::UnsafePtr { ty, .. } => get_type_path(ty),
-        _ => unimplemented!(),
-    }
+pub fn get_type_from_path(path: &ExprPath) -> TypeExpr {
+    let last = path.0.last().unwrap();
+
+    let mut path = path.0.iter().map(|v| v.ident.clone()).collect::<Vec<_>>();
+
+    path.push(last.ident.clone());
+
+    TypeExpr::Path(Path(path), last.generics.clone())
 }

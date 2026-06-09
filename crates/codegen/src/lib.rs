@@ -7,7 +7,7 @@ use mist_parser::ast::*;
 
 pub struct Context {
     pub expr_ensure_semicolon: bool,
-    pub expr_super: Option<Path>,
+    pub expr_super: Option<ExprPath>,
 }
 
 pub trait GenRust {
