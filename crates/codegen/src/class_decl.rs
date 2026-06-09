@@ -16,7 +16,7 @@ pub struct ClassProcessedData {
     items: Vec<ClassItem>,
     methods: Vec<Spanned<FunctionDecl>>,
     v_table: Vec<Identifier>,
-    override_v_table: HashMap<Override, Vec<Identifier>>,
+    override_v_table: HashMap<Override, Spanned<Vec<Identifier>>>,
 }
 
 impl ClassProcessedData {
@@ -56,7 +56,12 @@ impl ClassProcessedData {
                     Some(override_spec) => {
                         override_v_table
                             .entry(override_spec.clone())
-                            .or_insert_with(Vec::new)
+                            .or_insert_with(|| Spanned {
+                                line: method.line,
+                                column: method.column,
+                                item: Vec::new(),
+                            })
+                            .item
                             .push(method.item.name.clone());
                     }
                 }
@@ -198,7 +203,7 @@ impl ClassProcessedData {
             cg.add_indentedln(&format!("let mut table = {}::__V_TABLE;", target_rust_path));
 
             // Patch the slots for every method registered under this specific override tier
-            for method_ident in overriden_method_idents {
+            for method_ident in &overriden_method_idents.item {
                 cg.add_indentedln(&format!(
                     "table[{}::__FN_{}] = {}::__m_{} as *const std::ffi::c_void;",
                     target_rust_path,
@@ -252,6 +257,7 @@ impl ClassProcessedData {
                     }
 
                     if let TypeExpr::Ref { mutable, .. } = params.remove(0) {
+                        cg.add_indentedln(&method.get_comment());
                         cg.add_indented(&format!("{}::__m_", target_rust_path));
                         cg.add(&method.item.name.get_rust());
                         cg.add(" as ");
@@ -344,7 +350,7 @@ impl ClassProcessedData {
         cg.addln(");");
 
         if self.inherits.is_some() && !self.override_v_table.is_empty() {
-            for (idx, (override_tier, _)) in self.override_v_table.iter().enumerate() {
+            for (idx, (override_tier, v)) in self.override_v_table.iter().enumerate() {
                 match &override_tier.0 {
                     // Direct base class layout updates
                     None => {
@@ -355,6 +361,7 @@ impl ClassProcessedData {
                     }
                     // Deep ancestor trait table updates
                     Some(path) => {
+                        cg.add_indentedln(&v.get_comment());
                         cg.add_indentedln(&format!(
                             "(|v: &mut {}| {{v._m_oop.0 = Self::__SUPER_V_TABLES[{}];}})(&mut this);",
                             path.get_rust(),
@@ -364,6 +371,8 @@ impl ClassProcessedData {
                 }
             }
         }
+
+        cg.add_indentedln(&constructor_comment);
 
         cg.add_indentedln("this");
         cg.indent -= 1;
