@@ -614,7 +614,7 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
         param.name.gen_rust(ctx, cg);
     }
 
-    cg.addln(");");
+    cg.addln(")");
 
     cg.indent -= 1;
     cg.add_indentedln("}");

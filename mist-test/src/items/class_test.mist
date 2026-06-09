@@ -23,6 +23,10 @@ pub class Mammal<T> : Animal<T> {
     }
 
     pub fn args_test(*self, x i32, y *str) {}
+
+    pub fn returning<'a>(*self) *'a str {
+        "Mammal"
+    }
 }
 
 pub class Dog : Mammal<i32> {
@@ -35,6 +39,10 @@ pub class Dog : Mammal<i32> {
     pub override(Animal<i32>) fn speak(*self) {
         println!("Woof!");
     }
+
+    pub override fn returning(*self) *str {
+        "Dog"
+    }
 }
 
 pub fn run_tests() {
@@ -43,4 +51,6 @@ pub fn run_tests() {
     dawg.args_test(10, "hello");
 
     dawg.test_speak();
+
+    println!("{}", dawg.returning());
 }
