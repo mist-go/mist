@@ -9,7 +9,7 @@ Originally this readme was part of the Carbon Language project, licensed with Ap
 </p>
 
 
-<img src="code.png" align="right" width="300" alt="">
+<img src="code.png" align="right" width="450" alt="">
 
 <!--
 Don't let the text wrap too narrowly to the left of the above image.
