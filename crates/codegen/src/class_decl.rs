@@ -4,8 +4,6 @@ use mist_parser::ast::*;
 
 use crate::{Context, GenRust, GetRust, RustCodegen};
 
-// ── Stage 1: Data Collection & Metadata Analysis ──────────────────────
-
 pub struct ClassProcessedData {
     visibility: Visibility,
     name: Identifier,
@@ -38,9 +36,8 @@ impl ClassProcessedData {
 
         let self_ty = get_type_from_path(&self_path);
 
-        // 1. Gather all raw methods from the class items
         let methods = items
-            .iter() // Switched to reference iteration to prevent unnecessary cloning
+            .iter()
             .filter_map(|item| match item {
                 ClassItem::ImplDecl(_) => None,
                 ClassItem::Method(method) => Some(method.clone()),
@@ -50,15 +47,12 @@ impl ClassProcessedData {
         let mut v_table = Vec::new();
         let mut override_v_table = std::collections::HashMap::new();
 
-        // 2. Distribute public methods between base table slots and inheritance overrides
         for method in &methods {
             if matches!(method.item.visibility, Visibility::Public) {
                 match &method.item.is_override {
-                    // It's a brand new virtual method introduced by this class!
                     None => {
                         v_table.push(method.item.name.clone());
                     }
-                    // It's an override targeting either the immediate super or a deep ancestor
                     Some(override_spec) => {
                         override_v_table
                             .entry(override_spec.clone())
@@ -172,26 +166,19 @@ impl ClassProcessedData {
     }
 
     fn emit_super_v_table(&self, cg: &mut RustCodegen) {
-        // If we aren't overriding anything across the tree, we don't need the table array
         if self.override_v_table.is_empty() {
             return;
         }
 
-        // 1. Emit the outer 2D array declaration
         cg.add_indentedln(&format!(
             "pub const __SUPER_V_TABLES: [&'static [*const std::ffi::c_void]; {}] = [",
             self.override_v_table.len()
         ));
         cg.indent += 1;
 
-        // We enumerate over the map so each target class gets a stable outer index
         for (override_tier, overriden_method_idents) in &self.override_v_table {
-            // Resolve the target path for this specific sub-table
             let target_path = match &override_tier.0 {
-                // Override(Some(path)) / Override::Path(path) -> Targets deep ancestor
                 Some(path) => path.clone(),
-
-                // Override(None) / Override::Default -> Targets our immediate parent
                 None => {
                     if let Some(parent_path) = &self.inherits {
                         parent_path.clone()
@@ -231,13 +218,13 @@ impl ClassProcessedData {
     }
 
     fn emit_super_v_tests(&self, cg: &mut RustCodegen) {
-        for (idx, (override_tier, _)) in self.override_v_table.iter().enumerate() {
-            // Resolve the target path for this specific sub-table
+        cg.add_indentedln(&format!("const fn __test_vt() {{"));
+        cg.indent += 1;
+
+        for (override_tier, _) in self.override_v_table.iter() {
             let target_path = match &override_tier.0 {
-                // Override(Some(path)) / Override::Path(path) -> Targets deep ancestor
                 Some(path) => path.clone(),
 
-                // Override(None) / Override::Default -> Targets our immediate parent
                 None => {
                     if let Some(parent_path) = &self.inherits {
                         parent_path.clone()
@@ -249,12 +236,7 @@ impl ClassProcessedData {
 
             let target_rust_path = target_path.get_rust();
 
-            // 3. Emit the compile-time signature layout validation test for this specific index
-            cg.add_indentedln(&format!("const fn __test_vt_{}() {{", idx));
-            cg.indent += 1;
-
             for method in &self.methods {
-                // Only validate the methods that actually belong to the current target slice tier
                 if method.item.is_override.as_ref() == Some(override_tier) {
                     let mut params = method
                         .item
@@ -294,10 +276,10 @@ impl ClassProcessedData {
                     }
                 }
             }
-
-            cg.indent -= 1;
-            cg.add_indentedln("}");
         }
+
+        cg.indent -= 1;
+        cg.add_indentedln("}");
     }
 
     fn emit_constructor(&self, ctx: &mut Context, cg: &mut RustCodegen) {
@@ -312,7 +294,6 @@ impl ClassProcessedData {
             self.constructor.item.generics.get_rust()
         ));
 
-        // Enumerate and build constructor call parameters
         let params = self
             .constructor
             .item
@@ -337,7 +318,6 @@ impl ClassProcessedData {
         cg.addln(") -> Box<Self> {");
         cg.indent += 1;
 
-        // Allocate and zero-initialize state pointer
         cg.add_indentedln("let mut this = Box::new(unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() });");
         cg.add_indentedln("let this_ptr = &mut *this as *mut Self as *mut std::ffi::c_void;");
         cg.add_indentedln("this._m_oop = (&Self::__V_TABLE, this_ptr);");
@@ -353,7 +333,6 @@ impl ClassProcessedData {
             }
         }
 
-        // Call Mist internal execution hook
         cg.add_indented("this.constructor(");
         for (i, param) in &params {
             if *i > 0 {
@@ -364,7 +343,6 @@ impl ClassProcessedData {
         }
         cg.addln(");");
 
-        // --- MULTI-INHERITANCE 2D VTABLE ASSIGNMENTS ---
         if self.inherits.is_some() && !self.override_v_table.is_empty() {
             for (idx, (override_tier, _)) in self.override_v_table.iter().enumerate() {
                 match &override_tier.0 {
@@ -493,8 +471,6 @@ impl ClassProcessedData {
         }
     }
 }
-
-// ── Public entry point (delegates to the two-stage pipeline) ──────────
 
 pub fn class_decl(
     ctx: &mut Context,
