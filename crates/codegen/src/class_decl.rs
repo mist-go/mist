@@ -81,7 +81,7 @@ pub fn class_decl(
     let v_table = methods
         .iter()
         .filter_map(|method| match method.item.visibility {
-            Visibility::Public => Some((method.item.name.clone(), method.item.is_override)),
+            Visibility::Public => Some((method.item.name.clone(), method.item.is_override.clone())),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -126,7 +126,7 @@ pub fn class_decl(
         cg.addln("::__V_TABLE;");
 
         for (name, is_override) in v_table {
-            if is_override {
+            if is_override.is_some() {
                 cg.add_indentedln(&format!(
                     "table[{}::__FN_{}] = Self::__m_{} as *const std::ffi::c_void;",
                     inherits.get_rust(),
@@ -145,7 +145,7 @@ pub fn class_decl(
         cg.indent += 1;
 
         for i in &methods {
-            if i.item.is_override {
+            if i.item.is_override.is_some() {
                 let mut params = i
                     .item
                     .params
@@ -200,7 +200,7 @@ pub fn class_decl(
     for mut method in methods {
         match method.item.visibility {
             Visibility::Public => {
-                if !method.item.is_override {
+                if method.item.is_override.is_none() {
                     gen_method_point(&method.item, ctx, cg);
                 }
 
@@ -358,7 +358,7 @@ impl GenRust
             column: self.1.column,
             item: FunctionDecl {
                 visibility: self.1.item.visibility.clone(),
-                is_override: false,
+                is_override: None,
                 name: Identifier(String::from("constructor")),
                 generics: self.1.item.generics.clone(),
                 params: ParamList(constructor_params),

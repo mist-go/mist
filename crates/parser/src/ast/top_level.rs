@@ -92,9 +92,12 @@ pub struct ClassConstructor {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct Override(pub Option<ExprPath>);
+
+#[derive(Debug, Clone, Serialize)]
 pub struct FunctionDecl {
     pub visibility: Visibility,
-    pub is_override: bool,
+    pub is_override: Option<Override>,
     pub name: Identifier,
     pub generics: GenericsDecl,
     pub params: ParamList,

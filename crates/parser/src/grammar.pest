@@ -325,7 +325,7 @@ trait_decl = {
 // FUNCTIONS
 // ======================================================
 
-override_kw = { "override" }
+override_kw = { "override" ~ ("(" ~ expr_path ~ ")")? }
 
 function_decl = {
     visibility? ~ override_kw? ~ "fn" ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ type_expr? ~ (block | semicolon)
