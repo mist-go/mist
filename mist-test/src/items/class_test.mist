@@ -1,5 +1,6 @@
-pub class Animal {
+pub class Animal<T> {
     pub name String;
+    pub val T;
 
     constructor() {
         self.name = "Rex".to_string();
@@ -14,20 +15,42 @@ pub class Animal {
     }
 }
 
-pub class Dog : Animal {
+pub class Mammal<T> : Animal<T> {
     constructor() {
         unsafe {
             std::ptr::write(&mut super, Super::new());
         }
     }
 
-    pub override fn speak(*self) {
+    pub fn args_test(*self, x i32, y *str) {}
+
+    pub fn returning<'a>(*self) *'a str {
+        "Mammal"
+    }
+}
+
+pub class Dog : Mammal<i32> {
+    constructor() {
+        unsafe {
+            std::ptr::write(&mut super, Super::new());
+        }
+    }
+
+    pub override(Animal<i32>) fn speak(*self) {
         println!("Woof!");
+    }
+
+    pub override fn returning(*self) *str {
+        "Dog"
     }
 }
 
 pub fn run_tests() {
     let dawg = Dog::new();
 
+    dawg.args_test(10, "hello");
+
     dawg.test_speak();
+
+    println!("{}", dawg.returning());
 }

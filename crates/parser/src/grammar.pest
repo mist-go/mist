@@ -294,7 +294,7 @@ class_item = _{
 }
 
 class_decl = {
-    visibility? ~ "class" ~ identifier ~ generics_decl? ~ (":" ~ type_expr)? ~ "{" ~ class_fields ~ class_constructor ~ class_item* ~ "}"
+    visibility? ~ "class" ~ identifier ~ generics_decl? ~ (":" ~ expr_path)? ~ "{" ~ class_fields ~ class_constructor ~ class_item* ~ "}"
 }
 
 // ======================================================
@@ -325,7 +325,7 @@ trait_decl = {
 // FUNCTIONS
 // ======================================================
 
-override_kw = { "override" }
+override_kw = { "override" ~ ("(" ~ expr_path ~ ")")? }
 
 function_decl = {
     visibility? ~ override_kw? ~ "fn" ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ type_expr? ~ (block | semicolon)

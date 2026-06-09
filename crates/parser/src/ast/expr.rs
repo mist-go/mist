@@ -79,19 +79,19 @@ pub enum Prefix {
     Neg,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub struct ExprPathSegment {
     pub ident: Identifier,
     pub generics: Option<Generics>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub struct ExprPath(pub Vec<ExprPathSegment>);
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub struct Generics(pub Vec<Generic>);
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub enum Generic {
     Lifetime(Identifier),
     Type(TypeExpr),

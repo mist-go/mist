@@ -13,7 +13,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
         ast_ensure!(pair, Rule::function_decl => {
         let mut inner = pair.into_inner();
             let visibility = Visibility::try_from(&mut inner);
-            let is_override: AstResult<bool> = Ok(listen_rule(&mut inner, Rule::override_kw));
+            let is_override = consume_rule(&mut inner, Rule::override_kw).map(Override::try_from).transpose();
             let name = Identifier::try_from(inner.next().unwrap());
 
             let generics = consume_rule(&mut inner, Rule::generics_decl)
@@ -74,6 +74,16 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
                 params: params,
                 body: body,
             })
+        })
+    }
+}
+
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Override {
+    type Error = AstError<'a, Self>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        ast_ensure!(pair, Rule::override_kw => {
+            ast_expr!(Override(pair.into_inner().next().map(ExprPath::try_from).transpose()))
         })
     }
 }

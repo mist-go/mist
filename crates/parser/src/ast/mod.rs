@@ -8,16 +8,16 @@ pub use expr::*;
 pub use statement::*;
 pub use top_level::*;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub struct Path(pub Vec<Identifier>);
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub struct Identifier(pub String);
 
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct ParamList(pub Vec<VarDecl>);
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub enum TypeExpr {
     Ref {
         lifetime: Option<Identifier>,
@@ -48,6 +48,22 @@ impl From<GenericDecl> for Generic {
             GenericDecl::Lifetime(life) => Generic::Lifetime(life),
             GenericDecl::Type(ty, _) => Generic::Type(TypeExpr::Path(Path(vec![ty]), None)),
         }
+    }
+}
+
+impl Into<Option<Generics>> for GenericsDecl {
+    fn into(self) -> Option<Generics> {
+        if self.0.len() == 0 {
+            None
+        } else {
+            Some(self.into())
+        }
+    }
+}
+
+impl From<GenericsDecl> for Generics {
+    fn from(value: GenericsDecl) -> Self {
+        Self(value.0.into_iter().map(Generic::from).collect())
     }
 }
 

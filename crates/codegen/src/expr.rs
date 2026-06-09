@@ -20,17 +20,7 @@ impl GetRust for ExprPath {
             if self.0[0].ident.0 == "super" && self.0.len() == 1 {
                 a.0[0].ident.0 = String::from("self._super");
             } else if self.0[0].ident.0 == "Super" {
-                a.0[0].ident = path.0[0].clone();
-
-                if path.0.len() > 1 {
-                    a.0.splice(
-                        1..1,
-                        path.0.clone().into_iter().skip(1).map(|v| ExprPathSegment {
-                            ident: v,
-                            generics: None,
-                        }),
-                    );
-                }
+                a.0[0] = path.0[0].clone();
             }
         }
 
