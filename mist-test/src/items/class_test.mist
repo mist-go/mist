@@ -15,7 +15,15 @@ pub class Animal<T> {
     }
 }
 
-pub class Dog : Animal<i32> {
+pub class Mammal : Animal<i32> {
+    constructor() {
+        unsafe {
+            std::ptr::write(&mut super, Super::new());
+        }
+    }
+}
+
+pub class Dog : Mammal {
     constructor() {
         unsafe {
             std::ptr::write(&mut super, Super::new());

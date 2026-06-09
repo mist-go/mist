@@ -231,9 +231,7 @@ impl ClassProcessedData {
     }
 
     fn emit_super_v_tests(&self, cg: &mut RustCodegen) {
-        for (idx, (override_tier, _)) in
-            self.override_v_table.iter().enumerate()
-        {
+        for (idx, (override_tier, _)) in self.override_v_table.iter().enumerate() {
             // Resolve the target path for this specific sub-table
             let target_path = match &override_tier.0 {
                 // Override(Some(path)) / Override::Path(path) -> Targets deep ancestor
@@ -380,7 +378,7 @@ impl ClassProcessedData {
                     // Deep ancestor trait table updates
                     Some(path) => {
                         cg.add_indentedln(&format!(
-                            "<{} as std::ops::Deref>::deref(&this)._m_oop.0 = Self::__SUPER_V_TABLES[{}];",
+                            "(|v: &mut {}| {{v._m_oop.0 = Self::__SUPER_V_TABLES[{}];}})(&mut this);",
                             path.get_rust(),
                             idx
                         ));
