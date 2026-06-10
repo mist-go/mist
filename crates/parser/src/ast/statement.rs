@@ -62,14 +62,8 @@ pub struct StatementBranch {
 impl Statement {
     pub fn is_block(&self) -> bool {
         match self {
-            Self::Block(_)
-            | Self::Match(_, _)
-            | Self::While(_)
-            | Self::For { .. }
-            | Self::Loop(..)
-            | Self::CStyleFor { .. }
-            | Self::If { .. } => true,
-            _ => false,
+            Self::VarDecl(_) | Self::Return(_) | Self::Break | Self::Continue => false,
+            _ => true,
         }
     }
 }
