@@ -6,10 +6,6 @@ use crate::{GenRust, GetRust, RustCodegen};
 
 impl GenRust for Block {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
-        if self.is_unsafe {
-            cg.add("unsafe ");
-        }
-
         cg.addln("{");
         cg.indent += 1;
 
@@ -30,21 +26,14 @@ impl GenRust for Block {
     }
 }
 
-impl GenRust for StatementBody {
-    fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
-        match self {
-            Self::Expression(expr) => expr.gen_rust(ctx, cg),
-            Self::Statement(stmt) => {
-                ctx.expr_ensure_semicolon = true;
-                stmt.gen_rust(ctx, cg);
-            }
-        }
-    }
-}
-
 impl GenRust for Statement {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         match self {
+            Statement::UnsafeBlock(block) => {
+                cg.add("unsafe ");
+                block.gen_rust(ctx, cg);
+            }
+
             Statement::Block(block) => block.gen_rust(ctx, cg),
 
             Statement::VarDecl(VarDeclStmt { decl, init }) => {
@@ -97,19 +86,19 @@ impl GenRust for Statement {
                 ctx.expr_ensure_semicolon = false;
                 initial.condition.gen_rust(ctx, cg);
                 cg.add(" ");
-                cg.ensure_brackets_body(ctx, &initial.body);
+                initial.body.gen_rust(ctx, cg);
 
                 for else_if_branch in else_if {
                     cg.add(" else if ");
                     ctx.expr_ensure_semicolon = false;
                     else_if_branch.condition.gen_rust(ctx, cg);
                     cg.add(" ");
-                    cg.ensure_brackets_body(ctx, &else_if_branch.body);
+                    else_if_branch.body.gen_rust(ctx, cg);
                 }
 
                 if let Some(else_br) = else_branch {
                     cg.add(" else ");
-                    cg.ensure_brackets_body(ctx, else_br);
+                    else_br.gen_rust(ctx, cg);
                 }
             }
 
@@ -117,12 +106,12 @@ impl GenRust for Statement {
                 cg.add("while ");
                 condition.gen_rust(ctx, cg);
                 cg.add(" ");
-                cg.ensure_brackets_body(ctx, body);
+                body.gen_rust(ctx, cg);
             }
 
             Statement::Loop(body) => {
                 cg.add("loop ");
-                cg.ensure_brackets_body(ctx, body);
+                body.gen_rust(ctx, cg);
             }
 
             Statement::CStyleFor {
@@ -176,7 +165,7 @@ impl GenRust for Statement {
                 pattern.gen_rust(ctx, cg);
                 cg.add(" in ");
                 iterator.gen_rust(ctx, cg);
-                cg.ensure_brackets_body(ctx, body);
+                body.gen_rust(ctx, cg);
             }
 
             Statement::Return(expr) => {

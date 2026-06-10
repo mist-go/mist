@@ -64,8 +64,6 @@ static_path = {
     identifier ~ ("::" ~ identifier)*
 }
 
-unsafe_kw = { "unsafe" }
-
 // ======================================================
 // PROGRAM
 // ======================================================
@@ -345,7 +343,11 @@ top_level = {
 // ======================================================
 
 block = {
-    unsafe_kw? ~ "{" ~ statement_list ~ expr? ~ "}"
+    "{" ~ statement_list ~ expr? ~ "}"
+}
+
+unsafe_block = {
+    "unsafe" ~ block
 }
 
 statement_list = {
@@ -356,10 +358,6 @@ statement = _{
     control_flow
   | (expr ~ semicolon)
 }
-
-statement_wrapper = { statement }
-
-statement_body = { statement_wrapper | expr }
 
 // ------------------------------------------------------
 // BASIC STATEMENTS
@@ -400,9 +398,10 @@ control_flow = {
   | match_stmt
   | loop_stmt
   | block
+  | unsafe_block
 }
 
-statement_branch = { "(" ~ expr ~ ")" ~ statement_body }
+statement_branch = { expr ~ block }
 
 else_if = _{
     "else" ~ "if" ~ statement_branch
@@ -413,7 +412,7 @@ else_if_list = {
 }
 
 if_stmt = {
-    "if" ~ statement_branch ~ else_if_list ~ ("else" ~ statement_body)?
+    "if" ~ statement_branch ~ else_if_list ~ ("else" ~ block)?
 }
 
 // ------------------------------------------------------
@@ -425,15 +424,15 @@ while_stmt = {
 }
 
 c_for_stmt = {
-    "for" ~ "(" ~ statement ~ statement ~ expr ~ ")" ~ statement_body
+    "for" ~ "(" ~ statement ~ statement ~ expr ~ ")" ~ block
 }
 
 for_stmt = {
-    "for" ~ "(" ~ pattern ~ ":" ~ expr ~ ")" ~ statement_body
+    "for" ~ pattern ~ "in" ~ expr ~ block
 }
 
 loop_stmt = {
-    "loop" ~ statement_body
+    "loop" ~ block
 }
 
 // ------------------------------------------------------
@@ -447,7 +446,7 @@ match_item = {
 }
 
 match_stmt = {
-    "match" ~ "(" ~ expr ~ ")" ~ "{" ~ match_item* ~ "}"
+    "match" ~ expr ~ "{" ~ match_item* ~ "}"
 }
 
 // ======================================================

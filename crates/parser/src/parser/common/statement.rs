@@ -2,8 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_ensure, ast_expr,
-    error::{AstError, AstResult, IntoErr, collect_recovered},
-    parser::listen_rule,
+    error::{AstError, IntoErr, collect_recovered},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
@@ -14,28 +13,9 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
 
         ast_ensure!(pair, Rule::block => {
             ast_expr!(Block {
-                is_unsafe: Ok(listen_rule(&mut inner, Rule::unsafe_kw)) as AstResult<bool>,
                 statements: collect_recovered(inner.next().unwrap().into_inner()),
                 soft_return: inner.next().map(Spanned::try_from).transpose(),
             })
-        })
-    }
-}
-
-impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for StatementBody {
-    type Error = AstError<'a, Self>;
-
-    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        let mut inner = pair.clone().into_inner();
-
-        ast_ensure!(pair, Rule::statement_body => {
-            let i = inner.next().unwrap();
-
-            match i.as_rule() {
-                Rule::expr => ast_expr!(StatementBody::Expression(i.try_into())),
-                Rule::statement_wrapper => ast_expr!(StatementBody::Statement(i.try_into())),
-                _ => AstError::bug_unimplemented(i),
-            }
         })
     }
 }
@@ -67,6 +47,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                 Statement::try_from(inner.next().unwrap())
             }
 
+            Rule::unsafe_block => ast_expr!(Statement::UnsafeBlock(inner.next().unwrap().try_into())),
+
             Rule::block => ast_expr!(Statement::Block(pair.try_into())),
 
             Rule::var_decl_statement => ast_expr!(Statement::VarDecl(pair.try_into())),
@@ -85,7 +67,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                 ast_expr!(Statement::If {
                     initial: inner.next().unwrap().try_into(),
                     else_if: collect_recovered(inner.next().unwrap().into_inner()),
-                    else_branch: inner.next().map(StatementBody::try_from).transpose(),
+                    else_branch: inner.next().map(Block::try_from).transpose(),
                 })
             }
 

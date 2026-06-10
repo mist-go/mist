@@ -99,17 +99,17 @@ pub fn test_block_expr() {
 }
 
 pub fn test_if_expr() {
-    let x = if (true) { 1 } else { 2 };
+    let x = if true { 1 } else { 2 };
     assert_eq!(x, 1);
 
-    let y = if (false) { 1 } else { 2 };
+    let y = if false { 1 } else { 2 };
     assert_eq!(y, 2);
 }
 
 pub fn test_range_expr() {
     let r = 0..5;
     let mut count = 0;
-    for (i : r) {
+    for i in r {
         count++;
     }
     assert_eq!(count, 5);

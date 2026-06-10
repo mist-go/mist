@@ -4,38 +4,31 @@ use super::*;
 
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct Block {
-    pub is_unsafe: bool,
-
     pub statements: Vec<Spanned<Expression>>,
     pub soft_return: Option<Spanned<Expression>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub enum StatementBody {
-    Statement(Expression),
-    Expression(Expression),
-}
-
-#[derive(Debug, Clone, Serialize)]
 pub enum Statement {
+    UnsafeBlock(Block),
     Block(Block),
     If {
         initial: StatementBranch,
         else_if: Vec<StatementBranch>,
-        else_branch: Option<StatementBody>,
+        else_branch: Option<Block>,
     },
-    Loop(StatementBody),
+    Loop(Block),
     While(StatementBranch),
     CStyleFor {
         init: Expression,
         condition: Expression,
         update: Expression,
-        body: StatementBody,
+        body: Block,
     },
     For {
         pattern: Pattern,
         iterator: Expression,
-        body: StatementBody,
+        body: Block,
     },
     Match(Expression, Vec<Spanned<MatchItem>>),
 
@@ -63,29 +56,14 @@ pub struct VarDeclStmt {
 #[derive(Debug, Clone, Serialize)]
 pub struct StatementBranch {
     pub condition: Expression,
-    pub body: Box<StatementBody>,
+    pub body: Box<Block>,
 }
 
 impl Statement {
     pub fn is_block(&self) -> bool {
         match self {
-            Self::Block(_)
-            | Self::Match(_, _)
-            | Self::While(_)
-            | Self::For { .. }
-            | Self::Loop(..)
-            | Self::CStyleFor { .. }
-            | Self::If { .. } => true,
-            _ => false,
-        }
-    }
-}
-
-impl StatementBody {
-    pub fn is_soft_return(&self) -> bool {
-        match self {
-            Self::Expression(_) => true,
-            _ => false,
+            Self::VarDecl(_) | Self::Return(_) | Self::Break | Self::Continue => false,
+            _ => true,
         }
     }
 }
