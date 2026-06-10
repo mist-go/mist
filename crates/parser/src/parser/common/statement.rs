@@ -22,24 +22,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
     }
 }
 
-impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for StatementBody {
-    type Error = AstError<'a, Self>;
-
-    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        let mut inner = pair.clone().into_inner();
-
-        ast_ensure!(pair, Rule::statement_body => {
-            let i = inner.next().unwrap();
-
-            match i.as_rule() {
-                Rule::expr => ast_expr!(StatementBody::Expression(i.try_into())),
-                Rule::statement_wrapper => ast_expr!(StatementBody::Statement(i.try_into())),
-                _ => AstError::bug_unimplemented(i),
-            }
-        })
-    }
-}
-
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for StatementBranch {
     type Error = AstError<'a, Self>;
 
@@ -85,7 +67,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
                 ast_expr!(Statement::If {
                     initial: inner.next().unwrap().try_into(),
                     else_if: collect_recovered(inner.next().unwrap().into_inner()),
-                    else_branch: inner.next().map(StatementBody::try_from).transpose(),
+                    else_branch: inner.next().map(Block::try_from).transpose(),
                 })
             }
 

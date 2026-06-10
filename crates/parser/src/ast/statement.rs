@@ -11,31 +11,25 @@ pub struct Block {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub enum StatementBody {
-    Statement(Expression),
-    Expression(Expression),
-}
-
-#[derive(Debug, Clone, Serialize)]
 pub enum Statement {
     Block(Block),
     If {
         initial: StatementBranch,
         else_if: Vec<StatementBranch>,
-        else_branch: Option<StatementBody>,
+        else_branch: Option<Block>,
     },
-    Loop(StatementBody),
+    Loop(Block),
     While(StatementBranch),
     CStyleFor {
         init: Expression,
         condition: Expression,
         update: Expression,
-        body: StatementBody,
+        body: Block,
     },
     For {
         pattern: Pattern,
         iterator: Expression,
-        body: StatementBody,
+        body: Block,
     },
     Match(Expression, Vec<Spanned<MatchItem>>),
 
@@ -63,7 +57,7 @@ pub struct VarDeclStmt {
 #[derive(Debug, Clone, Serialize)]
 pub struct StatementBranch {
     pub condition: Expression,
-    pub body: Box<StatementBody>,
+    pub body: Box<Block>,
 }
 
 impl Statement {
@@ -76,15 +70,6 @@ impl Statement {
             | Self::Loop(..)
             | Self::CStyleFor { .. }
             | Self::If { .. } => true,
-            _ => false,
-        }
-    }
-}
-
-impl StatementBody {
-    pub fn is_soft_return(&self) -> bool {
-        match self {
-            Self::Expression(_) => true,
             _ => false,
         }
     }
