@@ -133,7 +133,9 @@ pub fn transpile_file(path: &Path, output_path: &Path) -> Result<(), String> {
     });
 
     // If parsing fails, return the error string back gracefully so the LSP can show it
-    let ast = parser_result.map_err(|e| format!("parse failed in {}:\n{}", path.display(), e))?;
+    let ast = parser_result
+        .map_err(|e| format!("parse failed in {}:\n{}", path.display(), e))?
+        .1;
 
     let mut gc = mist_codegen::RustCodegen::new();
     let output = gc.generate(ast);
@@ -147,7 +149,7 @@ pub fn transpile_file(path: &Path, output_path: &Path) -> Result<(), String> {
 pub fn transpile_text<'a>(source: &'a str) -> Result<String, ParseError<'a, Vec<TopLevel>>> {
     let mut gc = mist_codegen::RustCodegen::new();
 
-    Ok(gc.generate(mist_parser::parse(&source)?))
+    Ok(gc.generate(mist_parser::parse(&source)?.1))
 }
 
 fn should_skip(source: &Path, output: &Path) -> bool {

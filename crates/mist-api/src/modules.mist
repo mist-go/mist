@@ -7,7 +7,7 @@ use std::process;
 pub class Module {
     pub name String;
     pub path PathBuf;
-    pub children Vec<Self>;
+    pub children Vec<Box<Module>>;
 
     pub constructor(mist_path PathBuf) {
         self.children = Vec::new();
@@ -74,7 +74,7 @@ pub class Module {
     }
 }
 
-pub fn master_package(mist_path PathBuf) Module {
+pub fn master_package(mist_path PathBuf) Box<Module> {
     let mut root_mod = Module::new(mist_path.clone());
 
     let parent_dir = mist_path.parent()

@@ -88,7 +88,7 @@ fn transpile_file(path *PathBuf, output_file *PathBuf, mod_decl *str) {
 
     let mut gc = mist_codegen::RustCodegen::new();
 
-    let output = gc.generate(match (mist_parser::parse(&source)) {
+    let [[vis, api], ast] = match (mist_parser::parse(&source)) {
         Ok[ast] => ast;
         Err[e] => {
             match (e) {
@@ -118,7 +118,9 @@ fn transpile_file(path *PathBuf, output_file *PathBuf, mod_decl *str) {
                 }
             }
         }
-    });
+    };
+
+    let output = gc.generate(ast);
 
     let res = fs::write(&output_file, format!("{mod_decl}{output}"));
 
