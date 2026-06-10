@@ -16,6 +16,7 @@ pub struct MistParser;
 
 pub fn parse<'a>(
     source: &'a str,
+    is_master: bool,
 ) -> Result<((Visibility, Identifier), Vec<TopLevel>), ParseError<'a, Vec<TopLevel>>> {
     let mut pairs = MistParser::parse(Rule::program, source)?;
 
@@ -27,6 +28,13 @@ pub fn parse<'a>(
         if pair.as_rule() != Rule::EOI {
             statements.push(analyzer.get(TopLevel::try_from(pair)).get()?);
         }
+    }
+
+    if is_master {
+        return match analyzer.build(statements) {
+            Ok(v) => Ok(((Visibility::Private, Identifier(String::new())), v)),
+            Err(e) => Err(ParseError::Ast(e)),
+        };
     }
 
     let m = if let Some(v) = statements.get(0) {

@@ -88,7 +88,9 @@ fn transpile_file(path *PathBuf, output_file *PathBuf, mod_decl *str) {
 
     let mut gc = mist_codegen::RustCodegen::new();
 
-    let [[vis, api], ast] = match (mist_parser::parse(&source)) {
+    let is_master = path.file_name().unwrap().to_str().unwrap() == "main.mist";
+
+    let [[vis, api], ast] = match (mist_parser::parse(&source, is_master)) {
         Ok[ast] => ast;
         Err[e] => {
             match (e) {

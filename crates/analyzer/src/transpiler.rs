@@ -112,7 +112,7 @@ pub fn transpile_file(path: &Path, output_path: &Path) -> Result<(), String> {
     let source = fs::read_to_string(path)
         .map_err(|e| format!("failed to read file {}: {}", path.display(), e))?;
 
-    let parser_result = mist_parser::parse(&source).map_err(|e| match e {
+    let parser_result = mist_parser::parse(&source, true).map_err(|e| match e {
         ParseError::Ast(e) => {
             // Using components carefully to prevent out-of-bounds or zero layout crashes
             let start_pos = e.span.start_pos().line_col();
@@ -149,7 +149,7 @@ pub fn transpile_file(path: &Path, output_path: &Path) -> Result<(), String> {
 pub fn transpile_text<'a>(source: &'a str) -> Result<String, ParseError<'a, Vec<TopLevel>>> {
     let mut gc = mist_codegen::RustCodegen::new();
 
-    Ok(gc.generate(mist_parser::parse(&source)?.1))
+    Ok(gc.generate(mist_parser::parse(&source, true)?.1))
 }
 
 fn should_skip(source: &Path, output: &Path) -> bool {
