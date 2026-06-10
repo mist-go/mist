@@ -6,10 +6,6 @@ use crate::{GenRust, GetRust, RustCodegen};
 
 impl GenRust for Block {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
-        if self.is_unsafe {
-            cg.add("unsafe ");
-        }
-
         cg.addln("{");
         cg.indent += 1;
 
@@ -33,6 +29,11 @@ impl GenRust for Block {
 impl GenRust for Statement {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         match self {
+            Statement::UnsafeBlock(block) => {
+                cg.add("unsafe ");
+                block.gen_rust(ctx, cg);
+            }
+
             Statement::Block(block) => block.gen_rust(ctx, cg),
 
             Statement::VarDecl(VarDeclStmt { decl, init }) => {

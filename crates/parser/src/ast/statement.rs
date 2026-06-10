@@ -4,14 +4,13 @@ use super::*;
 
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct Block {
-    pub is_unsafe: bool,
-
     pub statements: Vec<Spanned<Expression>>,
     pub soft_return: Option<Spanned<Expression>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Statement {
+    UnsafeBlock(Block),
     Block(Block),
     If {
         initial: StatementBranch,

@@ -2,8 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_ensure, ast_expr,
-    error::{AstError, AstResult, IntoErr, collect_recovered},
-    parser::listen_rule,
+    error::{AstError, IntoErr, collect_recovered},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
@@ -14,7 +13,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Block {
 
         ast_ensure!(pair, Rule::block => {
             ast_expr!(Block {
-                is_unsafe: Ok(listen_rule(&mut inner, Rule::unsafe_kw)) as AstResult<bool>,
                 statements: collect_recovered(inner.next().unwrap().into_inner()),
                 soft_return: inner.next().map(Spanned::try_from).transpose(),
             })
@@ -48,6 +46,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
             Rule::statement | Rule::basic_stmt | Rule::control_flow => {
                 Statement::try_from(inner.next().unwrap())
             }
+
+            Rule::unsafe_block => ast_expr!(Statement::UnsafeBlock(inner.next().unwrap().try_into())),
 
             Rule::block => ast_expr!(Statement::Block(pair.try_into())),
 
