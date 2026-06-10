@@ -1,3 +1,5 @@
+pub module attribute_test;
+
 #[derive(Debug)]
 pub struct Debuggable {
     value i32,

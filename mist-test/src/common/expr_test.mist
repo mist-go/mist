@@ -1,3 +1,5 @@
+pub module expr_test;
+
 pub fn test_literals() {
     assert_eq!(42, 42);
     assert_eq!(3.14, 3.14);

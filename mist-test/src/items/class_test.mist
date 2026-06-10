@@ -1,3 +1,5 @@
+pub module class_test;
+
 pub class Animal<T> {
     pub name String;
     pub val T;

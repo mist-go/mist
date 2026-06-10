@@ -1,3 +1,5 @@
+pub module statement_test;
+
 pub fn test_var_decl() {
     let x = 42;
     assert_eq!(x, 42);
