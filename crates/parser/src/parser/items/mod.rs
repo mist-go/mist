@@ -93,7 +93,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 fields: collect_recovered(inner),
             }),
 
-            Rule::mod_package => ast_expr!(TopLevelKind::Mod(
+            Rule::declare_module => ast_expr!(TopLevelKind::DeclareModule(
                 Visibility::try_from(&mut inner),
                 inner.next().unwrap().try_into(),
             )),

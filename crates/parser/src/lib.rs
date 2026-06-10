@@ -1,4 +1,4 @@
-use pest::Parser;
+use pest::{Parser, Span};
 use pest_derive::Parser;
 
 pub mod ast;
@@ -14,7 +14,9 @@ use crate::error::{IntoErr, ParseError};
 #[grammar = "./src/grammar.pest"]
 pub struct MistParser;
 
-pub fn parse<'a>(source: &'a str) -> Result<Vec<TopLevel>, ParseError<'a, Vec<TopLevel>>> {
+pub fn parse<'a>(
+    source: &'a str,
+) -> Result<((Visibility, Identifier), Vec<TopLevel>), ParseError<'a, Vec<TopLevel>>> {
     let mut pairs = MistParser::parse(Rule::program, source)?;
 
     let mut statements = vec![];
@@ -27,8 +29,28 @@ pub fn parse<'a>(source: &'a str) -> Result<Vec<TopLevel>, ParseError<'a, Vec<To
         }
     }
 
+    let m = if let Some(v) = statements.get(0) {
+        if let TopLevelKind::DeclareModule(vis, name) = &v.0.item {
+            (vis.clone(), name.clone())
+        } else {
+            return Err(ParseError::Ast(error::AstError {
+                span: Span::new("", 0, 0).unwrap(),
+                error_code: error::ErrorCode::Module,
+                error_message: "Module must be declared, use `module <>;`".to_string(),
+                recovered: None,
+            }));
+        }
+    } else {
+        return Err(ParseError::Ast(error::AstError {
+            span: Span::new("", 0, 0).unwrap(),
+            error_code: error::ErrorCode::Module,
+            error_message: "Module must be declared, use `module <>;`".to_string(),
+            recovered: None,
+        }));
+    };
+
     match analyzer.build(statements) {
-        Ok(v) => Ok(v),
+        Ok(v) => Ok((m, v)),
         Err(e) => Err(ParseError::Ast(e)),
     }
 }
