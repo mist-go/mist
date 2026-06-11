@@ -1,1 +1,2 @@
 package = "main.mist"
+packages = ["analyzer.mist"]
