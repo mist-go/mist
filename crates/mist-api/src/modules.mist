@@ -3,13 +3,15 @@ use std::path::PathBuf;
 use std::fs;
 use std::process;
 
+use crate::transpiler::MistConfig;
+
 #[derive(Debug)]
 pub class Module {
     pub name String;
     pub path PathBuf;
     pub children Vec<Box<Module>>;
 
-    pub constructor(mist_path PathBuf) {
+    pub constructor(mist_path PathBuf, config *MistConfig) {
         self.children = Vec::new();
         self.name = mist_path.file_stem()
             .and_then(fn(s) -> s.to_str())
@@ -25,11 +27,15 @@ pub class Module {
                 self.path = pkg_gate;
             }
 
-            self.scan_directory(&dir);
+            self.scan_directory(&dir, config);
+        } else if (config.is_package(&self.path)) {
+            let dir = self.path.parent().expect("Failed to get parent directory to scan").to_path_buf();
+
+            self.scan_directory(&dir, config);
         }
     }
 
-    fn scan_directory(*mut self, search_dir *Path) {
+    fn scan_directory(*mut self, search_dir *Path, config *MistConfig) {
         let entries = match (fs::read_dir(search_dir)) {
             Ok[entries] => entries;
             Err[e] => {
@@ -49,11 +55,11 @@ pub class Module {
 
             let child_path = entry.path();
 
-            if (child_path == self.path) {
+            if (child_path == self.path || child_path == config.packages[0]) {
                 continue;
             }
 
-            self.children.push(Module::new(child_path));
+            self.children.push(Module::new(child_path, config));
         }
     }
 
@@ -72,15 +78,4 @@ pub class Module {
             parent_dir.join(&self.name).with_extension("rs")
         }
     }
-}
-
-pub fn master_package(mist_path PathBuf) Box<Module> {
-    let mut root_mod = Module::new(mist_path.clone());
-
-    let parent_dir = mist_path.parent()
-        .expect("Failed to get parent directory of root file");
-
-    root_mod.scan_directory(parent_dir);
-
-    root_mod
 }

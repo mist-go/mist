@@ -13,7 +13,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct MistConfig {
-    packages Vec<PathBuf>,
+    pub packages Vec<PathBuf>,
 }
 impl MistConfig {
     pub fn is_package(*self, path *Path) bool {
@@ -46,10 +46,11 @@ pub fn transpile() PathBuf {
         *pkg = src.join(&*pkg);
     }
 
-    let master = modules::master_package(
+    let master = modules::Module::new(
         config.packages.get(0)
             .unwrap_or_else(fn() -> panic!("Mist.toml packages must contain at least one element, eg, 'src/main.mist'"))
-            .to_path_buf()
+            .to_path_buf(),
+        &config
     );
 
     master.transpile(&out, &config);
@@ -84,7 +85,9 @@ impl modules::Module {
         let mut output = String::new();
 
         for (child : &self.children) {
-            output.push_str(&child.transpile(&dir, config));
+            if (!config.is_package(&child.path)) {
+                output.push_str(&child.transpile(&dir, config));
+            }
         }
 
         if (self.path.is_dir()) {
