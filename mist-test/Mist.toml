@@ -1,1 +1,1 @@
-package = "main.mist"
+packages = ["main.mist"]
