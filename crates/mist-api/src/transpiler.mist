@@ -184,18 +184,20 @@ fn transpile_file(path *PathBuf, mut output_file PathBuf, mod_decl *str) String 
         }
     };
 
-    if (let [Some[[vis, name]], ast] = parsed) {
-        let output = gc.generate(ast);
+    let output = gc.generate(parsed.1);
 
-        if (let Some[ext] = output_file.extension().map(fn(e) -> e.to_owned())) {
-            let mut new_name = std::ffi::OsString::from(&name.0);
+    if (let [Some[[vis, name]], _] = parsed) {
+        if (output_file.file_name().map(fn(v) -> v.to_str()).unwrap_or_default() != Some("mod.rs")) {
+            if (let Some[ext] = output_file.extension().map(fn(e) -> e.to_owned())) {
+                let mut new_name = std::ffi::OsString::from(&name.0);
 
-            new_name.push(".");
-            new_name.push(ext);
+                new_name.push(".");
+                new_name.push(ext);
 
-            output_file.set_file_name(new_name);
-        } else {
-            output_file.set_file_name(&name.0);
+                output_file.set_file_name(new_name);
+            } else {
+                output_file.set_file_name(&name.0);
+            }
         }
 
         let res = fs::write(&output_file, format!("{mod_decl}{output}"));
@@ -212,8 +214,6 @@ fn transpile_file(path *PathBuf, mut output_file PathBuf, mod_decl *str) String 
 
         format!("{}mod {};\n", vis.get_rust(), name.get_rust())
     } else {
-        let output = gc.generate(parsed.1);
-
         let res = fs::write(&output_file, format!("{mod_decl}{output}"));
 
         if (res.is_err()) {
