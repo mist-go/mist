@@ -12,11 +12,18 @@ use mist_codegen::GetRust;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
+#[serde(default)]
 pub struct MistConfig {
+    pub package PathBuf,
     pub packages Vec<PathBuf>,
+    pub main_mods String
 }
 impl MistConfig {
-    pub fn is_package(*self, path *Path) bool {
+    pub fn should_ignore(*self, path *Path) bool {
+        if (path == self.package) {
+            return true;
+        }
+
         for (pkg : &self.packages) {
             if (path.ends_with(pkg)) {
                 return true;
@@ -24,6 +31,15 @@ impl MistConfig {
         }
 
         false
+    }
+}
+impl Default for MistConfig {
+    fn default() Self {
+        Self {
+            package: PathBuf::from("main.mist"),
+            packages: Vec::new(),
+            main_mods: String::new(),
+        }
     }
 }
 
@@ -46,14 +62,14 @@ pub fn transpile() PathBuf {
         *pkg = src.join(&*pkg);
     }
 
+    config.package = src.join(&*config.package);
+
     let master = modules::Module::new(
-        config.packages.get(0)
-            .unwrap_or_else(fn() -> panic!("Mist.toml packages must contain at least one element, eg, 'src/main.mist'"))
-            .to_path_buf(),
+        config.package.clone(),
         &config
     );
 
-    master.transpile(&out, &config);
+    master.transpile(&out, &mut config);
 
     let elapsed = start.elapsed();
 
@@ -66,7 +82,7 @@ pub fn transpile() PathBuf {
 }
 
 impl modules::Module {
-    fn transpile(*self, parent_dir *PathBuf, config *MistConfig) String {
+    fn transpile(*self, parent_dir *PathBuf, config *mut MistConfig) String {
         if (!self.path.is_dir() && self.path.extension().and_then(fn(v) -> v.to_str()) != Some("mist")) {
             let file_name = self.path.file_name()
                 .and_then(fn(s) -> s.to_str())
@@ -85,11 +101,21 @@ impl modules::Module {
         let mut output = String::new();
 
         for (child : &self.children) {
-            if (!config.is_package(&child.path)) {
+            if (!config.should_ignore(&child.path)) {
                 output.push_str(&child.transpile(&dir, config));
             }
         }
 
+        if (self.path == config.package) {
+            config.main_mods = output.clone();
+        } else if (config.should_ignore(&self.path)) {
+            output.push_str(&config.main_mods)
+        }
+
+        self.write_transpile(output, output_file)
+    }
+
+    fn write_transpile(*self, output String, output_file PathBuf) String {
         if (self.path.is_dir()) {
             if (output.len() == 0) {
                 return String::new();
@@ -184,7 +210,7 @@ fn transpile_file(path *PathBuf, mut output_file PathBuf, mod_decl *str) String 
             process::exit(1);
         }
 
-        format!("{}mod {};", vis.get_rust(), name.get_rust())
+        format!("{}mod {};\n", vis.get_rust(), name.get_rust())
     } else {
         let output = gc.generate(parsed.1);
 

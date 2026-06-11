@@ -28,7 +28,7 @@ pub class Module {
             }
 
             self.scan_directory(&dir, config);
-        } else if (config.is_package(&self.path)) {
+        } else if (config.should_ignore(&self.path)) {
             let dir = self.path.parent().expect("Failed to get parent directory to scan").to_path_buf();
 
             self.scan_directory(&dir, config);
@@ -55,7 +55,7 @@ pub class Module {
 
             let child_path = entry.path();
 
-            if (child_path == self.path || child_path == config.packages[0]) {
+            if (child_path == self.path || child_path == config.package) {
                 continue;
             }
 
