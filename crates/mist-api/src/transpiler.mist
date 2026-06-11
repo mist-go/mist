@@ -6,6 +6,7 @@ use std::env;
 
 use mist_parser::error;
 use crate::modules;
+use mist_codegen::GetRust;
 
 pub fn transpile() PathBuf {
     let start = time::Instant::now();
@@ -68,16 +69,16 @@ impl modules::Module {
 
                 process::exit(1);
             }
-        } else {
-            transpile_file(&self.path, &output_file, &output);
-        }
 
-        format!("pub mod {};\n", self.name)
+            format!("pub mod {};\n", self.name)
+        } else {
+            transpile_file(&self.path, output_file, &output)
+        }
     }
 }
 
-fn transpile_file(path *PathBuf, output_file *PathBuf, mod_decl *str) {
-    let source = match (fs::read_to_string(path)) {
+fn transpile_file(path *PathBuf, mut output_file PathBuf, mod_decl *str) String {
+    let source = match (fs::read_to_string(&path)) {
         Ok[s] => s;
         Err[e] => {
             eprintln!("error: failed to read file {}\n  {}", path.display(), e);
@@ -88,9 +89,7 @@ fn transpile_file(path *PathBuf, output_file *PathBuf, mod_decl *str) {
 
     let mut gc = mist_codegen::RustCodegen::new();
 
-    let is_master = path.file_name().unwrap().to_str().unwrap() == "main.mist";
-
-    let [[vis, name], ast] = match (mist_parser::parse(&source, is_master)) {
+    let parsed = match (mist_parser::parse(&source)) {
         Ok[ast] => ast;
         Err[e] => {
             match (e) {
@@ -122,18 +121,49 @@ fn transpile_file(path *PathBuf, output_file *PathBuf, mod_decl *str) {
         }
     };
 
-    let output = gc.generate(ast);
+    if (let [Some[[vis, name]], ast] = parsed) {
+        let output = gc.generate(ast);
 
-    let res = fs::write(&output_file, format!("{mod_decl}{output}"));
+        if (let Some[ext] = output_file.extension().map(fn(e) -> e.to_owned())) {
+            let mut new_name = std::ffi::OsString::from(&name.0);
 
-    if (res.is_err()) {
-        eprintln!(
-            "error: failed to write output {}\n  {}",
-            output_file.display(),
-            res.unwrap_err(),
-        );
+            new_name.push(".");
+            new_name.push(ext);
 
-        process::exit(1);
+            output_file.set_file_name(new_name);
+        } else {
+            output_file.set_file_name(&name.0);
+        }
+
+        let res = fs::write(&output_file, format!("{mod_decl}{output}"));
+
+        if (res.is_err()) {
+            eprintln!(
+                "error: failed to write output {}\n  {}",
+                output_file.display(),
+                res.unwrap_err(),
+            );
+
+            process::exit(1);
+        }
+
+        format!("{}mod {};", vis.get_rust(), name.get_rust())
+    } else {
+        let output = gc.generate(parsed.1);
+
+        let res = fs::write(&output_file, format!("{mod_decl}{output}"));
+
+        if (res.is_err()) {
+            eprintln!(
+                "error: failed to write output {}\n  {}",
+                output_file.display(),
+                res.unwrap_err(),
+            );
+
+            process::exit(1);
+        }
+
+        String::new()
     }
 }
 
