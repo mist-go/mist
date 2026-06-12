@@ -108,15 +108,13 @@ impl ClassProcessedData {
         ));
         cg.indent += 1;
 
-        cg.add_indentedln("pub _vptr: &'static [*const std::ffi::c_void],");
-
-        cg.add_indentedln("_pin: std::marker::PhantomPinned,");
-
         if let Some(ref inherits) = self.inherits {
             cg.add_indented("pub _super: ");
             cg.add(&get_type_from_path(inherits).get_rust());
             cg.addln(",");
         }
+
+        cg.add_indentedln("pub _vptr: &'static [*const std::ffi::c_void],");
 
         for field in &self.fields {
             cg.add_indentedln(&field.get_comment());
