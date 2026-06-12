@@ -1,3 +1,5 @@
+pub module transpiler;
+
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -20,12 +22,12 @@ pub struct MistConfig {
 }
 impl MistConfig {
     pub fn should_ignore(*self, path *Path) bool {
-        if (path == self.package) {
+        if path == self.package {
             return true;
         }
 
-        for (pkg : &self.packages) {
-            if (path.ends_with(pkg)) {
+        for pkg in &self.packages {
+            if path.ends_with(pkg) {
                 return true;
             }
         }
@@ -58,7 +60,7 @@ pub fn transpile() PathBuf {
     let mut config MistConfig = toml::from_str(&toml_content)
         .unwrap_or_else(fn(_) -> panic!("Failed to parse Mist.toml from {:?}", toml_path));
     
-    for (pkg : &mut config.packages) {
+    for pkg in &mut config.packages {
         *pkg = src.join(&*pkg);
     }
 
@@ -83,7 +85,7 @@ pub fn transpile() PathBuf {
 
 impl modules::Module {
     fn transpile(*self, parent_dir *PathBuf, config *mut MistConfig) String {
-        if (!self.path.is_dir() && self.path.extension().and_then(fn(v) -> v.to_str()) != Some("mist")) {
+        if !self.path.is_dir() && self.path.extension().and_then(fn(v) -> v.to_str()) != Some("mist") {
             let file_name = self.path.file_name()
                 .and_then(fn(s) -> s.to_str())
                 .expect("Failed to get file name");
@@ -100,15 +102,15 @@ impl modules::Module {
 
         let mut output = String::new();
 
-        for (child : &self.children) {
-            if (!config.should_ignore(&child.path)) {
+        for child in &self.children {
+            if !config.should_ignore(&child.path) {
                 output.push_str(&child.transpile(&dir, config));
             }
         }
 
-        if (self.path == config.package) {
+        if self.path == config.package {
             config.main_mods = output.clone();
-        } else if (config.should_ignore(&self.path)) {
+        } else if config.should_ignore(&self.path) {
             output.push_str(&config.main_mods)
         }
 
@@ -116,14 +118,14 @@ impl modules::Module {
     }
 
     fn write_transpile(*self, output String, output_file PathBuf) String {
-        if (self.path.is_dir()) {
-            if (output.len() == 0) {
+        if self.path.is_dir() {
+            if output.len() == 0 {
                 return String::new();
             }
 
             let res = fs::write(&output_file, output);
 
-            if (res.is_err()) {
+            if res.is_err() {
                 eprintln!(
                     "error: failed to write output {}\n  {}",
                     output_file.display(),
@@ -141,7 +143,7 @@ impl modules::Module {
 }
 
 fn transpile_file(path *PathBuf, mut output_file PathBuf, mod_decl *str) String {
-    let source = match (fs::read_to_string(&path)) {
+    let source = match fs::read_to_string(&path) {
         Ok[s] => s;
         Err[e] => {
             eprintln!("error: failed to read file {}\n  {}", path.display(), e);
@@ -152,10 +154,10 @@ fn transpile_file(path *PathBuf, mut output_file PathBuf, mod_decl *str) String 
 
     let mut gc = mist_codegen::RustCodegen::new();
 
-    let parsed = match (mist_parser::parse(&source)) {
+    let parsed = match mist_parser::parse(&source) {
         Ok[ast] => ast;
         Err[e] => {
-            match (e) {
+            match e {
                 error::ParseError::Ast[e] => {
                     let start_pos = e.span.start_pos().line_col();
 
@@ -186,9 +188,9 @@ fn transpile_file(path *PathBuf, mut output_file PathBuf, mod_decl *str) String 
 
     let output = gc.generate(parsed.1);
 
-    if (let [Some[[vis, name]], _] = parsed) {
-        if (output_file.file_name().map(fn(v) -> v.to_str()).unwrap_or_default() != Some("mod.rs")) {
-            if (let Some[ext] = output_file.extension().map(fn(e) -> e.to_owned())) {
+    if let [Some[[vis, name]], _] = parsed {
+        if output_file.file_name().map(fn(v) -> v.to_str()).unwrap_or_default() != Some("mod.rs") {
+            if let Some[ext] = output_file.extension().map(fn(e) -> e.to_owned()) {
                 let mut new_name = std::ffi::OsString::from(&name.0);
 
                 new_name.push(".");
@@ -202,7 +204,7 @@ fn transpile_file(path *PathBuf, mut output_file PathBuf, mod_decl *str) String 
 
         let res = fs::write(&output_file, format!("{mod_decl}{output}"));
 
-        if (res.is_err()) {
+        if res.is_err() {
             eprintln!(
                 "error: failed to write output {}\n  {}",
                 output_file.display(),
@@ -216,7 +218,7 @@ fn transpile_file(path *PathBuf, mut output_file PathBuf, mod_decl *str) String 
     } else {
         let res = fs::write(&output_file, format!("{mod_decl}{output}"));
 
-        if (res.is_err()) {
+        if res.is_err() {
             eprintln!(
                 "error: failed to write output {}\n  {}",
                 output_file.display(),

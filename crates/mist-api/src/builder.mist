@@ -1,3 +1,5 @@
+pub module builder;
+
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -47,11 +49,11 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
 
     let mist_src = format!(".mist{MAIN_SEPARATOR}src");
 
-    for (message : cargo_metadata::Message::parse_stream(&mut reader)) {
-        match (message) {
+    for message in cargo_metadata::Message::parse_stream(&mut reader) {
+        match message {
             Ok[Message::CompilerMessage[msg]] => {
-                for (span : &msg.message.spans) {
-                    if (span.is_primary) {
+                for span in &msg.message.spans {
+                    if span.is_primary {
                         let rust_path = root.join(&span.file_name);
 
                         let mist_file = span
@@ -63,7 +65,7 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
 
                         let mist_path = root.join(&mist_file);
 
-                        if (!fs::exists(&mist_path).expect("Unable to check if mist file exists")) {
+                        if !fs::exists(&mist_path).expect("Unable to check if mist file exists") {
                             diagnostics.push(MistDiagnostic::Rust(msg));
                             break;
                         }
@@ -85,7 +87,8 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
                                 msg.message.message,
                                 span.label.clone().unwrap_or_default()
                             ),
-                            file_name: if (is_root) {
+                            file_name: if is_root {
+                                (); // TODO: fix this
                                 mist_file
                             } else {
                                 mist_path.to_string_lossy().to_string()
@@ -95,7 +98,7 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
                             column: column
                         };
 
-                        match (msg.message.level) {
+                        match msg.message.level {
                             cargo_metadata::diagnostic::DiagnosticLevel::Error => {
                                 diagnostics.push(MistDiagnostic::Error(mist_msg))
                             }
@@ -136,8 +139,8 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
 pub fn print_diagnostics(diagnostics *Vec<MistDiagnostic>) {
     let mut files = HashMap::new();
 
-    for (diag : diagnostics) {
-        match (diag) {
+    for diag in diagnostics {
+        match diag {
             MistDiagnostic::Error[msg] => {
                 let line = get_line(&mut files, &msg);
 

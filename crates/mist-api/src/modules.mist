@@ -1,3 +1,5 @@
+pub module modules;
+
 use std::path::Path;
 use std::path::PathBuf;
 use std::fs;
@@ -9,7 +11,7 @@ use crate::transpiler::MistConfig;
 pub class Module {
     pub name String;
     pub path PathBuf;
-    pub children Vec<Box<Module>>;
+    pub children Vec<Module>;
 
     pub constructor(mist_path PathBuf, config *MistConfig) {
         self.children = Vec::new();
@@ -19,16 +21,16 @@ pub class Module {
             .to_string();
         self.path = mist_path;
 
-        if (self.path.is_dir()) {
+        if self.path.is_dir() {
             let dir = self.path.clone();
 
             let pkg_gate = self.path.join("package.mist");
-            if (pkg_gate.exists()) {
+            if pkg_gate.exists() {
                 self.path = pkg_gate;
             }
 
             self.scan_directory(&dir, config);
-        } else if (config.should_ignore(&self.path)) {
+        } else if config.should_ignore(&self.path) {
             let dir = self.path.parent().expect("Failed to get parent directory to scan").to_path_buf();
 
             self.scan_directory(&dir, config);
@@ -36,7 +38,7 @@ pub class Module {
     }
 
     fn scan_directory(*mut self, search_dir *Path, config *MistConfig) {
-        let entries = match (fs::read_dir(search_dir)) {
+        let entries = match fs::read_dir(search_dir) {
             Ok[entries] => entries;
             Err[e] => {
                 eprintln!("error: failed to read directory {}\n  {}", search_dir.display(), e);
@@ -44,8 +46,8 @@ pub class Module {
             }
         };
 
-        for (entry : entries) {
-            let entry = match (entry) {
+        for entry in entries {
+            let entry = match entry {
                 Ok[entry] => entry;
                 Err[e] => {
                     eprintln!("error: failed to read directory entry\n  {}", e);
@@ -55,7 +57,7 @@ pub class Module {
 
             let child_path = entry.path();
 
-            if (child_path == self.path || child_path == config.package) {
+            if child_path == self.path || child_path == config.package {
                 continue;
             }
 
@@ -68,7 +70,7 @@ pub class Module {
     }
 
     pub fn output_dir(*self, parent_dir *PathBuf) PathBuf {
-        if (self.path.is_dir() || self.is_package()) {
+        if self.path.is_dir() || self.is_package() {
             parent_dir.join(&self.name)
         } else {
             parent_dir.clone()
@@ -76,7 +78,7 @@ pub class Module {
     }
 
     pub fn output_path(*self, parent_dir *PathBuf) PathBuf {
-        if (self.path.is_dir() || self.is_package()) {
+        if self.path.is_dir() || self.is_package() {
             parent_dir.join(&self.name).join("mod.rs")
         } else {
             parent_dir.join(&self.name).with_extension("rs")
