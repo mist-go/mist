@@ -106,9 +106,7 @@ impl ClassProcessedData {
         ));
         cg.indent += 1;
 
-        cg.add_indentedln(
-            "pub _vptr: (&'static [*const std::ffi::c_void], *mut std::ffi::c_void),",
-        );
+        cg.add_indentedln("pub _vptr: &'static [*const std::ffi::c_void],");
 
         cg.add_indentedln("_pin: std::marker::PhantomPinned,");
 
@@ -327,8 +325,7 @@ impl ClassProcessedData {
         cg.indent += 1;
 
         cg.add_indentedln("let mut this: Self = unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
-        cg.add_indentedln("let this_ptr = &mut this as *mut Self as *mut std::ffi::c_void;");
-        cg.add_indentedln("this._vptr = (&Self::__V_TABLE, this_ptr);");
+        cg.add_indentedln("this._vptr = &Self::__V_TABLE;");
 
         // Inline field declarations and initializers
         for field in &self.fields {
@@ -357,7 +354,7 @@ impl ClassProcessedData {
                     // Direct base class layout updates
                     None => {
                         cg.add_indentedln(&format!(
-                            "this._super._vptr.0 = Self::__SUPER_V_TABLES[{}];",
+                            "this._super._vptr = Self::__SUPER_V_TABLES[{}];",
                             idx
                         ));
                     }
@@ -365,7 +362,7 @@ impl ClassProcessedData {
                     Some(path) => {
                         cg.add_indentedln(&v.get_comment());
                         cg.add_indentedln(&format!(
-                            "(|v: &mut {}| {{v._vptr = (Self::__SUPER_V_TABLES[{}], this_ptr);}})(&mut this);",
+                            "(|v: &mut {}| {{v._vptr = Self::__SUPER_V_TABLES[{}];}})(&mut this);",
                             path.get_rust(),
                             idx
                         ));
@@ -554,7 +551,7 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
     cg.indent += 1;
 
     cg.add_indentedln(&format!(
-        "let func_ptr = self._vptr.0[Self::__FN_{}];",
+        "let func_ptr = self._vptr[Self::__FN_{}];",
         method.name.0.to_uppercase()
     ));
 
@@ -568,14 +565,14 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
         .filter_map(|v| v.type_)
         .collect();
 
-    if !param_types.is_empty() {
-        param_types.remove(0);
-    }
+    let TypeExpr::Ref { mutable, .. } = param_types.remove(0) else {
+        panic!("")
+    };
 
     param_types.insert(
         0,
         TypeExpr::UnsafePtr {
-            mutable: true,
+            mutable,
             ty: Box::new(TypeExpr::Path(
                 Path(vec![
                     Identifier(String::from("std")),
@@ -590,11 +587,15 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
     cg.add(&TypeExpr::StaticFn(param_types, method.return_type.clone().map(Box::new)).get_rust());
     cg.addln(" = std::mem::transmute(func_ptr);");
 
-    cg.add_indented("func(self._vptr.1");
+    if mutable {
+        cg.add_indented("func(self as *mut Self as *const std::ffi::c_void");
+    } else {
+        cg.add_indented("func(self as *const Self as *const std::ffi::c_void");
+    }
 
     for (i, param) in &params {
         if *i == 0 {
-            continue; // self._vptr.1 already fulfills it
+            continue; // self already fulfills it
         }
         cg.add(", ");
         ctx.expr_ensure_semicolon = false;
