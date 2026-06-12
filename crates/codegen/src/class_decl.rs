@@ -112,9 +112,9 @@ impl ClassProcessedData {
             cg.add_indented("pub _super: ");
             cg.add(&get_type_from_path(inherits).get_rust());
             cg.addln(",");
+        } else {
+            cg.add_indentedln("pub _vptr: &'static [*const std::ffi::c_void],");
         }
-
-        cg.add_indentedln("pub _vptr: &'static [*const std::ffi::c_void],");
 
         for field in &self.fields {
             cg.add_indentedln(&field.get_comment());
@@ -133,9 +133,7 @@ impl ClassProcessedData {
         ));
         cg.indent += 1;
 
-        self.emit_v_table(cg);
-
-        self.emit_super_v_table(cg);
+        self.emit_unified_vtable(cg);
         self.emit_super_v_tests(cg);
 
         self.emit_constructor(ctx, cg);
@@ -145,81 +143,92 @@ impl ClassProcessedData {
         cg.addln("}\n");
     }
 
-    fn emit_v_table(&self, cg: &mut RustCodegen) {
+    fn emit_unified_vtable(&self, cg: &mut RustCodegen) {
+        let has_parent = self.inherits.is_some();
+        let parent_path = self
+            .inherits
+            .as_ref()
+            .map(|p| p.get_rust())
+            .unwrap_or_default();
+
+        if has_parent {
+            cg.add_indentedln(&format!(
+                "pub const __PARENT_V_COUNT: usize = {}::__V_COUNT;",
+                parent_path
+            ));
+        } else {
+            cg.add_indentedln("pub const __PARENT_V_COUNT: usize = 0;");
+        }
+
         for (i, method_name) in self.v_table.iter().enumerate() {
             cg.add_indentedln(&format!(
-                "pub const __FN_{}: usize = {i};",
+                "pub const __FN_{}: usize = Self::__PARENT_V_COUNT + {i};",
                 method_name.0.to_uppercase()
             ));
         }
 
         cg.add_indentedln(&format!(
-            "pub const __V_TABLE: [*const std::ffi::c_void; {}] = [",
+            "pub const __V_COUNT: usize = Self::__PARENT_V_COUNT + {};",
             self.v_table.len()
         ));
+
+        cg.add_indentedln("pub const __V_TABLE: &'static [*const std::ffi::c_void] = &{");
         cg.indent += 1;
 
-        for method_name in &self.v_table {
-            cg.add_indented("Self::__m_");
-            cg.add(&method_name.get_rust());
-            cg.add(" as *const std::ffi::c_void");
-            cg.addln(",");
-        }
+        if has_parent {
+            cg.add_indentedln(&format!(
+                "let mut table = [std::ptr::null(); {}::__V_COUNT + {}];",
+                parent_path,
+                self.v_table.len()
+            ));
 
-        cg.indent -= 1;
-        cg.add_indentedln("];");
-    }
+            cg.add_indentedln(&format!("let parent_table = {}::__V_TABLE;", parent_path));
+            cg.add_indentedln(&format!(
+                "let mut i = 0; while i < {}::__V_COUNT {{ table[i] = parent_table[i]; i += 1; }}",
+                parent_path
+            ));
 
-    fn emit_super_v_table(&self, cg: &mut RustCodegen) {
-        if self.override_v_table.is_empty() {
-            return;
-        }
-
-        cg.add_indentedln(&format!(
-            "pub const __SUPER_V_TABLES: [&'static [*const std::ffi::c_void]; {}] = [",
-            self.override_v_table.len()
-        ));
-        cg.indent += 1;
-
-        for (override_tier, overriden_method_idents) in &self.override_v_table {
-            let target_path = match &override_tier.0 {
-                Some(path) => path.clone(),
-                None => {
-                    if let Some(parent_path) = &self.inherits {
-                        parent_path.clone()
-                    } else {
-                        continue; // Safeguard if AST has a dangling override without inheritance
-                    }
+            for (override_tier, overriden_method_idents) in &self.override_v_table {
+                let base_class_path = override_tier
+                    .0
+                    .as_ref()
+                    .unwrap_or(self.inherits.as_ref().unwrap())
+                    .get_rust();
+                for method_ident in &overriden_method_idents.item {
+                    cg.add_indentedln(&format!(
+                        "table[{}::__FN_{}] = {}::__m_{} as *const std::ffi::c_void;",
+                        base_class_path,
+                        method_ident.0.to_uppercase(),
+                        self.self_path.get_rust(),
+                        method_ident.get_rust()
+                    ));
                 }
-            };
+            }
 
-            let target_rust_path = target_path.get_rust();
-
-            // 2. Emit the block for this specific index table
-            cg.add_indentedln("&{");
-            cg.indent += 1;
-
-            // Initialize this sub-table with the target parent class's base vtable
-            cg.add_indentedln(&format!("let mut table = {}::__V_TABLE;", target_rust_path));
-
-            // Patch the slots for every method registered under this specific override tier
-            for method_ident in &overriden_method_idents.item {
+            for method_name in &self.v_table {
                 cg.add_indentedln(&format!(
-                    "table[{}::__FN_{}] = {}::__m_{} as *const std::ffi::c_void;",
-                    target_rust_path,
-                    method_ident.0.to_uppercase(),
-                    self.self_path.get_rust(),
-                    method_ident.get_rust()
+                    "table[Self::__FN_{}] = Self::__m_{} as *const std::ffi::c_void;",
+                    method_name.0.to_uppercase(),
+                    method_name.get_rust()
                 ));
             }
 
             cg.add_indentedln("table");
+        } else {
+            cg.add_indentedln("[");
+            cg.indent += 1;
+            for method_name in &self.v_table {
+                cg.add_indentedln(&format!(
+                    "Self::__m_{} as *const std::ffi::c_void,",
+                    method_name.get_rust()
+                ));
+            }
             cg.indent -= 1;
-            cg.add_indentedln("},");
+            cg.add_indentedln("]");
         }
 
         cg.indent -= 1;
-        cg.add_indentedln("];");
+        cg.add_indentedln("};");
     }
 
     fn emit_super_v_tests(&self, cg: &mut RustCodegen) {
@@ -234,7 +243,7 @@ impl ClassProcessedData {
                     if let Some(parent_path) = &self.inherits {
                         parent_path.clone()
                     } else {
-                        continue; // Safeguard if AST has a dangling override without inheritance
+                        continue;
                     }
                 }
             };
@@ -327,7 +336,6 @@ impl ClassProcessedData {
         cg.add_indentedln("let mut this: Self = unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
         cg.add_indentedln("this._vptr = &Self::__V_TABLE;");
 
-        // Inline field declarations and initializers
         for field in &self.fields {
             let comment = field.get_comment();
 
@@ -348,28 +356,7 @@ impl ClassProcessedData {
         }
         cg.addln(");");
 
-        if self.inherits.is_some() && !self.override_v_table.is_empty() {
-            for (idx, (override_tier, v)) in self.override_v_table.iter().enumerate() {
-                match &override_tier.0 {
-                    // Direct base class layout updates
-                    None => {
-                        cg.add_indentedln(&format!(
-                            "this._super._vptr = Self::__SUPER_V_TABLES[{}];",
-                            idx
-                        ));
-                    }
-                    // Deep ancestor trait table updates
-                    Some(path) => {
-                        cg.add_indentedln(&v.get_comment());
-                        cg.add_indentedln(&format!(
-                            "(|v: &mut {}| {{v._vptr = Self::__SUPER_V_TABLES[{}];}})(&mut this);",
-                            path.get_rust(),
-                            idx
-                        ));
-                    }
-                }
-            }
-        }
+        cg.add_indentedln("this._vptr = &Self::__V_TABLE;");
 
         cg.add_indentedln(&constructor_comment);
 
@@ -377,7 +364,6 @@ impl ClassProcessedData {
         cg.indent -= 1;
         cg.add_indentedln("}\n");
 
-        // Generate matching inner initialization body block
         let mut constructor_params = vec![VarDecl {
             name: Pattern::Path(false, Path(vec![Identifier(String::from("self"))])),
             type_: Some(TypeExpr::Ref {
