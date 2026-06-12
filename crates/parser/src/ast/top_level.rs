@@ -56,7 +56,7 @@ pub enum TopLevelKind {
         generics: GenericsDecl,
         inherits: Option<ExprPath>,
         fields: Vec<Spanned<FieldDeclStmt>>,
-        constructor: Spanned<ClassConstructor>,
+        constructor: Option<Spanned<ClassConstructor>>,
         items: Vec<ClassItem>,
     },
 }

@@ -12,7 +12,7 @@ pub struct ClassProcessedData {
     self_path: ExprPath,
     self_ty: TypeExpr,
     fields: Vec<Spanned<FieldDeclStmt>>,
-    constructor: Spanned<ClassConstructor>,
+    constructor: Option<Spanned<ClassConstructor>>,
     items: Vec<ClassItem>,
     methods: Vec<Spanned<FunctionDecl>>,
     v_table: Vec<Identifier>,
@@ -26,7 +26,7 @@ impl ClassProcessedData {
         generics: &GenericsDecl,
         inherits: &Option<ExprPath>,
         fields: &Vec<Spanned<FieldDeclStmt>>,
-        constructor: &Spanned<ClassConstructor>,
+        constructor: &Option<Spanned<ClassConstructor>>,
         items: &Vec<ClassItem>,
     ) -> Self {
         let self_path = ExprPath(vec![ExprPathSegment {
@@ -136,7 +136,9 @@ impl ClassProcessedData {
         self.emit_unified_vtable(cg);
         self.emit_super_v_tests(cg);
 
-        self.emit_constructor(ctx, cg);
+        if let Some(constructor) = &self.constructor {
+            self.emit_constructor(constructor, ctx, cg);
+        }
         self.emit_methods(ctx, cg);
 
         cg.indent -= 1;
@@ -295,7 +297,7 @@ impl ClassProcessedData {
 
         // Deref tests for override targets
         if self.inherits.is_some() && !self.override_v_table.is_empty() {
-             cg.add_indentedln("let this: &Self = &unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
+            cg.add_indentedln("let this: &Self = &unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
 
             for (override_tier, v) in &self.override_v_table {
                 if let Some(path) = &override_tier.0 {
@@ -310,20 +312,24 @@ impl ClassProcessedData {
         cg.add_indentedln("}");
     }
 
-    fn emit_constructor(&self, ctx: &mut Context, cg: &mut RustCodegen) {
-        let constructor_comment = self.constructor.get_comment();
+    fn emit_constructor(
+        &self,
+        constructor: &Spanned<ClassConstructor>,
+        ctx: &mut Context,
+        cg: &mut RustCodegen,
+    ) {
+        let constructor_comment = constructor.get_comment();
 
         cg.add_indentedln("#[allow(invalid_value)]");
         cg.add_indentedln(&constructor_comment);
 
         cg.add_indented(&format!(
             "{}fn new{}(",
-            self.constructor.item.visibility.get_rust(),
-            self.constructor.item.generics.get_rust()
+            constructor.item.visibility.get_rust(),
+            constructor.item.generics.get_rust()
         ));
 
-        let params = self
-            .constructor
+        let params = constructor
             .item
             .params
             .0
@@ -389,19 +395,19 @@ impl ClassProcessedData {
             }),
         }];
 
-        constructor_params.append(&mut self.constructor.item.params.0.clone());
+        constructor_params.append(&mut constructor.item.params.0.clone());
 
         Spanned {
-            line: self.constructor.line,
-            column: self.constructor.column,
+            line: constructor.line,
+            column: constructor.column,
             item: FunctionDecl {
-                visibility: self.constructor.item.visibility.clone(),
+                visibility: constructor.item.visibility.clone(),
                 is_override: None,
                 name: Identifier(String::from("constructor")),
-                generics: self.constructor.item.generics.clone(),
+                generics: constructor.item.generics.clone(),
                 params: ParamList(constructor_params),
                 return_type: Some(TypeExpr::Tuple(Vec::new())),
-                body: Some(self.constructor.item.body.clone()),
+                body: Some(constructor.item.body.clone()),
             },
         }
         .gen_rust(ctx, cg);
@@ -491,7 +497,7 @@ pub fn class_decl(
     generics: &GenericsDecl,
     inherits: &Option<ExprPath>,
     fields: &Vec<Spanned<FieldDeclStmt>>,
-    constructor: &Spanned<ClassConstructor>,
+    constructor: &Option<Spanned<ClassConstructor>>,
     items: &Vec<ClassItem>,
 ) {
     let data = ClassProcessedData::analyze(

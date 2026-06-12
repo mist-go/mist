@@ -292,7 +292,7 @@ class_item = _{
 }
 
 class_decl = {
-    visibility? ~ "class" ~ identifier ~ generics_decl? ~ (":" ~ expr_path)? ~ "{" ~ class_fields ~ class_constructor ~ class_item* ~ "}"
+    visibility? ~ "class" ~ identifier ~ generics_decl? ~ (":" ~ expr_path)? ~ "{" ~ class_fields ~ class_constructor? ~ class_item* ~ "}"
 }
 
 // ======================================================

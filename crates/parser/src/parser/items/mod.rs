@@ -75,7 +75,9 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
 
                 fields: collect_recovered(inner.next().unwrap().into_inner()),
 
-                constructor: inner.next().unwrap().try_into(),
+                constructor: consume_rule(&mut inner, Rule::class_constructor)
+                    .map(Spanned::try_from)
+                    .transpose(),
 
                 items: collect_recovered(inner),
             }),
