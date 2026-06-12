@@ -234,6 +234,7 @@ impl ClassProcessedData {
     }
 
     fn emit_super_v_tests(&self, cg: &mut RustCodegen) {
+        cg.add_indentedln("#[allow(invalid_value)]");
         cg.add_indentedln(&format!("fn __test_vt() {{"));
         cg.indent += 1;
 
