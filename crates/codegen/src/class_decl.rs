@@ -51,7 +51,9 @@ impl ClassProcessedData {
             if matches!(method.item.visibility, Visibility::Public) {
                 match &method.item.is_override {
                     None => {
-                        v_table.push(method.item.name.clone());
+                        if method.item.is_using_self() {
+                            v_table.push(method.item.name.clone());
+                        }
                     }
                     Some(override_spec) => {
                         override_v_table
@@ -412,18 +414,7 @@ impl ClassProcessedData {
         for method in &self.methods {
             match method.item.visibility {
                 Visibility::Public => {
-                    let is_using_self = match method.item.params.0.get(0) {
-                        Some(VarDecl { name, .. }) => {
-                            if let Pattern::Path(_, v) = name {
-                                v.0.len() == 1 && v.0[0].0 == "self"
-                            } else {
-                                false
-                            }
-                        }
-                        _ => false,
-                    };
-
-                    if is_using_self {
+                    if method.item.is_using_self() {
                         if method.item.is_override.is_none() {
                             gen_method_point(&method.item, ctx, cg);
                         }
