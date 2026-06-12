@@ -107,13 +107,15 @@ impl ClassProcessedData {
         cg.indent += 1;
 
         cg.add_indentedln(
-            "pub _m_oop: (&'static [*const std::ffi::c_void], *mut std::ffi::c_void),",
+            "pub _vptr: (&'static [*const std::ffi::c_void], *mut std::ffi::c_void),",
         );
 
+        cg.add_indentedln("_pin: std::marker::PhantomPinned,");
+
         if let Some(ref inherits) = self.inherits {
-            cg.add_indented("pub _super: Box<");
+            cg.add_indented("pub _super: ");
             cg.add(&get_type_from_path(inherits).get_rust());
-            cg.addln(">,");
+            cg.addln(",");
         }
 
         for field in &self.fields {
@@ -321,12 +323,12 @@ impl ClassProcessedData {
             param.gen_rust(ctx, cg);
         }
 
-        cg.addln(") -> Box<Self> {");
+        cg.addln(") -> Self {");
         cg.indent += 1;
 
-        cg.add_indentedln("let mut this = Box::new(unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() });");
-        cg.add_indentedln("let this_ptr = &mut *this as *mut Self as *mut std::ffi::c_void;");
-        cg.add_indentedln("this._m_oop = (&Self::__V_TABLE, this_ptr);");
+        cg.add_indentedln("let mut this: Self = unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
+        cg.add_indentedln("let this_ptr = &mut this as *mut Self as *mut std::ffi::c_void;");
+        cg.add_indentedln("this._vptr = (&Self::__V_TABLE, this_ptr);");
 
         // Inline field declarations and initializers
         for field in &self.fields {
@@ -355,7 +357,7 @@ impl ClassProcessedData {
                     // Direct base class layout updates
                     None => {
                         cg.add_indentedln(&format!(
-                            "this._super._m_oop.0 = Self::__SUPER_V_TABLES[{}];",
+                            "this._super._vptr.0 = Self::__SUPER_V_TABLES[{}];",
                             idx
                         ));
                     }
@@ -363,7 +365,7 @@ impl ClassProcessedData {
                     Some(path) => {
                         cg.add_indentedln(&v.get_comment());
                         cg.add_indentedln(&format!(
-                            "(|v: &mut {}| {{v._m_oop.0 = Self::__SUPER_V_TABLES[{}];}})(&mut this);",
+                            "(|v: &mut {}| {{v._vptr = (Self::__SUPER_V_TABLES[{}], this_ptr);}})(&mut this);",
                             path.get_rust(),
                             idx
                         ));
@@ -552,7 +554,7 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
     cg.indent += 1;
 
     cg.add_indentedln(&format!(
-        "let func_ptr = self._m_oop.0[Self::__FN_{}];",
+        "let func_ptr = self._vptr.0[Self::__FN_{}];",
         method.name.0.to_uppercase()
     ));
 
@@ -588,11 +590,11 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
     cg.add(&TypeExpr::StaticFn(param_types, method.return_type.clone().map(Box::new)).get_rust());
     cg.addln(" = std::mem::transmute(func_ptr);");
 
-    cg.add_indented("func(self._m_oop.1");
+    cg.add_indented("func(self._vptr.1");
 
     for (i, param) in &params {
         if *i == 0 {
-            continue; // self._m_oop.1 already fulfills it
+            continue; // self._vptr.1 already fulfills it
         }
         cg.add(", ");
         ctx.expr_ensure_semicolon = false;
