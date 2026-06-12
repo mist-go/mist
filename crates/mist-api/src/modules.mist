@@ -63,12 +63,12 @@ pub class Module {
         }
     }
 
-    pub fn is_package(*self, parent_dir *PathBuf) bool {
+    pub fn is_package(*self) bool {
         self.path.file_name().map(fn(v) -> v.to_str()).unwrap_or_default() == Some("package.mist")
     }
 
     pub fn output_dir(*self, parent_dir *PathBuf) PathBuf {
-        if (self.path.is_dir() || self.is_package(parent_dir)) {
+        if (self.path.is_dir() || self.is_package()) {
             parent_dir.join(&self.name)
         } else {
             parent_dir.clone()
@@ -76,7 +76,7 @@ pub class Module {
     }
 
     pub fn output_path(*self, parent_dir *PathBuf) PathBuf {
-        if (self.path.is_dir() || self.is_package(parent_dir)) {
+        if (self.path.is_dir() || self.is_package()) {
             parent_dir.join(&self.name).join("mod.rs")
         } else {
             parent_dir.join(&self.name).with_extension("rs")
