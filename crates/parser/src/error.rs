@@ -24,6 +24,7 @@ pub struct AstError<'a, T> {
 pub enum ErrorCode {
     InvalidStatement,
     AstGenBug,
+    Module,
 }
 
 impl<T> From<pest::error::Error<Rule>> for ParseError<'_, T> {

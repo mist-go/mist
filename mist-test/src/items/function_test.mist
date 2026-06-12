@@ -1,3 +1,5 @@
+pub module function_test;
+
 fn greet() {
     let mut x = 1;
     x++;

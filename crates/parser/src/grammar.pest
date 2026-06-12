@@ -220,8 +220,8 @@ import = {
     visibility? ~ "use" ~ static_path ~ semicolon
 }
 
-mod_package = {
-    visibility? ~ "mod" ~ identifier ~ semicolon
+declare_module = {
+    visibility? ~ "module" ~ identifier ~ semicolon
 }
 
 // ======================================================
@@ -334,7 +334,7 @@ function_decl = {
 // ======================================================
 
 top_level = {
-    (attributes ~ (import | impl_for_decl | impl_decl | trait_decl | struct_decl | enum_decl | class_decl | mod_package | function_decl))
+    (attributes ~ (import | impl_for_decl | impl_decl | trait_decl | struct_decl | enum_decl | class_decl | declare_module | function_decl))
   | mod_attribute
 }
 

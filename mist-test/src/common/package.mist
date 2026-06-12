@@ -1,0 +1,3 @@
+pub module common;
+
+pub fn test_package() {}

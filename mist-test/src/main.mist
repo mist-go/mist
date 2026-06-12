@@ -1,5 +1,6 @@
 fn main() {
     println!("running common tests...");
+    common::test_package();
     common::expr_test::run_tests();
     common::statement_test::run_tests();
     common::decl_test::run_tests();

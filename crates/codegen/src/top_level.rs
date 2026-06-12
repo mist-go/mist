@@ -177,7 +177,7 @@ impl GenRust for TopLevelKind {
             Self::Import(vis, path) => {
                 cg.addln(&format!("{}use {};", vis.get_rust(), path.get_rust()))
             }
-            Self::Mod(vis, id) => cg.addln(&format!("{}mod {};", vis.get_rust(), id.get_rust())),
+            Self::DeclareModule(_, _) => {}
             Self::FunctionDecl(decl) => decl.gen_rust(ctx, cg),
             Self::ImplDecl(impl_) => impl_.gen_rust(ctx, cg),
             Self::StructDecl {
