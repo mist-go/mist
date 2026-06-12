@@ -7,18 +7,18 @@ use mist_api::transpiler;
 fn main() {
     let args Vec<String> = env::args().collect();
 
-    if (args.len() < 2) {
+    if args.len() < 2 {
         print_usage();
         process::exit(1);
     }
 
-    match (args[1].as_str()) {
+    match args[1].as_str() {
         "run" | "build" | "check" | "r" | "b" | "c" => {
             let root = transpiler::transpile();
 
             println!("");
 
-            if (builder::build(args, root)) {
+            if builder::build(args, root) {
                 println!("\x1b[32m\nBuild successful\x1b[0m");
             } else {
                 println!("\x1b[31m\nBuild failed\x1b[0m");
@@ -79,7 +79,7 @@ fn init_project(mut args Vec<String>) {
 
     let is_lib bool = fs::metadata("src/lib.rs").is_ok();
 
-    if (is_lib) {
+    if is_lib {
         fs::remove_file("src/lib.rs").expect("Failed to remove src/lib.rs");
         fs::write("src/lib.mist", "fn test() {\n}").expect("Failed to create src/lib.mist");
     } else {
@@ -95,7 +95,7 @@ fn init_project(mut args Vec<String>) {
 fn inject_mist_target(is_lib bool) {
     let toml_content String = fs::read_to_string("Cargo.toml").expect("Failed to read Cargo.toml");
 
-    let inject *str = if (is_lib) {
+    let inject *str = if is_lib {
         "\n[lib]\nname = \"my_lib\"\npath = \".mist/src/lib.rs\"\n"
     } else {
         "\n[[bin]]\nname = \"my_bin\"\npath = \".mist/src/main.rs\"\n"

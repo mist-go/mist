@@ -1,5 +1,3 @@
-use mist_analyzer;
-
 fn main() {
     mist_analyzer::start();
 }
