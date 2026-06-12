@@ -412,13 +412,28 @@ impl ClassProcessedData {
         for method in &self.methods {
             match method.item.visibility {
                 Visibility::Public => {
-                    if method.item.is_override.is_none() {
-                        gen_method_point(&method.item, ctx, cg);
-                    }
+                    let is_using_self = match method.item.params.0.get(0) {
+                        Some(VarDecl { name, .. }) => {
+                            if let Pattern::Path(_, v) = name {
+                                v.0.len() == 1 && v.0[0].0 == "self"
+                            } else {
+                                false
+                            }
+                        }
+                        _ => false,
+                    };
 
-                    let mut prefixed = method.clone();
-                    prefixed.item.name.0.insert_str(0, "__m_");
-                    prefixed.gen_rust(ctx, cg);
+                    if is_using_self {
+                        if method.item.is_override.is_none() {
+                            gen_method_point(&method.item, ctx, cg);
+                        }
+
+                        let mut prefixed = method.clone();
+                        prefixed.item.name.0.insert_str(0, "__m_");
+                        prefixed.gen_rust(ctx, cg);
+                    } else {
+                        method.gen_rust(ctx, cg);
+                    }
                 }
                 _ => {
                     method.gen_rust(ctx, cg);
