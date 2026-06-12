@@ -232,7 +232,7 @@ impl ClassProcessedData {
     }
 
     fn emit_super_v_tests(&self, cg: &mut RustCodegen) {
-        cg.add_indentedln(&format!("const fn __test_vt() {{"));
+        cg.add_indentedln(&format!("fn __test_vt() {{"));
         cg.indent += 1;
 
         for (override_tier, _) in self.override_v_table.iter() {
@@ -289,6 +289,19 @@ impl ClassProcessedData {
                         );
                         cg.addln(";");
                     }
+                }
+            }
+        }
+
+        // Deref tests for override targets
+        if self.inherits.is_some() && !self.override_v_table.is_empty() {
+             cg.add_indentedln("let this: &Self = &unsafe { std::mem::MaybeUninit::<Self>::zeroed().assume_init() };");
+
+            for (override_tier, v) in &self.override_v_table {
+                if let Some(path) = &override_tier.0 {
+                    cg.add_indentedln(&v.get_comment());
+                    // This forces the compiler to statically verify that &Self can Deref into &Target
+                    cg.add_indentedln(&format!("let _: &{} = this;", path.get_rust()));
                 }
             }
         }
