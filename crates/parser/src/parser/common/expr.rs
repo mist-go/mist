@@ -16,7 +16,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
         let mut inner = pair.clone().into_inner();
 
         match rule {
-            Rule::expr => {
+            Rule::expr | Rule::expr_no_struct => {
                 static PRATT_PARSER: OnceLock<PrattParser<Rule>> = OnceLock::new();
                 let pratt = PRATT_PARSER.get_or_init(|| {
                     use pest::pratt_parser::{Assoc::*, Op};
@@ -36,7 +36,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                     .parse(inner)
             }
 
-            Rule::term => {
+            Rule::term | Rule::term_no_struct => {
                 let mut prefix_pairs = Vec::new();
                 let mut primary_pair = None;
                 let mut postfix_pairs = Vec::new();

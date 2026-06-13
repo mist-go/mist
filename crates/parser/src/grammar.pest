@@ -401,7 +401,7 @@ control_flow = {
   | unsafe_block
 }
 
-statement_branch = { expr ~ block }
+statement_branch = { (expr_no_struct | ("(" ~ expr ~ ")")) ~ block }
 
 else_if = _{
     "else" ~ "if" ~ statement_branch
@@ -446,7 +446,7 @@ match_item = {
 }
 
 match_stmt = {
-    "match" ~ expr ~ "{" ~ match_item* ~ "}"
+    "match" ~ (expr_no_struct | "(" ~ expr ~ ")") ~ "{" ~ match_item* ~ "}"
 }
 
 // ======================================================
@@ -561,19 +561,23 @@ decrement = {
     "--"
 }
 
-postfix = {
+postfix_no_struct = _{
     field_px
   | tuple_field_px
   | call_px
   | macro_call_paren
   | macro_call_bracket
   | macro_call_brace
-  | struct_px
   | index_px
   | as_px
   | try_px
   | increment
   | decrement
+}
+
+postfix = {
+    postfix_no_struct
+  | struct_px
 }
 
 // ------------------------------------------------------
@@ -640,3 +644,7 @@ bin_op = {
 expr = { term ~ (bin_op ~ term)* }
 
 term = { prefix* ~ primary ~ postfix* }
+
+expr_no_struct = { term_no_struct ~ (bin_op ~ term)* }
+
+term_no_struct = { prefix* ~ primary ~ postfix_no_struct* }
