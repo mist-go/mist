@@ -137,24 +137,39 @@ impl modules::Module {
 
             format!("pub mod {};\n", self.name)
         } else {
-            transpile_file(&self.path, output_file, &output)
+            let source = match fs::read_to_string(&self.path) {
+                Ok[s] => s;
+                Err[e] => {
+                    eprintln!("error: failed to read file {}\n  {}", self.path.display(), e);
+
+                    process::exit(1);
+                }
+            };
+
+            transpile_file(&self.path, &source, output_file, &output, mist_parser::parse_module(&source).expect("Failed parsing module"))
         }
     }
 }
 
-fn transpile_file(path *PathBuf, mut output_file PathBuf, mod_decl *str) String {
-    let source = match fs::read_to_string(&path) {
-        Ok[s] => s;
-        Err[e] => {
-            eprintln!("error: failed to read file {}\n  {}", path.display(), e);
+fn transpile_file(path *PathBuf, source *str, mut output_file PathBuf, mod_decl *str, curr_mod_decl Option<[mist_parser::ast::Visibility, mist_parser::ast::Identifier]>) String {
+    if let Some[[_, name]] = &curr_mod_decl {
+        if output_file.file_name().map(fn(v) -> v.to_str()).unwrap_or_default() != Some("mod.rs") {
+            if let Some[ext] = output_file.extension().map(fn(e) -> e.to_owned()) {
+                let mut new_name = std::ffi::OsString::from(&name.0);
 
-            process::exit(1);
+                new_name.push(".");
+                new_name.push(ext);
+
+                output_file.set_file_name(new_name);
+            } else {
+                output_file.set_file_name(&name.0);
+            }
         }
-    };
+    }
 
     let mut gc = mist_codegen::RustCodegen::new();
 
-    let parsed = match mist_parser::parse(&source) {
+    let parsed = match mist_parser::parse(source) {
         Ok[ast] => ast;
         Err[e] => {
             match e {
@@ -186,48 +201,23 @@ fn transpile_file(path *PathBuf, mut output_file PathBuf, mod_decl *str) String 
         }
     };
 
-    let output = gc.generate(parsed.1);
+    let output = gc.generate(parsed);
 
-    if let [Some[[vis, name]], _] = parsed {
-        if output_file.file_name().map(fn(v) -> v.to_str()).unwrap_or_default() != Some("mod.rs") {
-            if let Some[ext] = output_file.extension().map(fn(e) -> e.to_owned()) {
-                let mut new_name = std::ffi::OsString::from(&name.0);
+    let res = fs::write(&output_file, format!("{mod_decl}{output}"));
 
-                new_name.push(".");
-                new_name.push(ext);
+    if res.is_err() {
+        eprintln!(
+            "error: failed to write output {}\n  {}",
+            output_file.display(),
+            res.unwrap_err(),
+        );
 
-                output_file.set_file_name(new_name);
-            } else {
-                output_file.set_file_name(&name.0);
-            }
-        }
+        process::exit(1);
+    }
 
-        let res = fs::write(&output_file, format!("{mod_decl}{output}"));
-
-        if res.is_err() {
-            eprintln!(
-                "error: failed to write output {}\n  {}",
-                output_file.display(),
-                res.unwrap_err(),
-            );
-
-            process::exit(1);
-        }
-
+    if let Some[[vis, name]] = &curr_mod_decl {
         format!("{}mod {};\n", vis.get_rust(), name.get_rust())
     } else {
-        let res = fs::write(&output_file, format!("{mod_decl}{output}"));
-
-        if res.is_err() {
-            eprintln!(
-                "error: failed to write output {}\n  {}",
-                output_file.display(),
-                res.unwrap_err(),
-            );
-
-            process::exit(1);
-        }
-
         String::new()
     }
 }

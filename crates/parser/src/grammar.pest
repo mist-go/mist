@@ -73,7 +73,7 @@ program = {
 }
 
 module_program = {
-    SOI ~ declare_module?
+    SOI ~ top_level?
 }
 
 // ======================================================
