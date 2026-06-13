@@ -56,6 +56,30 @@ pub fn parse<'a>(
     }
 }
 
+pub fn parse_module<'a>(
+    source: &'a str,
+) -> Result<Option<(Visibility, Identifier)>, ParseError<'a, Option<(Visibility, Identifier)>>> {
+    let mut pairs = MistParser::parse(Rule::module_program, source)?;
+
+    if let Some(v) = pairs
+        .next()
+        .unwrap()
+        .into_inner()
+        .next()
+        .map(TopLevel::try_from)
+        .transpose()
+        .get()?
+    {
+        if let TopLevelKind::DeclareModule(vis, name) = &v.0.item {
+            Ok(Some((vis.clone(), name.clone())))
+        } else {
+            Ok(None)
+        }
+    } else {
+        Ok(None)
+    }
+}
+
 #[macro_export]
 macro_rules! ast_ensure {
     ($pair:expr, $rule:expr $(, $rules:expr)* => $body:block) => {
