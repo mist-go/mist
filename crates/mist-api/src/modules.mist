@@ -77,11 +77,17 @@ pub class Module {
         }
     }
 
-    pub fn output_path(*self, parent_dir *PathBuf) PathBuf {
-        if self.path.is_dir() || self.is_package() {
-            parent_dir.join(&self.name).join("mod.rs")
+    pub fn output_path(*self, parent_dir *PathBuf, curr_mod_decl *Option<[mist_parser::ast::Visibility, mist_parser::ast::Identifier]>) PathBuf {
+        let name = if let Some[[_, name]] = curr_mod_decl {
+            &name.0
         } else {
-            parent_dir.join(&self.name).with_extension("rs")
+            &self.name
+        };
+
+        if self.path.is_dir() || self.is_package() {
+            parent_dir.join(name).join("mod.rs")
+        } else {
+            parent_dir.join(name).with_extension("rs")
         }
     }
 }

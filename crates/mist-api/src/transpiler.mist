@@ -95,8 +95,7 @@ impl modules::Module {
             return String::new();
         }
 
-        let dir = self.output_dir(&parent_dir);
-        let output_file = self.output_path(&parent_dir);
+        let dir = self.output_dir(parent_dir);
 
         let _ = fs::create_dir_all(&dir);
 
@@ -114,11 +113,13 @@ impl modules::Module {
             output.push_str(&config.main_mods)
         }
 
-        self.write_transpile(output, output_file)
+        self.write_transpile(output, parent_dir)
     }
 
-    fn write_transpile(*self, output String, output_file PathBuf) String {
+    fn write_transpile(*self, output String, parent_dir *PathBuf) String {
         if self.path.is_dir() {
+            let output_file = self.output_path(parent_dir, &None);
+
             if output.len() == 0 {
                 return String::new();
             }
@@ -146,12 +147,35 @@ impl modules::Module {
                 }
             };
 
-            transpile_file(&self.path, &source, output_file, &output, mist_parser::parse_module(&source).expect("Failed parsing module"))
+            let curr_mod_decl = mist_parser::parse_module(&source).expect("Failed parsing module");
+
+            let output_file = self.output_path(parent_dir, &curr_mod_decl);
+
+            if is_source_newer(&self.path, &output_file).expect("Failed to cache") {
+                transpile_file(&self.path, &source, output_file, &output, &curr_mod_decl);
+            }
+
+            if let Some[[vis, name]] = &curr_mod_decl {
+                format!("{}mod {};\n", vis.get_rust(), name.get_rust())
+            } else {
+                String::new()
+            }
         }
     }
 }
 
-fn transpile_file(path *PathBuf, source *str, mut output_file PathBuf, mod_decl *str, curr_mod_decl Option<[mist_parser::ast::Visibility, mist_parser::ast::Identifier]>) String {
+fn is_source_newer(source *Path, output *Path) std::io::Result<bool> {
+    if !output.exists() {
+        return Ok(true);
+    }
+
+    let source_time = fs::metadata(source)?.modified()?;
+    let output_time = fs::metadata(output)?.modified()?;
+
+    Ok(source_time > output_time)
+}
+
+fn transpile_file(path *PathBuf, source *str, mut output_file PathBuf, mod_decl *str, curr_mod_decl *Option<[mist_parser::ast::Visibility, mist_parser::ast::Identifier]>) {
     if let Some[[_, name]] = &curr_mod_decl {
         if output_file.file_name().map(fn(v) -> v.to_str()).unwrap_or_default() != Some("mod.rs") {
             if let Some[ext] = output_file.extension().map(fn(e) -> e.to_owned()) {
@@ -213,12 +237,6 @@ fn transpile_file(path *PathBuf, source *str, mut output_file PathBuf, mod_decl 
         );
 
         process::exit(1);
-    }
-
-    if let Some[[vis, name]] = &curr_mod_decl {
-        format!("{}mod {};\n", vis.get_rust(), name.get_rust())
-    } else {
-        String::new()
     }
 }
 
