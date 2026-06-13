@@ -14,12 +14,7 @@ use crate::error::{IntoErr, ParseError};
 #[grammar = "./src/grammar.pest"]
 pub struct MistParser;
 
-pub fn parse<'a>(
-    source: &'a str,
-) -> Result<
-    (Option<(Visibility, Identifier)>, Vec<TopLevel>),
-    ParseError<'a, (Option<(Visibility, Identifier)>, Vec<TopLevel>)>,
-> {
+pub fn parse<'a>(source: &'a str) -> Result<Vec<TopLevel>, ParseError<'a, Vec<TopLevel>>> {
     let mut pairs = MistParser::parse(Rule::program, source)?;
 
     let mut statements = vec![];
@@ -32,20 +27,10 @@ pub fn parse<'a>(
         }
     }
 
-    let m = if let Some(v) = statements.get(0) {
-        if let TopLevelKind::DeclareModule(vis, name) = &v.0.item {
-            Some((vis.clone(), name.clone()))
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
     match analyzer.build(statements) {
-        Ok(v) => Ok((m, v)),
+        Ok(v) => Ok(v),
         Err(e) => {
-            let rec = e.recovered.clone().map(move |r| (m, r));
+            let rec = e.recovered.clone();
 
             let mut e2 = e.get();
 
@@ -53,6 +38,30 @@ pub fn parse<'a>(
 
             Err(ParseError::Ast(e2))
         }
+    }
+}
+
+pub fn parse_module<'a>(
+    source: &'a str,
+) -> Result<Option<(Visibility, Identifier)>, ParseError<'a, Option<(Visibility, Identifier)>>> {
+    let mut pairs = MistParser::parse(Rule::module_program, source)?;
+
+    if let Some(v) = pairs
+        .next()
+        .unwrap()
+        .into_inner()
+        .next()
+        .map(TopLevel::try_from)
+        .transpose()
+        .get()?
+    {
+        if let TopLevelKind::DeclareModule(vis, name) = &v.0.item {
+            Ok(Some((vis.clone(), name.clone())))
+        } else {
+            Ok(None)
+        }
+    } else {
+        Ok(None)
     }
 }
 
