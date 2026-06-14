@@ -45,7 +45,7 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
 
     let mut diagnostics = Vec::new();
 
-    let mut mapping = HashMap::new();
+    let mut mapping HashMap<rev_mapper::RustMap, rev_mapper::MistMap> = HashMap::new();
 
     let mist_src = format!(".mist{MAIN_SEPARATOR}src");
 
@@ -70,45 +70,45 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
                             break;
                         }
 
-                        let map = mapping.entry(rust_path.clone()).or_insert_with(fn() {
-                            rev_mapper::get_mapping(
-                                &fs::read_to_string(rust_path)
-                                    .expect("Failed to read file for mapping")
-                            )
-                        });
+                        // let map = mapping.entry(rust_path.clone()).or_insert_with(fn() {
+                        //     rev_mapper::get_mapping(
+                        //         &fs::read_to_string(rust_path)
+                        //             .expect("Failed to read file for mapping")
+                        //     )
+                        // });
 
-                        let [_, rev_mapper::MistMap[line, column]] =
-                            rev_mapper::find_mapping(&map, &rev_mapper::RustMap(span.line_end, span.column_start))
-                                .expect("Unable to find mapping");
+                        // let [_, rev_mapper::MistMap[line, column]] =
+                        //     rev_mapper::find_mapping(&map, &rev_mapper::RustMap(span.line_end, span.column_start))
+                        //         .expect("Unable to find mapping");
 
-                        let mist_msg = MistDiagnosticMessage {
-                            message: format!(
-                                "{}: {}",
-                                msg.message.message,
-                                span.label.clone().unwrap_or_default()
-                            ),
-                            file_name: if is_root {
-                                (); // TODO: fix this
-                                mist_file
-                            } else {
-                                mist_path.to_string_lossy().to_string()
-                            },
-                            file_path: mist_path,
-                            line: line,
-                            column: column
-                        };
+                        // let mist_msg = MistDiagnosticMessage {
+                        //     message: format!(
+                        //         "{}: {}",
+                        //         msg.message.message,
+                        //         span.label.clone().unwrap_or_default()
+                        //     ),
+                        //     file_name: if is_root {
+                        //         (); // TODO: fix this
+                        //         mist_file
+                        //     } else {
+                        //         mist_path.to_string_lossy().to_string()
+                        //     },
+                        //     file_path: mist_path,
+                        //     line: line,
+                        //     column: column
+                        // };
 
-                        match msg.message.level {
-                            cargo_metadata::diagnostic::DiagnosticLevel::Error => {
-                                diagnostics.push(MistDiagnostic::Error(mist_msg))
-                            }
+                        // match msg.message.level {
+                        //     cargo_metadata::diagnostic::DiagnosticLevel::Error => {
+                        //         diagnostics.push(MistDiagnostic::Error(mist_msg))
+                        //     }
 
-                            cargo_metadata::diagnostic::DiagnosticLevel::Warning => {
-                                diagnostics.push(MistDiagnostic::Warning(mist_msg))
-                            }
+                        //     cargo_metadata::diagnostic::DiagnosticLevel::Warning => {
+                        //         diagnostics.push(MistDiagnostic::Warning(mist_msg))
+                        //     }
 
-                            _ => {}
-                        }
+                        //     _ => {}
+                        // }
                     }
                 }
             }

@@ -167,10 +167,10 @@ impl LanguageServer for Backend {
                                 .insert(file.clone(), Rope::from_str(&text));
 
                             // store mapping
-                            mapping
-                                .lock()
-                                .await
-                                .insert(rust_path, rev_mapper::get_mapping(&transpiled));
+                            // mapping
+                            //     .lock()
+                            //     .await
+                            //     .insert(rust_path, rev_mapper::get_mapping(&transpiled));
                         }
                     }
                 }
@@ -311,10 +311,10 @@ impl LanguageServer for Backend {
 
                     params.text_document.uri = Url::from_file_path(&rust_path).unwrap();
 
-                    self.mapping.lock().await.insert(
-                        rust_path,
-                        rev_mapper::get_mapping(&params.text_document.text),
-                    );
+                    // self.mapping.lock().await.insert(
+                    //     rust_path,
+                    //     rev_mapper::get_mapping(&params.text_document.text),
+                    // );
                 }
                 Err(e) => {
                     self.client
@@ -353,10 +353,10 @@ impl LanguageServer for Backend {
                 Ok(transpiled_text) => {
                     change.text = transpiled_text;
 
-                    self.mapping
-                        .lock()
-                        .await
-                        .insert(rust_path, rev_mapper::get_mapping(&change.text));
+                    // self.mapping
+                    //     .lock()
+                    //     .await
+                    //     .insert(rust_path, rev_mapper::get_mapping(&change.text));
                 }
                 Err(e) => {
                     self.client
