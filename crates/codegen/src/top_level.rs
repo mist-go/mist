@@ -195,7 +195,9 @@ impl GenRust for TopLevelKind {
                 cg.indent += 1;
 
                 for field in fields {
-                    cg.add_indentedln(&field.get_rust());
+                    cg.add_indented("");
+                    field.gen_rust(ctx, cg);
+                    cg.addln("");
                 }
 
                 cg.indent -= 1;
@@ -216,7 +218,9 @@ impl GenRust for TopLevelKind {
                 cg.indent += 1;
 
                 for field in fields {
-                    cg.add_indentedln(&(field.get_rust() + ","));
+                    cg.add_indented("");
+                    field.gen_rust(ctx, cg);
+                    cg.addln(",");
                 }
 
                 cg.indent -= 1;

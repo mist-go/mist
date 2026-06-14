@@ -3,7 +3,12 @@ pub mod expr;
 pub mod statement;
 pub mod top_level;
 
-use mist_parser::ast::*;
+use std::collections::HashSet;
+
+use mist_parser::{
+    ast::*,
+    rev_mapper::{MistMap, RustMap},
+};
 
 pub struct Context {
     pub expr_ensure_semicolon: bool,
@@ -26,6 +31,8 @@ pub trait GetRust {
 pub struct RustCodegen {
     output: String,
     indent: usize,
+    mapping: HashSet<(RustMap, MistMap)>,
+    position: RustMap,
 }
 
 impl RustCodegen {
@@ -33,6 +40,8 @@ impl RustCodegen {
         Self {
             output: String::new(),
             indent: 0,
+            mapping: HashSet::new(),
+            position: RustMap(0, 0),
         }
     }
 
@@ -41,6 +50,18 @@ impl RustCodegen {
     }
 
     fn add(&mut self, s: &str) {
+        for c in s.chars() {
+            match c {
+                '\n' => {
+                    self.position.0 += 1;
+                    self.position.1 = 0;
+                }
+                _ => {
+                    self.position.1 += 1;
+                }
+            }
+        }
+
         self.output.push_str(s);
     }
 
@@ -123,21 +144,17 @@ impl GenRust for Attribute {
     }
 }
 
-impl<T: GetRust> GetRust for Spanned<T> {
-    fn get_rust(&self) -> String {
-        format!(
-            "/* {}:{} */ {}",
-            self.line,
-            self.column,
-            self.item.get_rust()
-        )
+impl<T: GetRust> GenRust for T {
+    fn gen_rust(&self, _: &mut Context, cg: &mut RustCodegen) {
+        cg.add(&self.get_rust());
     }
 }
 
 impl<T: GenRust> GenRust for Spanned<T> {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
-        cg.add_indentedln(&format!("/* {}:{} */", self.line, self.column));
-        cg.add_indented("");
+        cg.mapping
+            .insert((cg.position, MistMap(self.line, self.column)));
+
         self.item.gen_rust(ctx, cg);
     }
 }
