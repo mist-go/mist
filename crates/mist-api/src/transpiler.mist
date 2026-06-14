@@ -8,6 +8,7 @@ use std::time;
 use std::env;
 
 use mist_parser::error;
+use mist_parser::rev_mapper;
 use crate::modules;
 use mist_codegen::GetRust;
 
@@ -237,6 +238,8 @@ fn transpile_file(path *PathBuf, source *str, mut output_file PathBuf, mod_decl 
     let output = gc.generate(parsed);
 
     let res = fs::write(&output_file, format!("{mod_decl}{output}"));
+
+    rev_mapper::shift_rust_mappings(&mut gc.mapping, mod_decl.lines().count() as isize, 0);
 
     let output_file_map = output_file.with_extension("map.json");
 
