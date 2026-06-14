@@ -31,7 +31,7 @@ pub trait GetRust {
 pub struct RustCodegen {
     output: String,
     indent: usize,
-    mapping: HashSet<(RustMap, MistMap)>,
+    pub mapping: HashSet<(RustMap, MistMap)>,
     position: RustMap,
 }
 
