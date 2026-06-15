@@ -50,15 +50,17 @@ impl RustCodegen {
     }
 
     fn add(&mut self, s: &str) {
-        for b in s.bytes() {
-            if b == b'\n' {
-                self.position.0 += 1;
-                self.position.1 = 0;
-            } else {
-                self.position.1 += 1;
-            }
+        let newline_count = bytecount::count(s.as_bytes(), b'\n');
+    
+        if newline_count == 0 {
+            self.position.1 += s.len();
+        } else {
+            self.position.0 += newline_count;
+    
+            let last_newline = s.rfind('\n').unwrap();
+            self.position.1 = s.len() - last_newline - 1;
         }
-
+    
         self.output.push_str(s);
     }
 
