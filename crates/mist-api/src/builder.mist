@@ -1,9 +1,7 @@
 pub module builder;
 
 use std::collections::HashMap;
-use std::env;
 use std::fs;
-use std::path::MAIN_SEPARATOR;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
@@ -44,8 +42,6 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
     let mut diagnostics = Vec::new();
 
     let mut mapping = HashMap::new();
-
-    let mist_src = format!(".mist{MAIN_SEPARATOR}src");
 
     for message in cargo_metadata::Message::parse_stream(&mut reader) {
         match message {
