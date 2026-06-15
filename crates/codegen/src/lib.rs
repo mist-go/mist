@@ -41,7 +41,7 @@ impl RustCodegen {
             output: String::new(),
             indent: 0,
             mapping: HashSet::new(),
-            position: RustMap(0, 0),
+            position: RustMap(1, 0),
         }
     }
 
@@ -50,15 +50,12 @@ impl RustCodegen {
     }
 
     fn add(&mut self, s: &str) {
-        for c in s.chars() {
-            match c {
-                '\n' => {
-                    self.position.0 += 1;
-                    self.position.1 = 0;
-                }
-                _ => {
-                    self.position.1 += 1;
-                }
+        for b in s.bytes() {
+            if b == b'\n' {
+                self.position.0 += 1;
+                self.position.1 = 0;
+            } else {
+                self.position.1 += 1;
             }
         }
 
