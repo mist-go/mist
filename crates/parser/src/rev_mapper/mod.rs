@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -12,15 +12,43 @@ pub struct MistMap(pub usize, pub usize);
 )]
 pub struct RustMap(pub usize, pub usize);
 
-pub fn find_mapping(
-    mapping: &HashSet<(RustMap, MistMap)>,
-    target: &RustMap,
-) -> Option<(RustMap, MistMap)> {
-    mapping
-        .iter()
-        .copied()
-        .filter(|(rust, _)| rust <= target)
-        .max_by_key(|(rust, _)| *rust)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Mapping {
+    pub mist_path: PathBuf,
+    pub map: HashSet<(RustMap, MistMap)>,
+}
+
+impl Mapping {
+    pub fn new(mist_path: PathBuf) -> Self {
+        Self {
+            mist_path,
+            map: HashSet::new(),
+        }
+    }
+
+    pub fn find(&self, target: &RustMap) -> Option<(RustMap, MistMap)> {
+        self.map
+            .iter()
+            .copied()
+            .filter(|(rust, _)| rust <= target)
+            .max_by_key(|(rust, _)| *rust)
+    }
+
+    pub fn shift_rust(&mut self, lines: isize, cols: isize) {
+        self.map = self
+            .map
+            .iter()
+            .map(|(rust, mist)| (rust.shifted(lines, cols), *mist))
+            .collect();
+    }
+
+    pub fn shift_mist(&mut self, lines: isize, cols: isize) {
+        self.map = self
+            .map
+            .iter()
+            .map(|(rust, mist)| (*rust, mist.shifted(lines, cols)))
+            .collect();
+    }
 }
 
 impl RustMap {
@@ -39,18 +67,4 @@ impl MistMap {
             self.1.saturating_add_signed(cols),
         )
     }
-}
-
-pub fn shift_rust_mappings(mappings: &mut HashSet<(RustMap, MistMap)>, lines: isize, cols: isize) {
-    *mappings = mappings
-        .iter()
-        .map(|(rust, mist)| (rust.shifted(lines, cols), *mist))
-        .collect();
-}
-
-pub fn shift_mist_mappings(mappings: &mut HashSet<(RustMap, MistMap)>, lines: isize, cols: isize) {
-    *mappings = mappings
-        .iter()
-        .map(|(rust, mist)| (*rust, mist.shifted(lines, cols)))
-        .collect();
 }

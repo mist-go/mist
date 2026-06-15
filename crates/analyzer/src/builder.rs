@@ -6,7 +6,7 @@ use std::{
 };
 
 use cargo_metadata::{CompilerMessage, Message};
-use mist_parser::rev_mapper::{self, RustMap, find_mapping};
+use mist_parser::rev_mapper;
 
 #[derive(Debug, Clone)]
 pub struct MistDiagnosticMessage {

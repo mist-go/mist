@@ -135,19 +135,22 @@ pub fn transpile_file(path: &Path, output_path: &Path) -> Result<(), String> {
     // If parsing fails, return the error string back gracefully so the LSP can show it
     let ast = parser_result.map_err(|e| format!("parse failed in {}:\n{}", path.display(), e))?;
 
-    let mut gc = mist_codegen::RustCodegen::new();
-    let output = gc.generate(ast);
+    panic!();
 
-    fs::write(output_path, output)
-        .map_err(|e| format!("failed to write output {}: {}", output_path.display(), e))?;
+    // let mut gc = mist_codegen::RustCodegen::new();
+    // let output = gc.generate(ast);
 
-    Ok(())
+    // fs::write(output_path, output)
+    //     .map_err(|e| format!("failed to write output {}: {}", output_path.display(), e))?;
+
+    // Ok(())
 }
 
 pub fn transpile_text<'a>(source: &'a str) -> Result<String, ParseError<'a, Vec<TopLevel>>> {
-    let mut gc = mist_codegen::RustCodegen::new();
+    panic!();
+    // let mut gc = mist_codegen::RustCodegen::new();
 
-    Ok(gc.generate(mist_parser::parse(&source)?))
+    // Ok(gc.generate(mist_parser::parse(&source)?))
 }
 
 fn should_skip(source: &Path, output: &Path) -> bool {
