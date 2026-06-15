@@ -6,7 +6,7 @@ use std::{
 };
 
 use cargo_metadata::{CompilerMessage, Message};
-use mist_parser::rev_mapper::{RustMap, find_mapping, get_mapping};
+use mist_parser::rev_mapper;
 
 #[derive(Debug, Clone)]
 pub struct MistDiagnosticMessage {
@@ -39,7 +39,7 @@ pub fn build(mut args: Vec<String>, root: PathBuf) -> Vec<MistDiagnostic> {
 
     let mut diagnostics = Vec::new();
 
-    let mut mapping = HashMap::new();
+    let mut mapping: HashMap<rev_mapper::RustMap, rev_mapper::MistMap> = HashMap::new();
 
     let mist_src = format!(".mist{MAIN_SEPARATOR}lsp");
 
@@ -64,44 +64,44 @@ pub fn build(mut args: Vec<String>, root: PathBuf) -> Vec<MistDiagnostic> {
                             break;
                         }
 
-                        let map = mapping.entry(rust_path.clone()).or_insert_with(|| {
-                            get_mapping(
-                                &fs::read_to_string(rust_path)
-                                    .expect("Failed to read file for mapping"),
-                            )
-                        });
+                        // let map = mapping.entry(rust_path.clone()).or_insert_with(|| {
+                        //     get_mapping(
+                        //         &fs::read_to_string(rust_path)
+                        //             .expect("Failed to read file for mapping"),
+                        //     )
+                        // });
 
-                        let mist_span =
-                            find_mapping(&map, &RustMap(span.line_end, span.column_start))
-                                .expect("Unable to find mapping");
+                        // let mist_span =
+                        //     find_mapping(&map, &RustMap(span.line_end, span.column_start))
+                        //         .expect("Unable to find mapping");
 
-                        let mist_msg = MistDiagnosticMessage {
-                            message: format!(
-                                "{}: {}",
-                                msg.message.message,
-                                span.label.clone().unwrap_or_default()
-                            ),
-                            file_name: if is_root {
-                                mist_file
-                            } else {
-                                mist_path.to_string_lossy().to_string()
-                            },
-                            file_path: mist_path,
-                            line: mist_span.1.0,
-                            column: mist_span.1.1,
-                        };
+                        // let mist_msg = MistDiagnosticMessage {
+                        //     message: format!(
+                        //         "{}: {}",
+                        //         msg.message.message,
+                        //         span.label.clone().unwrap_or_default()
+                        //     ),
+                        //     file_name: if is_root {
+                        //         mist_file
+                        //     } else {
+                        //         mist_path.to_string_lossy().to_string()
+                        //     },
+                        //     file_path: mist_path,
+                        //     line: mist_span.1.0,
+                        //     column: mist_span.1.1,
+                        // };
 
-                        match msg.message.level {
-                            cargo_metadata::diagnostic::DiagnosticLevel::Error => {
-                                diagnostics.push(MistDiagnostic::Error(mist_msg))
-                            }
+                        // match msg.message.level {
+                        //     cargo_metadata::diagnostic::DiagnosticLevel::Error => {
+                        //         diagnostics.push(MistDiagnostic::Error(mist_msg))
+                        //     }
 
-                            cargo_metadata::diagnostic::DiagnosticLevel::Warning => {
-                                diagnostics.push(MistDiagnostic::Warning(mist_msg))
-                            }
+                        //     cargo_metadata::diagnostic::DiagnosticLevel::Warning => {
+                        //         diagnostics.push(MistDiagnostic::Warning(mist_msg))
+                        //     }
 
-                            _ => {}
-                        }
+                        //     _ => {}
+                        // }
                     }
                 }
             }

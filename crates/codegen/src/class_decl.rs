@@ -522,7 +522,7 @@ fn construct_pattern(pat: &Pattern, idx: usize) -> Pattern {
 }
 
 pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustCodegen) {
-    cg.add(&format!(
+    cg.add_indented(&format!(
         "{}fn {}{}(",
         method.visibility.get_rust(),
         method.name.get_rust(),

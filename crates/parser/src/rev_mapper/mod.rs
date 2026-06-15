@@ -1,51 +1,70 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 
-use pest::Parser;
-use pest_derive::Parser;
+use serde::{Deserialize, Serialize};
 
-#[derive(Parser)]
-#[grammar = "./src/rev_mapper/grammar.pest"]
-pub struct MistMapperParser;
-
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
+)]
 pub struct MistMap(pub usize, pub usize);
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
+)]
 pub struct RustMap(pub usize, pub usize);
 
-pub fn get_mapping(input: &str) -> HashSet<(RustMap, MistMap)> {
-    let mut mapping = HashSet::new();
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Mapping {
+    pub mist_path: PathBuf,
+    pub map: HashSet<(RustMap, MistMap)>,
+}
 
-    let pairs = MistMapperParser::parse(Rule::mapping, input)
-        .unwrap()
-        .next()
-        .unwrap()
-        .into_inner();
-
-    for pair in pairs {
-        if pair.as_rule() == Rule::map {
-            let rs = pair.as_span().start_pos().line_col();
-            let mut inner = pair.into_inner();
-
-            let (line, col) = (
-                inner.next().unwrap().as_str().parse().unwrap(),
-                inner.next().unwrap().as_str().parse().unwrap(),
-            );
-
-            mapping.insert((RustMap(rs.0, rs.1), MistMap(line, col)));
+impl Mapping {
+    pub fn new(mist_path: PathBuf) -> Self {
+        Self {
+            mist_path,
+            map: HashSet::new(),
         }
     }
 
-    mapping
+    pub fn find(&self, target: &RustMap) -> Option<(RustMap, MistMap)> {
+        self.map
+            .iter()
+            .copied()
+            .filter(|(rust, _)| rust <= target)
+            .max_by_key(|(rust, _)| *rust)
+    }
+
+    pub fn shift_rust(&mut self, lines: isize, cols: isize) {
+        self.map = self
+            .map
+            .iter()
+            .map(|(rust, mist)| (rust.shifted(lines, cols), *mist))
+            .collect();
+    }
+
+    pub fn shift_mist(&mut self, lines: isize, cols: isize) {
+        self.map = self
+            .map
+            .iter()
+            .map(|(rust, mist)| (*rust, mist.shifted(lines, cols)))
+            .collect();
+    }
 }
 
-pub fn find_mapping(
-    mapping: &HashSet<(RustMap, MistMap)>,
-    target: &RustMap,
-) -> Option<(RustMap, MistMap)> {
-    mapping
-        .iter()
-        .copied()
-        .filter(|(rust, _)| rust <= target)
-        .max_by_key(|(rust, _)| *rust)
+impl RustMap {
+    pub fn shifted(self, lines: isize, cols: isize) -> Self {
+        Self(
+            self.0.saturating_add_signed(lines),
+            self.1.saturating_add_signed(cols),
+        )
+    }
+}
+
+impl MistMap {
+    pub fn shifted(self, lines: isize, cols: isize) -> Self {
+        Self(
+            self.0.saturating_add_signed(lines),
+            self.1.saturating_add_signed(cols),
+        )
+    }
 }

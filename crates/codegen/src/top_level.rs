@@ -73,7 +73,7 @@ impl GenRust for ImplDecl {
 
 impl GenRust for FunctionDecl {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
-        cg.add(&format!(
+        cg.add_indented(&format!(
             "{}fn {}{}(",
             self.visibility.get_rust(),
             self.name.get_rust(),
@@ -97,8 +97,9 @@ impl GenRust for FunctionDecl {
         if let Some(body) = &self.body {
             cg.add(" ");
             body.gen_rust(ctx, cg);
+            cg.addln("");
         } else {
-            cg.add(";");
+            cg.addln(";");
         }
     }
 }
@@ -195,7 +196,9 @@ impl GenRust for TopLevelKind {
                 cg.indent += 1;
 
                 for field in fields {
-                    cg.add_indentedln(&field.get_rust());
+                    cg.add_indented("");
+                    field.gen_rust(ctx, cg);
+                    cg.addln("");
                 }
 
                 cg.indent -= 1;
@@ -216,7 +219,9 @@ impl GenRust for TopLevelKind {
                 cg.indent += 1;
 
                 for field in fields {
-                    cg.add_indentedln(&(field.get_rust() + ","));
+                    cg.add_indented("");
+                    field.gen_rust(ctx, cg);
+                    cg.addln(",");
                 }
 
                 cg.indent -= 1;

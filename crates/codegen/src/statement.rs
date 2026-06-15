@@ -11,12 +11,14 @@ impl GenRust for Block {
 
         for stmt in &self.statements {
             ctx.expr_ensure_semicolon = true;
+            cg.add_indented("");
             stmt.gen_rust(ctx, cg);
             cg.addln("");
         }
 
         if let Some(soft_return) = &self.soft_return {
             ctx.expr_ensure_semicolon = false;
+            cg.add_indented("");
             soft_return.gen_rust(ctx, cg);
             cg.addln("");
         }

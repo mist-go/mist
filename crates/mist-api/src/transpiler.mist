@@ -200,7 +200,7 @@ fn transpile_file(path *PathBuf, source *str, mut output_file PathBuf, mod_decl 
         }
     }
 
-    let mut gc = mist_codegen::RustCodegen::new();
+    let mut gc = mist_codegen::RustCodegen::new(path.clone());
 
     let parsed = match mist_parser::parse(source) {
         Ok[ast] => ast;
@@ -238,13 +238,29 @@ fn transpile_file(path *PathBuf, source *str, mut output_file PathBuf, mod_decl 
 
     let res = fs::write(&output_file, format!("{mod_decl}{output}"));
 
+    gc.mapping.shift_rust(mod_decl.lines().count() as isize, 0);
+
+    let output_file_map = output_file.with_extension("map.json");
+
+    let res_map = fs::write(&output_file_map, serde_json::to_string(&gc.mapping).unwrap());
+
+    if res_map.is_err() {
+        eprintln!(
+            "error: failed to write mapping output {}\n  {}",
+            output_file_map.display(),
+            res.as_ref().unwrap_err(),
+        );
+    }
+
     if res.is_err() {
         eprintln!(
             "error: failed to write output {}\n  {}",
             output_file.display(),
-            res.unwrap_err(),
+            res.as_ref().unwrap_err(),
         );
+    }
 
+    if res_map.is_err() || res.is_err() {
         process::exit(1);
     }
 }

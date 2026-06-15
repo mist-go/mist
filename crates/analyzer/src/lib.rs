@@ -57,29 +57,30 @@ impl Backend {
 
         match self.mapping.lock().await.get(&rs_path) {
             Some(mapping) => {
+                rs_loc
                 // FIX: Match the find_mapping operation instead of calling .expect("Failed to map")
-                match rev_mapper::find_mapping(
-                    mapping,
-                    &rev_mapper::RustMap(
-                        rs_loc.range.start.line as usize,
-                        rs_loc.range.start.character as usize,
-                    ),
-                ) {
-                    Some((_, rev_mapper::MistMap(line, character))) => Location {
-                        uri: Url::from_file_path(from_rust_to_mist(rs_path)).unwrap(),
-                        range: Range {
-                            start: Position {
-                                line: line as u32 - 1,
-                                character: character as u32,
-                            },
-                            end: Position {
-                                line: line as u32 - 1,
-                                character: character as u32 + 1,
-                            },
-                        },
-                    },
-                    None => rs_loc,
-                }
+                // match rev_mapper::find_mapping(
+                //     mapping,
+                //     &rev_mapper::RustMap(
+                //         rs_loc.range.start.line as usize,
+                //         rs_loc.range.start.character as usize,
+                //     ),
+                // ) {
+                //     Some((_, rev_mapper::MistMap(line, character))) => Location {
+                //         uri: Url::from_file_path(from_rust_to_mist(rs_path)).unwrap(),
+                //         range: Range {
+                //             start: Position {
+                //                 line: line as u32 - 1,
+                //                 character: character as u32,
+                //             },
+                //             end: Position {
+                //                 line: line as u32 - 1,
+                //                 character: character as u32 + 1,
+                //             },
+                //         },
+                //     },
+                //     None => rs_loc,
+                // }
             }
             None => rs_loc,
         }
@@ -167,10 +168,10 @@ impl LanguageServer for Backend {
                                 .insert(file.clone(), Rope::from_str(&text));
 
                             // store mapping
-                            mapping
-                                .lock()
-                                .await
-                                .insert(rust_path, rev_mapper::get_mapping(&transpiled));
+                            // mapping
+                            //     .lock()
+                            //     .await
+                            //     .insert(rust_path, rev_mapper::get_mapping(&transpiled));
                         }
                     }
                 }
@@ -311,10 +312,10 @@ impl LanguageServer for Backend {
 
                     params.text_document.uri = Url::from_file_path(&rust_path).unwrap();
 
-                    self.mapping.lock().await.insert(
-                        rust_path,
-                        rev_mapper::get_mapping(&params.text_document.text),
-                    );
+                    // self.mapping.lock().await.insert(
+                    //     rust_path,
+                    //     rev_mapper::get_mapping(&params.text_document.text),
+                    // );
                 }
                 Err(e) => {
                     self.client
@@ -353,10 +354,10 @@ impl LanguageServer for Backend {
                 Ok(transpiled_text) => {
                     change.text = transpiled_text;
 
-                    self.mapping
-                        .lock()
-                        .await
-                        .insert(rust_path, rev_mapper::get_mapping(&change.text));
+                    // self.mapping
+                    //     .lock()
+                    //     .await
+                    //     .insert(rust_path, rev_mapper::get_mapping(&change.text));
                 }
                 Err(e) => {
                     self.client
