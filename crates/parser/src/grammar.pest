@@ -565,23 +565,19 @@ decrement = {
     "--"
 }
 
-postfix_no_struct = _{
+postfix = {
     field_px
   | tuple_field_px
   | call_px
   | macro_call_paren
   | macro_call_bracket
   | macro_call_brace
+  | struct_px
   | index_px
   | as_px
   | try_px
   | increment
   | decrement
-}
-
-postfix = {
-    postfix_no_struct
-  | struct_px
 }
 
 // ------------------------------------------------------
@@ -649,6 +645,6 @@ expr = { term ~ (bin_op ~ term)* }
 
 term = { prefix* ~ primary ~ postfix* }
 
-expr_no_struct = { term_no_struct ~ (bin_op ~ term)* }
+expr_no_struct = { term_no_struct ~ (bin_op ~ term_no_struct)* }
 
-term_no_struct = { prefix* ~ primary ~ postfix_no_struct* }
+term_no_struct = { prefix* ~ primary ~ (!struct_px ~ postfix)* }
