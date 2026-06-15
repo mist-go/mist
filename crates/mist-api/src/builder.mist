@@ -31,8 +31,6 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
     args.remove(0);
     args.insert(1, "--message-format=json".to_string());
 
-    let is_root = root == env::current_dir().expect("Failed getting env");
-
     let mut command = Command::new("cargo")
         .args(args)
         .stdout(Stdio::piped())
@@ -56,15 +54,6 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
                     if span.is_primary {
                         let rust_path = root.join(&span.file_name);
 
-                        let mist_file = span
-                            .file_name
-                            .replacen(&mist_src, "src", 1)
-                            .trim_end_matches(".rs")
-                            .to_string()
-                            + ".mist";
-
-                        let mist_path = root.join(&mist_file);
-
                         let mapping_path = rust_path.with_extension("map.json");
 
                         if !fs::exists(&mapping_path).expect("Unable to check if map file exists") {
@@ -75,11 +64,13 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
                         let map = mapping.entry(mapping_path.clone()).or_insert_with(fn() {
                             let map_str = fs::read_to_string(mapping_path).expect("Failed to read map file");
 
-                            serde_json::from_str(&map_str).expect("Failed to parse map file")
+                            serde_json::from_str<rev_mapper::Mapping>(&map_str).expect("Failed to parse map file")
                         });
 
+                        let mist_file = map.mist_path.strip_prefix(&root);
+
                         let [_, rev_mapper::MistMap[line, column]] =
-                            rev_mapper::find_mapping(&map, &rev_mapper::RustMap(span.line_end, span.column_start))
+                            map.find(&rev_mapper::RustMap(span.line_end, span.column_start))
                                 .expect("Unable to find mapping");
 
                         let mist_msg = MistDiagnosticMessage {
@@ -88,13 +79,12 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
                                 msg.message.message,
                                 span.label.clone().unwrap_or_default()
                             ),
-                            file_name: if is_root {
-                                (); // TODO: fix this
-                                mist_file
+                            file_name: if let Ok(mist_file) = mist_file {
+                                mist_file.to_string_lossy().to_string()
                             } else {
-                                mist_path.to_string_lossy().to_string()
+                                map.mist_path.to_string_lossy().to_string()
                             },
-                            file_path: mist_path,
+                            file_path: map.mist_path.clone(),
                             line: line,
                             column: column
                         };
