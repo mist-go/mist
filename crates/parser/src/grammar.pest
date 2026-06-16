@@ -333,7 +333,7 @@ trait_decl = {
 override_kw = { "override" ~ ("(" ~ expr_path ~ ")")? }
 
 function_decl = {
-    visibility? ~ override_kw? ~ "fn" ~ ("void" | type_expr) ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ (block | semicolon)
+    visibility? ~ "fn" ~ ("void" | type_expr) ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ override_kw? ~ (block | semicolon)
 }
 
 // ======================================================

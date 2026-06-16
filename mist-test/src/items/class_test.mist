@@ -34,7 +34,7 @@ pub class Dog : Mammal {
         super = Super::new();
     }
 
-    pub override(Animal) fn String speak(*self) {
+    pub fn String speak(*self) override(Animal) {
         "Woof!".to_string()
     }
 
