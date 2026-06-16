@@ -8,12 +8,12 @@ pub class Animal<T> {
         self.name = "Rex".to_string();
     }
 
-    pub fn void speak(*self) {
-        println!("Unknown");
+    pub fn String speak(*self) {
+        "Unknown".to_string()
     }
 
     pub fn void test_speak(*self) {
-        self.speak();
+        assert_eq!(self.speak(), "Woof!");
     }
 
     pub fn void static_method() {}
@@ -24,10 +24,9 @@ pub class Mammal<T> : Animal<T> {
         super = Super::new();
     }
 
-    pub fn void args_test(*self, x i32, y *str) {}
-
-    pub fn *'a str returning<'a>(*self) {
-        "Mammal"
+    pub fn void args_test(*self, x i32, y *str) {
+        assert_eq!(x, 10);
+        assert_eq!(y, "hello");
     }
 }
 
@@ -36,12 +35,14 @@ pub class Dog : Mammal<i32> {
         super = Super::new();
     }
 
-    pub override(Animal<i32>) fn void speak(*self) {
-        println!("Woof!");
+    pub override(Animal<i32>) fn String speak(*self) {
+        "Woof!".to_string()
     }
 
-    pub override fn *str returning(*self) {
-        "Dog"
+    impl std::fmt::Display {
+        fn Result<(), std::fmt::Error> fmt(*self, f *mut std::fmt::Formatter<'_>) {
+            write!(f, "🐾 {}", self.name)
+        }
     }
 }
 
@@ -52,5 +53,5 @@ pub fn void run_tests() {
 
     dawg.test_speak();
 
-    println!("{}", dawg.returning());
+    assert_eq!(format!("{dawg}"), "🐾 Rex");
 }
