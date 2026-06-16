@@ -1,0 +1,56 @@
+pub module class_test;
+
+pub class Animal<T> {
+    pub name String;
+    pub val T;
+
+    constructor() {
+        self.name = "Rex".to_string();
+    }
+
+    pub fn void speak(*self) {
+        println!("Unknown");
+    }
+
+    pub fn void test_speak(*self) {
+        self.speak();
+    }
+
+    pub fn void static_method() {}
+}
+
+pub class Mammal<T> : Animal<T> {
+    constructor() {
+        super = Super::new();
+    }
+
+    pub fn void args_test(*self, x i32, y *str) {}
+
+    pub fn *'a str returning<'a>(*self) {
+        "Mammal"
+    }
+}
+
+pub class Dog : Mammal<i32> {
+    constructor() {
+        super = Super::new();
+    }
+
+    pub override(Animal<i32>) fn void speak(*self) {
+        println!("Woof!");
+    }
+
+    pub override fn *str returning(*self) {
+        "Dog"
+    }
+}
+
+pub fn void run_tests() {
+    let dawg = Dog::new();
+
+    dawg.args_test(10, "hello");
+
+    dawg.test_speak();
+
+    println!("{}", dawg.returning());
+}

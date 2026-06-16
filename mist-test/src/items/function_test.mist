@@ -1,0 +1,66 @@
+pub module function_test;
+
+fn void greet() {
+    let mut x = 1;
+    x++;
+}
+
+pub fn void test_basic_function() {
+    greet();
+}
+
+fn i32 add(a i32, b i32) {
+    a + b
+}
+
+pub fn void test_fn_params() {
+    assert_eq!(add(2, 3), 5);
+}
+
+pub fn i32 test_fn_return() {
+    42
+}
+
+pub fn i32 test_fn_early_return() {
+    return 100;
+    0
+}
+
+pub fn i32 test_fn_mut_param(mut x i32) {
+    x = x + 10;
+    x
+}
+
+pub fn void test_method_call() {
+    let s = "hello";
+    assert_eq!(s.len(), 5);
+    assert_eq!(s.to_uppercase(), "HELLO");
+}
+
+fn i32 triple(x i32) {
+    add(x, add(x, x))
+}
+
+pub fn void test_nested_fn_calls() {
+    assert_eq!(triple(5), 15);
+}
+
+fn i32 factorial(n i32) {
+    if n <= 1 { 1 }
+    else { n * factorial(n - 1) }
+}
+
+pub fn void test_recursive_fn() {
+    assert_eq!(factorial(5), 120);
+}
+
+pub fn void run_tests() {
+    test_basic_function();
+    test_fn_params();
+    assert_eq!(test_fn_return(), 42);
+    assert_eq!(test_fn_early_return(), 100);
+    assert_eq!(test_fn_mut_param(5), 15);
+    test_method_call();
+    test_nested_fn_calls();
+    test_recursive_fn();
+}
