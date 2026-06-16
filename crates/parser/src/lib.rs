@@ -5,6 +5,7 @@ pub mod ast;
 pub mod error;
 pub mod parser;
 pub mod rev_mapper;
+pub mod semantics;
 
 use ast::*;
 
