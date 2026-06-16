@@ -82,6 +82,7 @@ module_program = {
 
 visibility = { "pub" ~ ("(" ~ static_path ~ ")")? }
 mutable    = { "mut" }
+unsafe_kw    = { "unsafe" }
 
 // ======================================================
 // GENERICS
@@ -104,8 +105,10 @@ path_type = {
     static_path ~ generics?
 }
 
+ref_lifetime = { lifetime | unsafe_kw }
+
 ref_type = {
-    "*" ~ lifetime? ~ mutable? ~ type_expr
+    "*" ~ ref_lifetime? ~ mutable? ~ type_expr
 }
 
 dyn_type = {

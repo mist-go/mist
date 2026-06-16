@@ -28,8 +28,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
 
             Rule::ref_type => {
                 ast_expr!(TypeExpr::Ref {
-                    lifetime: consume_rule(&mut inner, Rule::lifetime)
-                        .map(|v| v.into_inner().next().map(Identifier::try_from))
+                    lifetime: consume_rule(&mut inner, Rule::ref_lifetime)
+                        .map(|v| v.into_inner().next().map(Lifetime::try_from))
                         .unwrap_or_default()
                         .transpose(),
                     mutable: Ok(listen_rule(&mut inner, Rule::mutable)) as AstResult<bool>,

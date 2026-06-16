@@ -236,12 +236,26 @@ impl GetRust for TypeExpr {
                 mutable,
                 ty,
             } => {
-                let mutable = if *mutable { "mut " } else { "" };
-
                 if let Some(lifetime) = lifetime {
-                    format!("&'{} {mutable}{}", lifetime.get_rust(), ty.get_rust())
+                    match lifetime {
+                        Lifetime::Lifetime(v) => {
+                            format!(
+                                "&{} {}{}",
+                                v.get_rust(),
+                                if *mutable { "mut " } else { "" },
+                                ty.get_rust()
+                            )
+                        }
+                        Lifetime::Unsafe => {
+                            format!(
+                                "*{} {}",
+                                if *mutable { "mut" } else { "const" },
+                                ty.get_rust()
+                            )
+                        }
+                    }
                 } else {
-                    format!("&{mutable}{}", ty.get_rust())
+                    format!("&{}{}", if *mutable { "mut " } else { "" }, ty.get_rust())
                 }
             }
 
