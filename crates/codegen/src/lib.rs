@@ -240,7 +240,7 @@ impl GetRust for TypeExpr {
                     match lifetime {
                         Lifetime::Lifetime(v) => {
                             format!(
-                                "&{} {}{}",
+                                "&'{} {}{}",
                                 v.get_rust(),
                                 if *mutable { "mut " } else { "" },
                                 ty.get_rust()
