@@ -2,16 +2,9 @@ pub module class_test;
 
 pub class Animal {
     pub name String;
-    pub val i32;
 
     constructor() {
         self.name = "Rex".to_string();
-
-        self.init_v();
-    }
-
-    pub fn void init_v(*mut self) {
-        self.val = 0;
     }
 
     pub fn String speak(*self) {

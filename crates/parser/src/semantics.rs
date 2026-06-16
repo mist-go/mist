@@ -54,20 +54,25 @@ pub fn check_class_semantics<'a>(top_level: &TopLevel) -> Result<(), Vec<Semanti
 
             let mut mutability = constructor.item.body.get_mutability();
 
-            for name in mutability.clone() {
+            let mut i = 0;
+            while i < mutability.len() {
+                let name = mutability[i].clone();
                 if let Some(method) = find_function_call(items, &name) {
                     if let Some(body) = &method.item.body {
-                        mutability.append(&mut body.get_mutability());
+                        for entry in body.get_mutability() {
+                            if !mutability.contains(&entry) {
+                                mutability.push(entry);
+                            }
+                        }
                     }
                 }
+                i += 1;
             }
-
-            let mut mutability_iter = mutability.into_iter();
 
             let mut errs = Vec::new();
 
             for field in &fields {
-                if mutability_iter.find(|v| v == &field.item).is_none() {
+                if !mutability.contains(&field.item) {
                     errs.push(SemanticError {
                         line: field.line,
                         column: field.column,
@@ -221,6 +226,22 @@ fn get_self_ref(initial: &Expression, postfixes: &[Postfix]) -> Option<Identifie
     None
 }
 
+fn get_self_method_call(initial: &Expression, postfixes: &[Postfix]) -> Option<Identifier> {
+    match initial {
+        Expression::Path(v) => {
+            if v.0.first()?.ident.0 == "self" {
+                if let Some(Postfix::FieldAccess(method, _)) = postfixes.first() {
+                    if matches!(postfixes.get(1), Some(Postfix::Call(_))) {
+                        return Some(method.clone());
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+    None
+}
+
 impl Expression {
     fn get_self_ref(&self) -> Option<Identifier> {
         match self {
@@ -265,19 +286,44 @@ impl GetMutability for Expression {
             } => {
                 let mut result = Vec::new();
 
+                // &mut self.field pattern
                 if prefixes.iter().any(|p| matches!(p, Prefix::RefMut)) {
                     if let Some(self_ref) = get_self_ref(initial, postfixes) {
                         result.push(self_ref);
                     }
                 }
 
+                // Recurse into all postfix sub-expressions
                 for postfix in postfixes {
-                    if let Postfix::Assign(_, rhs) = postfix {
-                        if let Some(self_ref) = get_self_ref(initial, postfixes) {
-                            result.push(self_ref);
+                    match postfix {
+                        Postfix::Assign(_, rhs) => {
+                            if let Some(self_ref) = get_self_ref(initial, postfixes) {
+                                result.push(self_ref);
+                            }
+                            result.append(&mut rhs.get_mutability());
                         }
-                        result.append(&mut rhs.get_mutability());
+                        Postfix::Call(args) => {
+                            for arg in args {
+                                result.append(&mut arg.get_mutability());
+                            }
+                        }
+                        Postfix::StructCall(fields) => {
+                            for (_, expr) in fields {
+                                if let Some(expr) = expr {
+                                    result.append(&mut expr.get_mutability());
+                                }
+                            }
+                        }
+                        Postfix::Index(expr) => {
+                            result.append(&mut expr.get_mutability());
+                        }
+                        _ => {}
                     }
+                }
+
+                // Method calls on self: self.method_name(args)
+                if let Some(method) = get_self_method_call(initial, postfixes) {
+                    result.push(method);
                 }
 
                 result
@@ -289,5 +335,5 @@ impl GetMutability for Expression {
 }
 
 pub fn mutates_lhs(op: &str) -> bool {
-    matches!(op, "=" | "->" | "+=" | "-=" | "*=" | "/=")
+    matches!(op, "=" | "->")
 }
