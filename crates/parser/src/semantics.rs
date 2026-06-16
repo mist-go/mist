@@ -1,13 +1,17 @@
-use crate::{
-    ast::{
-        Block, ClassItem, Expression, FunctionDecl, Identifier, Postfix, Spanned, TopLevel,
-        TopLevelKind,
-    },
-    error::AstError,
+use crate::ast::{
+    Block, ClassItem, Expression, FunctionDecl, Identifier, Postfix, Spanned, TopLevel,
+    TopLevelKind,
 };
 
 pub trait GetMutability {
     fn get_mutability(&self) -> Vec<Identifier>;
+}
+
+#[derive(Debug, Clone)]
+pub struct SemanticError {
+    pub line: usize,
+    pub column: usize,
+    pub error_message: String,
 }
 
 /// Class semantics - Ensuring fields are initialized
@@ -29,7 +33,7 @@ pub fn find_function_call<'a>(
     })
 }
 
-pub fn check_class_semantics<'a>(top_level: &TopLevel) -> Result<(), AstError<'a, ()>> {
+pub fn check_class_semantics<'a>(top_level: &TopLevel) -> Result<(), SemanticError> {
     if let TopLevelKind::ClassDecl {
         fields,
         constructor,
@@ -61,7 +65,11 @@ pub fn check_class_semantics<'a>(top_level: &TopLevel) -> Result<(), AstError<'a
 
             for field in &fields {
                 if mutability_iter.find(|v| v == &field.item).is_none() {
-                    panic!("Unable to find set for field {}", field.item.0);
+                    return Err(SemanticError {
+                        line: field.line,
+                        column: field.column,
+                        error_message: format!("Field `{}` is uninitialized", field.item.0),
+                    });
                 }
             }
         }
@@ -152,6 +160,6 @@ impl GetMutability for Expression {
 pub fn mutates_lhs(op: &str) -> bool {
     matches!(
         op,
-        "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>="
+        "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" | "->"
     )
 }

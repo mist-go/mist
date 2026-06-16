@@ -184,8 +184,13 @@ fn is_source_newer(source *Path, output *Path) std::io::Result<bool> {
     Ok(source_time > output_time)
 }
 
+pub enum TranspileError<'a> {
+    Parse[error::ParseError<'a, Vec<mist_parser::ast::TopLevel>>],
+    Semantic[mist_parser::semantics::SemanticError]
+}
+
 pub fn transpile_code<'a>(path *PathBuf, source *'a str, mut output_file PathBuf, mod_decl *str, curr_mod_decl *Option<[mist_parser::ast::Visibility, mist_parser::ast::Identifier]>)
-        Result<[PathBuf, mist_codegen::RustCodegen, String], error::ParseError<'a, Vec<mist_parser::ast::TopLevel>>> {
+        Result<[PathBuf, mist_codegen::RustCodegen, String], TranspileError<'a>> {
 
     if let Some[[_, name]] = &curr_mod_decl {
         if output_file.file_name().map(fn(v) -> v.to_str()).unwrap_or_default() != Some("mod.rs") {
@@ -204,10 +209,10 @@ pub fn transpile_code<'a>(path *PathBuf, source *'a str, mut output_file PathBuf
 
     let mut gc = mist_codegen::RustCodegen::new(path.clone());
 
-    let parsed = mist_parser::parse(source)?;
+    let parsed = mist_parser::parse(source).map_err(TranspileError::Parse)?;
 
     for i in &parsed {
-        let _ = mist_parser::semantics::check_class_semantics(i);
+        let _ = mist_parser::semantics::check_class_semantics(i).map_err(TranspileError::Semantic)?;
     }
 
     let output = gc.generate(parsed);
@@ -221,32 +226,8 @@ pub fn transpile_file(path *PathBuf, source *str, output_file PathBuf, mod_decl 
     let [output_file, gc, output] = match transpile_code(path, source, output_file, mod_decl, curr_mod_decl) {
         Ok[output] => output;
         Err[e] => {
-            match e {
-                error::ParseError::Ast[e] => {
-                    let start_pos = e.span.start_pos().line_col();
-
-                    let span = e.span.as_str();
-
-                    eprintln!(
-                        "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}{}\t{}",
-                        path.as_os_str().display(),
-                        start_pos.0,
-                        start_pos.1,
-                        e.error_message,
-                        span,
-                        if span.ends_with("\n") { "" } else { "\n" },
-                        "^".repeat(span.trim().len()),
-                    );
-
-                    process::exit(1);
-                }
-
-                error::ParseError::PreAst[e] => {
-                    eprintln!("error: parse failed in {}\n{}", path.display(), e);
-
-                    process::exit(1);
-                }
-            }
+            decode_err(&e, path);
+            process::exit(1);
         }
     };
 
@@ -274,5 +255,46 @@ pub fn transpile_file(path *PathBuf, source *str, output_file PathBuf, mod_decl 
 
     if res_map.is_err() || res.is_err() {
         process::exit(1);
+    }
+}
+
+pub fn decode_err<'a>(err *TranspileError<'a>, path *PathBuf) {
+    let curr_dir = std::env::current_dir().unwrap();
+
+    match err {
+        TranspileError::Semantic[e] => {
+            eprintln!(
+                "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}",
+                path.strip_prefix(curr_dir).unwrap_or_else(|_| path).as_os_str().display(),
+                e.line,
+                e.column,
+                e.error_message,
+            );
+        }
+
+        TranspileError::Parse[e] => {
+            match e {
+                error::ParseError::Ast[e] => {
+                    let start_pos = e.span.start_pos().line_col();
+
+                    let span = e.span.as_str();
+
+                    eprintln!(
+                        "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}{}\t{}",
+                        path.strip_prefix(curr_dir).unwrap_or_else(|_| path).as_os_str().display(),
+                        start_pos.0,
+                        start_pos.1,
+                        e.error_message,
+                        span,
+                        if span.ends_with("\n") { "" } else { "\n" },
+                        "^".repeat(span.trim().len()),
+                    );
+                }
+
+                error::ParseError::PreAst[e] => {
+                    eprintln!("error: parse failed in {}\n{}", path.strip_prefix(curr_dir).unwrap_or_else(|_| path).display(), e);
+                }
+            }
+        }
     }
 }
