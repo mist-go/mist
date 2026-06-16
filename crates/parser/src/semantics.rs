@@ -39,11 +39,12 @@ pub fn check_class_semantics<'a>(top_level: &TopLevel) -> Result<(), Vec<Semanti
         constructor,
         items,
         name,
+        inherits,
         ..
     } = &top_level.0.item
     {
         if let Some(constructor) = constructor {
-            let fields = fields
+            let mut fields = fields
                 .iter()
                 .map(|field| Spanned {
                     item: field.item.decl.name.clone(),
@@ -51,6 +52,14 @@ pub fn check_class_semantics<'a>(top_level: &TopLevel) -> Result<(), Vec<Semanti
                     column: field.column,
                 })
                 .collect::<Vec<_>>();
+
+            if inherits.is_some() {
+                fields.push(Spanned {
+                    line: top_level.0.line,
+                    column: top_level.0.column,
+                    item: Identifier("_super".to_string()),
+                });
+            }
 
             let mut mutability = constructor.item.body.get_mutability();
 
@@ -148,7 +157,11 @@ impl GetMutability for Statement {
             Statement::Loop(body) => body.get_mutability(),
             Statement::While(branch) => branch.body.get_mutability(),
             Statement::CStyleFor {
-                body, init, condition, update, ..
+                body,
+                init,
+                condition,
+                update,
+                ..
             } => {
                 let mut a = init.get_mutability();
                 a.append(&mut condition.get_mutability());
@@ -165,8 +178,10 @@ impl GetMutability for Statement {
                 if items.is_empty() {
                     return Vec::new();
                 }
-                let mut all_sets: Vec<Vec<Identifier>> =
-                    items.iter().map(|item| item.item.get_mutability()).collect();
+                let mut all_sets: Vec<Vec<Identifier>> = items
+                    .iter()
+                    .map(|item| item.item.get_mutability())
+                    .collect();
                 let mut result = all_sets.remove(0);
                 for set in all_sets {
                     result.retain(|id| set.contains(id));
@@ -213,7 +228,8 @@ impl GetMutability for VarDeclStmt {
 fn get_self_ref(initial: &Expression, postfixes: &[Postfix]) -> Option<Identifier> {
     match initial {
         Expression::Path(v) => {
-            if v.0.first()?.ident.0 == "self" {
+            let ident = v.0.first()?.ident.0.as_str();
+            if ident == "self" || ident == "super" {
                 if let Some(Postfix::FieldAccess(field, _)) = postfixes.first() {
                     if !matches!(postfixes.get(1), Some(Postfix::Call(_))) {
                         return Some(field.clone());
@@ -229,7 +245,8 @@ fn get_self_ref(initial: &Expression, postfixes: &[Postfix]) -> Option<Identifie
 fn get_self_method_call(initial: &Expression, postfixes: &[Postfix]) -> Option<Identifier> {
     match initial {
         Expression::Path(v) => {
-            if v.0.first()?.ident.0 == "self" {
+            let ident = v.0.first()?.ident.0.as_str();
+            if ident == "self" || ident == "super" {
                 if let Some(Postfix::FieldAccess(method, _)) = postfixes.first() {
                     if matches!(postfixes.get(1), Some(Postfix::Call(_))) {
                         return Some(method.clone());
@@ -286,10 +303,14 @@ impl GetMutability for Expression {
             } => {
                 let mut result = Vec::new();
 
-                // &mut self.field pattern
+                // &mut self.field / &mut super.field / &mut super pattern
                 if prefixes.iter().any(|p| matches!(p, Prefix::RefMut)) {
                     if let Some(self_ref) = get_self_ref(initial, postfixes) {
                         result.push(self_ref);
+                    } else if let Expression::Path(v) = &**initial {
+                        if v.0.first().map_or(false, |s| s.ident.0 == "super") {
+                            result.push(Identifier("_super".to_string()));
+                        }
                     }
                 }
 
@@ -329,7 +350,14 @@ impl GetMutability for Expression {
                 result
             }
             Self::Closure { body, .. } => body.get_mutability(),
-            Self::Literal(_) | Self::Path(_) => Vec::new(),
+            Self::Literal(_) => Vec::new(),
+            Self::Path(v) => {
+                if v.0.first().map_or(false, |s| s.ident.0 == "super") {
+                    vec![Identifier("_super".to_string())]
+                } else {
+                    Vec::new()
+                }
+            }
         }
     }
 }
