@@ -1,11 +1,11 @@
 pub module trait_test;
 
 trait Speak {
-    fn speak(*self) String;
+    fn String speak(*self);
 }
 
 trait Greet : Speak {
-    fn greet(*self) String;
+    fn String greet(*self);
 }
 
 struct Dog {
@@ -13,29 +13,29 @@ struct Dog {
 }
 
 impl Speak for Dog {
-    fn speak(*self) String {
+    fn String speak(*self) {
         "woof".to_string()
     }
 }
 
 impl Greet for Dog {
-    fn greet(*self) String {
+    fn String greet(*self) {
         "hello".to_string()
     }
 }
 
-pub fn test_trait_impl() {
+pub fn void test_trait_impl() {
     let d = Dog { name: "Rex".to_string() };
     assert_eq!(d.speak(), "woof");
 }
 
-pub fn test_trait_with_requirement() {
+pub fn void test_trait_with_requirement() {
     let d = Dog { name: "Buddy".to_string() };
     assert_eq!(d.speak(), "woof");
     assert_eq!(d.greet(), "hello");
 }
 
-pub fn run_tests() {
+pub fn void run_tests() {
     test_trait_impl();
     test_trait_with_requirement();
 }

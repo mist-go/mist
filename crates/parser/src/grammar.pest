@@ -82,6 +82,7 @@ module_program = {
 
 visibility = { "pub" ~ ("(" ~ static_path ~ ")")? }
 mutable    = { "mut" }
+unsafe_kw    = { "unsafe" }
 
 // ======================================================
 // GENERICS
@@ -97,15 +98,17 @@ generics = { "<" ~ (generic ~ ("," ~ generic)*)? ~ ">" }
 // ======================================================
 
 tuple_type = {
-    "[" ~ (type_expr ~ ("," ~ type_expr)*)? ~ ","? ~ "]"
+    "(" ~ (type_expr ~ ("," ~ type_expr)*)? ~ ","? ~ ")"
 }
 
 path_type = {
     static_path ~ generics?
 }
 
+ref_lifetime = { lifetime | unsafe_kw }
+
 ref_type = {
-    "*" ~ lifetime? ~ mutable? ~ type_expr
+    "*" ~ ref_lifetime? ~ mutable? ~ type_expr
 }
 
 dyn_type = {
@@ -142,11 +145,11 @@ multi_pat_template = _{
 }
 
 tuple_pattern = {
-    "[" ~ (pattern | etc_pattern) ~ "," ~ multi_pat_template ~ "]"
+    "(" ~ (pattern | etc_pattern) ~ "," ~ multi_pat_template ~ ")"
 }
 
 named_tuple_pattern = {
-    static_path ~ "[" ~ multi_pat_template ~ "]"
+    static_path ~ "(" ~ multi_pat_template ~ ")"
 }
 
 struct_destruct = {
@@ -330,7 +333,7 @@ trait_decl = {
 override_kw = { "override" ~ ("(" ~ expr_path ~ ")")? }
 
 function_decl = {
-    visibility? ~ override_kw? ~ "fn" ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ type_expr? ~ (block | semicolon)
+    visibility? ~ override_kw? ~ "fn" ~ ("void" | type_expr) ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ (block | semicolon)
 }
 
 // ======================================================

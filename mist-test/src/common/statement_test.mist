@@ -1,6 +1,6 @@
 pub module statement_test;
 
-pub fn test_var_decl() {
+pub fn void test_var_decl() {
     let x = 42;
     assert_eq!(x, 42);
 
@@ -11,13 +11,13 @@ pub fn test_var_decl() {
     assert_eq!(name, "mist");
 }
 
-pub fn test_var_decl_with_init() {
+pub fn void test_var_decl_with_init() {
     let mut x = 0;
     x = 5;
     assert_eq!(x, 5);
 }
 
-pub fn test_if_statement() {
+pub fn void test_if_statement() {
     let mut x = 0;
 
     if true {
@@ -33,7 +33,7 @@ pub fn test_if_statement() {
     assert_eq!(x, 3);
 }
 
-pub fn test_if_else_if() {
+pub fn void test_if_else_if() {
     let mut x = 0;
 
     if x == 1 {
@@ -46,7 +46,7 @@ pub fn test_if_else_if() {
     assert_eq!(x, 20);
 }
 
-pub fn test_while_loop() {
+pub fn void test_while_loop() {
     let mut count = 0;
 
     while count < 5 {
@@ -55,7 +55,7 @@ pub fn test_while_loop() {
     assert_eq!(count, 5);
 }
 
-pub fn test_for_loop() {
+pub fn void test_for_loop() {
     let mut sum = 0;
 
     for i in 0..4 {
@@ -64,7 +64,7 @@ pub fn test_for_loop() {
     assert_eq!(sum, 6);
 }
 
-pub fn test_loop_stmt() {
+pub fn void test_loop_stmt() {
     let mut count = 0;
 
     loop {
@@ -76,7 +76,7 @@ pub fn test_loop_stmt() {
     assert_eq!(count, 3);
 }
 
-pub fn test_break_continue() {
+pub fn void test_break_continue() {
     let mut sum = 0;
 
     for i in 0..10 {
@@ -91,11 +91,11 @@ pub fn test_break_continue() {
     assert_eq!(sum, 1 + 3 + 5);
 }
 
-pub fn test_return_from_fn() i32 {
+pub fn i32 test_return() {
     return 42;
 }
 
-pub fn test_block_scope() {
+pub fn void test_block_scope() {
     let x = {
         let inner = 10;
         inner + 5
@@ -103,7 +103,7 @@ pub fn test_block_scope() {
     assert_eq!(x, 15);
 }
 
-pub fn test_match_literal() {
+pub fn void test_match_literal() {
     let x = 2;
     let result;
 
@@ -116,7 +116,7 @@ pub fn test_match_literal() {
     assert_eq!(result, 20);
 }
 
-pub fn test_match_or_pattern() {
+pub fn void test_match_or_pattern() {
     let x = 1;
     let result i32;
 
@@ -128,7 +128,7 @@ pub fn test_match_or_pattern() {
     assert_eq!(result, 100);
 }
 
-pub fn test_match_default() {
+pub fn void test_match_default() {
     let x = 99;
     let result;
 
@@ -139,17 +139,17 @@ pub fn test_match_default() {
     assert_eq!(result, 99);
 }
 
-pub fn test_for_with_pattern_destructure() {
+pub fn void test_for_with_pattern_destructure() {
     let pairs = [(1, "a"), (2, "b")];
     let mut keys = 0;
 
-    for [k, _] in pairs {
+    for (k, _) in pairs {
         keys += k;
     }
     assert_eq!(keys, 3);
 }
 
-pub fn run_tests() {
+pub fn void run_tests() {
     test_var_decl();
     test_var_decl_with_init();
     test_if_statement();
@@ -158,7 +158,7 @@ pub fn run_tests() {
     test_for_loop();
     test_loop_stmt();
     test_break_continue();
-    assert_eq!(test_return_from_fn(), 42);
+    assert_eq!(test_return(), 42);
     test_block_scope();
     test_match_literal();
     test_match_or_pattern();

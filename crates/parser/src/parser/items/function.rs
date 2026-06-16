@@ -2,7 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_ensure, ast_expr,
-    error::{AstError, AstResult, IntoErr},
+    error::{self, AstError, AstResult, IntoErr},
     parser::{consume_rule, listen_rule},
 };
 
@@ -14,6 +14,11 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
         let mut inner = pair.into_inner();
             let visibility = Visibility::try_from(&mut inner);
             let is_override = consume_rule(&mut inner, Rule::override_kw).map(Override::try_from).transpose();
+
+            let return_type = consume_rule(&mut inner, Rule::type_expr)
+                .map(TypeExpr::try_from)
+                .transpose();
+
             let name = Identifier::try_from(inner.next().unwrap());
 
             let generics = consume_rule(&mut inner, Rule::generics_decl)
@@ -34,7 +39,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
                     type_: Some(if is_ref {
                         TypeExpr::Ref {
                             lifetime:
-                                lifetime.map(|v| Identifier::try_from(v.into_inner().next().unwrap()))
+                                lifetime.map(|v| Lifetime::try_from(v.into_inner().next().unwrap()))
                                     .transpose()
                                     .expect("Failed to get lifetime identifier"),
                             mutable,
@@ -59,10 +64,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
                 })
                 .unwrap_or_else(|| Ok(ParamList(self_param.into_iter().collect())));
 
-            let return_type = consume_rule(&mut inner, Rule::type_expr)
-                .map(TypeExpr::try_from)
-                .transpose();
-
             let body = inner.next().map(Block::try_from).transpose();
 
             ast_expr!(Self {
@@ -85,5 +86,20 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Override {
         ast_ensure!(pair, Rule::override_kw => {
             ast_expr!(Override(pair.into_inner().next().map(ExprPath::try_from).transpose()))
         })
+    }
+}
+
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Lifetime {
+    type Error = AstError<'a, Self>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        let mut inner = pair.clone().into_inner();
+
+        match pair.as_rule() {
+            Rule::ref_lifetime => inner.next().unwrap().try_into(),
+            Rule::lifetime => ast_expr!(Lifetime::Lifetime(inner.next().unwrap().try_into())),
+            Rule::unsafe_kw => Ok(Lifetime::Unsafe),
+            _ => error::AstError::bug_unimplemented(pair),
+        }
     }
 }
