@@ -206,6 +206,10 @@ pub fn transpile_code<'a>(path *PathBuf, source *'a str, mut output_file PathBuf
 
     let parsed = mist_parser::parse(source)?;
 
+    for i in &parsed {
+        let _ = mist_parser::semantics::check_class_semantics(i);
+    }
+
     let output = gc.generate(parsed);
 
     gc.mapping.shift_rust(mod_decl.lines().count() as isize, 0);
