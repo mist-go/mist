@@ -1,11 +1,17 @@
 pub module class_test;
 
-pub class Animal<T> {
+pub class Animal {
     pub name String;
-    pub val T;
+    pub val i32;
 
     constructor() {
         self.name = "Rex".to_string();
+
+        self.init_v();
+    }
+
+    pub fn void init_v(*mut self) {
+        self.val = 0;
     }
 
     pub fn String speak(*self) {
@@ -19,7 +25,7 @@ pub class Animal<T> {
     pub fn void static_method() {}
 }
 
-pub class Mammal<T> : Animal<T> {
+pub class Mammal : Animal {
     constructor() {
         super = Super::new();
     }
@@ -30,12 +36,12 @@ pub class Mammal<T> : Animal<T> {
     }
 }
 
-pub class Dog : Mammal<i32> {
+pub class Dog : Mammal {
     constructor() {
         super = Super::new();
     }
 
-    pub override(Animal<i32>) fn String speak(*self) {
+    pub override(Animal) fn String speak(*self) {
         "Woof!".to_string()
     }
 
