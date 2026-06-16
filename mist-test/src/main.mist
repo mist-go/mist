@@ -1,5 +1,3 @@
-fn Result<[], String> main() {
+fn void main() {
     println!("running common tests...");
-
-    Ok(())
 }
