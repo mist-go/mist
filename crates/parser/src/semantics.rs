@@ -33,11 +33,12 @@ pub fn find_function_call<'a>(
     })
 }
 
-pub fn check_class_semantics<'a>(top_level: &TopLevel) -> Result<(), SemanticError> {
+pub fn check_class_semantics<'a>(top_level: &TopLevel) -> Result<(), Vec<SemanticError>> {
     if let TopLevelKind::ClassDecl {
         fields,
         constructor,
         items,
+        name,
         ..
     } = &top_level.0.item
     {
@@ -63,14 +64,23 @@ pub fn check_class_semantics<'a>(top_level: &TopLevel) -> Result<(), SemanticErr
 
             let mut mutability_iter = mutability.into_iter();
 
+            let mut errs = Vec::new();
+
             for field in &fields {
                 if mutability_iter.find(|v| v == &field.item).is_none() {
-                    return Err(SemanticError {
+                    errs.push(SemanticError {
                         line: field.line,
                         column: field.column,
-                        error_message: format!("Field `{}` is uninitialized", field.item.0),
+                        error_message: format!(
+                            "class field `{}.{}` is uninitialized",
+                            name.0, field.item.0
+                        ),
                     });
                 }
+            }
+
+            if errs.len() > 0 {
+                return Err(errs);
             }
         }
 
