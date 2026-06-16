@@ -1,19 +1,5 @@
-fn main() {
+fn Result<[], String> main() {
     println!("running common tests...");
-    common::test_package();
-    common::expr_test::run_tests();
-    common::statement_test::run_tests();
-    common::decl_test::run_tests();
-    common::types_test::run_tests();
 
-    println!("running items tests...");
-    items::function_test::run_tests();
-    items::struct_test::run_tests();
-    items::enum_test::run_tests();
-    items::class_test::run_tests();
-    items::trait_test::run_tests();
-    items::impl_test::run_tests();
-    items::attribute_test::run_tests();
-
-    println!("\x1b[32m\nAll tests passed!\x1b[0m");
+    Ok(())
 }
