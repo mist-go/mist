@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use mist_parser::ast::*;
 
-use crate::{Context, GenRust, GetRust, RustCodegen};
+use crate::{Context, GenRust, GenSpanTranslation, GetRust, RustCodegen};
 
 pub struct ClassProcessedData {
     visibility: Visibility,
@@ -117,7 +117,7 @@ impl ClassProcessedData {
         }
 
         for field in &self.fields {
-            cg.add_indentedln(&field.get_comment());
+            field.gen_span(cg);
             cg.add_indentedln(&field.item.decl.get_rust());
         }
 
@@ -269,7 +269,7 @@ impl ClassProcessedData {
                     }
 
                     if let TypeExpr::Ref { mutable, .. } = params.remove(0) {
-                        cg.add_indentedln(&method.get_comment());
+                        method.gen_span(cg);
                         cg.add_indented(&format!("{}::__m_", target_rust_path));
                         cg.add(&method.item.name.get_rust());
                         cg.add(" as ");
@@ -302,7 +302,7 @@ impl ClassProcessedData {
 
             for (override_tier, v) in &self.override_v_table {
                 if let Some(path) = &override_tier.0 {
-                    cg.add_indentedln(&v.get_comment());
+                    v.gen_span(cg);
                     // This forces the compiler to statically verify that &Self can Deref into &Target
                     cg.add_indentedln(&format!("let _: &{} = this;", path.get_rust()));
                 }
@@ -319,10 +319,8 @@ impl ClassProcessedData {
         ctx: &mut Context,
         cg: &mut RustCodegen,
     ) {
-        let constructor_comment = constructor.get_comment();
-
         cg.add_indentedln("#[allow(invalid_value)]");
-        cg.add_indentedln(&constructor_comment);
+        constructor.gen_span(cg);
 
         cg.add_indented(&format!(
             "{}fn new{}(",
@@ -357,10 +355,8 @@ impl ClassProcessedData {
         cg.add_indentedln("this._vptr = &Self::__V_TABLE;");
 
         for field in &self.fields {
-            let comment = field.get_comment();
-
             if let Some(init) = &field.item.init {
-                cg.add_indentedln(&comment);
+                field.gen_span(cg);
                 cg.add_indentedln(&format!("this.{} = ", field.item.decl.name.get_rust()));
                 init.gen_rust(ctx, cg);
             }
@@ -378,7 +374,7 @@ impl ClassProcessedData {
 
         cg.add_indentedln("this._vptr = &Self::__V_TABLE;");
 
-        cg.add_indentedln(&constructor_comment);
+        constructor.gen_span(cg);
 
         cg.add_indentedln("this");
         cg.indent -= 1;
