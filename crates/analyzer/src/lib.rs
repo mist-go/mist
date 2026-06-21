@@ -19,7 +19,7 @@ use crate::transpiler::transpile_mist;
 
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-const KEYWORDS: [&'static str; 24] = [
+const KEYWORDS: [&'static str; 25] = [
     "if",
     "else",
     "for",
@@ -43,7 +43,8 @@ const KEYWORDS: [&'static str; 24] = [
     "fn",
     "unsafe",
     "override",
-    "module"
+    "module",
+    "void"
 ];
 
 fn keyword_completion_items() -> impl Iterator<Item = CompletionItem> {
