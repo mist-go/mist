@@ -374,32 +374,42 @@ impl LanguageServer for Backend {
 
                 eprintln!("Loaded {} mist files", files.len());
 
-                let mapping_c = mapping.clone();
-                let documents_c = documents.clone();
-                let ra_c = ra.clone();
+                // Compute mod_decls before any transpile so the root file gets its
+                // child module declarations from the very first didOpen.
+                let package_mist = read_mist_package(root);
+                let src_root = root.join("src");
+                let mod_decls = {
+                    let docs = documents.lock().await;
+                    compute_mod_decls(&docs, &src_root, &package_mist)
+                };
 
                 for file in &files {
-                    if let Some(source) = documents_c.lock().await.get(file).map(|r| r.to_string())
-                    {
-                        let transpiled = match transpile_mist(file, &source, "") {
-                            Ok(t) => t,
-                            Err(e) => {
-                                eprintln!("transpile error for {:?}: {e}", file);
-                                continue;
-                            }
-                        };
-
-                        if let Some(rust_uri) = clean_lsp_url(&transpiled.rust_path) {
-                            let _ = ra_c
-                                .lock()
-                                .await
-                                .did_open(rust_uri, &transpiled.rust_content)
-                                .await;
-                            mapping_c
-                                .lock()
-                                .await
-                                .insert(transpiled.rust_path, transpiled.mapping);
+                    let decl = mod_decls.get(file).map(String::as_str).unwrap_or("");
+                    let source = match documents.lock().await.get(file) {
+                        Some(r) => r.to_string(),
+                        None => {
+                            eprintln!("missing document for {:?}", file);
+                            continue;
                         }
+                    };
+                    let transpiled = match transpile_mist(file, &source, decl) {
+                        Ok(t) => t,
+                        Err(e) => {
+                            eprintln!("transpile error for {:?}: {e}", file);
+                            continue;
+                        }
+                    };
+
+                    if let Some(rust_uri) = clean_lsp_url(&transpiled.rust_path) {
+                        let _ = ra
+                            .lock()
+                            .await
+                            .did_open(rust_uri, &transpiled.rust_content)
+                            .await;
+                        mapping
+                            .lock()
+                            .await
+                            .insert(transpiled.rust_path, transpiled.mapping);
                     }
                 }
 
