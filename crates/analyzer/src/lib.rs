@@ -346,6 +346,8 @@ impl Backend {
         let src_root = ws.join("src");
         let package_mist = read_mist_package(&ws);
 
+        self.ensure_implicit_packages(&src_root).await;
+
         // Collect sources first to avoid holding locks during transpile
         let sources: Vec<(PathBuf, String, String)> = {
             let docs = self.documents.lock().await;
@@ -364,6 +366,13 @@ impl Backend {
             self.handle_transpile_and_notify(&mist_path, &source, &decl)
                 .await;
         }
+    }
+
+    /// Create synthetic `package.mist` documents for subdirectories that contain
+    /// .mist files but no real package.mist (implicit packages).
+    async fn ensure_implicit_packages(&self, src_root: &Path) {
+        let mut docs = self.documents.lock().await;
+        ensure_implicit_packages_impl(&mut *docs, src_root);
     }
 
     async fn publish_diagnostics(&self, uri: Url, diagnostics: Vec<Diagnostic>) {
@@ -471,6 +480,8 @@ impl LanguageServer for Backend {
 
                 eprintln!("Loaded {} mist files", files.len());
 
+                ensure_implicit_packages_impl(&mut *documents.lock().await, &src_root);
+
                 // Compute mod_decls before any transpile so the root file gets its
                 // child module declarations from the very first didOpen.
                 let package_mist = read_mist_package(root);
@@ -507,6 +518,41 @@ impl LanguageServer for Backend {
                             .lock()
                             .await
                             .insert(transpiled.rust_path, transpiled.mapping);
+                    }
+                }
+
+                // Also transpile synthetic package.mist files (implicit packages)
+                // so rust-analyzer has their content from the start.
+                let synthetic_paths: Vec<PathBuf> = documents
+                    .lock()
+                    .await
+                    .keys()
+                    .filter(|p| {
+                        !files.contains(p)
+                            && p.file_name().and_then(|n| n.to_str()) == Some("package.mist")
+                    })
+                    .cloned()
+                    .collect();
+                for syn_path in &synthetic_paths {
+                    let decl = mod_decls.get(syn_path).map(String::as_str).unwrap_or("");
+                    let source = documents
+                        .lock()
+                        .await
+                        .get(syn_path)
+                        .map(|r| r.to_string())
+                        .unwrap_or_default();
+                    if let Ok(transpiled) = transpile_mist(syn_path, &source, decl) {
+                        if let Some(rust_uri) = clean_lsp_url(&transpiled.rust_path) {
+                            let _ = ra
+                                .lock()
+                                .await
+                                .did_open(rust_uri, &transpiled.rust_content)
+                                .await;
+                            mapping
+                                .lock()
+                                .await
+                                .insert(transpiled.rust_path, transpiled.mapping);
+                        }
                     }
                 }
 
@@ -1099,8 +1145,13 @@ fn compute_mod_decls(
                 Some(s) => s,
                 None => continue,
             };
-            // Skip the root package file itself
+            // Skip the root package entry file (e.g. main.mist)
             if *file == package_path {
+                continue;
+            }
+            // Skip any subdirectory package.mist — it's the directory's own
+            // entry file, not a sibling submodule.
+            if stem == "package" {
                 continue;
             }
             mod_decl.push_str(&format!("pub mod {};\n", stem));
@@ -1118,7 +1169,66 @@ fn compute_mod_decls(
         }
     }
 
+    // For each subdirectory that is a Mist module, add pub mod <dirname>;
+    // to the parent directory's declarations so the parent's transpiled Rust
+    // output includes the child module declaration.
+    for dir in dirs.keys() {
+        if dir == src_root {
+            continue;
+        }
+        let dirname = match dir.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n,
+            None => continue,
+        };
+        let parent = dir.parent().unwrap();
+        let parent_target = if parent == src_root {
+            package_path.clone()
+        } else {
+            let pkg = parent.join("package.mist");
+            if !documents.contains_key(&pkg) {
+                continue;
+            }
+            pkg
+        };
+        result
+            .entry(parent_target)
+            .or_default()
+            .push_str(&format!("pub mod {};\n", dirname));
+    }
+
     result
+}
+
+fn ensure_implicit_packages_impl(
+    docs: &mut HashMap<PathBuf, Rope>,
+    src_root: &Path,
+) {
+    let mut dirs_with_mist: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
+    for mist_path in docs.keys() {
+        if let Ok(rel) = mist_path.strip_prefix(src_root) {
+            if let Some(parent) = rel.parent() {
+                if !parent.as_os_str().is_empty() {
+                    dirs_with_mist
+                        .entry(src_root.join(parent))
+                        .or_default()
+                        .push(mist_path.clone());
+                }
+            }
+        }
+    }
+
+    for dir in dirs_with_mist.keys() {
+        let pkg_path = dir.join("package.mist");
+        if !docs.contains_key(&pkg_path) {
+            let dirname = dir
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("module")
+                .to_string();
+            let content = format!("pub module {dirname};\n");
+            docs.insert(pkg_path, Rope::from_str(&content));
+        }
+    }
 }
 
 fn clean_completion_item(mut item: CompletionItem) -> CompletionItem {
