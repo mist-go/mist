@@ -72,9 +72,3 @@ impl From<GenericsDecl> for Generics {
         Self(value.0.into_iter().map(Generic::from).collect())
     }
 }
-
-impl<T> Spanned<T> {
-    pub fn get_comment(&self) -> String {
-        format!("/* {}:{} */", self.line, self.column)
-    }
-}

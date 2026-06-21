@@ -34,6 +34,14 @@ impl Mapping {
             .max_by_key(|(rust, _)| *rust)
     }
 
+    pub fn find_by_mist(&self, target: &MistMap) -> Option<(RustMap, MistMap)> {
+        self.map
+            .iter()
+            .copied()
+            .filter(|(_, mist)| mist <= target)
+            .max_by_key(|(_, mist)| *mist)
+    }
+
     pub fn shift_rust(&mut self, lines: isize, cols: isize) {
         self.map = self
             .map

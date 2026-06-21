@@ -142,6 +142,18 @@ impl GenRust for Attribute {
     }
 }
 
+pub trait GenSpanTranslation {
+    fn gen_span(&self, _cg: &mut RustCodegen);
+}
+
+impl<T> GenSpanTranslation for Spanned<T> {
+    fn gen_span(&self, cg: &mut RustCodegen) {
+        cg.mapping
+            .map
+            .insert((cg.position, MistMap(self.line, self.column)));
+    }
+}
+
 impl<T: GetRust> GenRust for T {
     fn gen_rust(&self, _: &mut Context, cg: &mut RustCodegen) {
         cg.add(&self.get_rust());
@@ -150,10 +162,7 @@ impl<T: GetRust> GenRust for T {
 
 impl<T: GenRust> GenRust for Spanned<T> {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
-        cg.mapping
-            .map
-            .insert((cg.position, MistMap(self.line, self.column)));
-
+        self.gen_span(cg);
         self.item.gen_rust(ctx, cg);
     }
 }

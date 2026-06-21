@@ -1,6 +1,6 @@
 use mist_parser::ast::*;
 
-use crate::Context;
+use crate::{Context, GenSpanTranslation};
 
 use crate::{GenRust, GetRust, RustCodegen};
 
@@ -55,7 +55,7 @@ impl GenRust for Statement {
                 cg.indent += 1;
 
                 for match_item in match_items {
-                    cg.add_indentedln(&match_item.get_comment());
+                    match_item.gen_span(cg);
 
                     let MatchItem(pat, body) = &match_item.item;
 
