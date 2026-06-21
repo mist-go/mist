@@ -47,8 +47,16 @@ async fn send_lsp_message<W: AsyncWriteExt + Unpin>(
 ) -> std::io::Result<()> {
     let payload = serde_json::to_string(value)?;
     let frame = format!("Content-Length: {}\r\n\r\n{}", payload.len(), payload);
-    writer.write_all(frame.as_bytes()).await?;
-    writer.flush().await?;
+    eprintln!("[send] writing {} bytes to child stdin", frame.len());
+    if let Err(e) = writer.write_all(frame.as_bytes()).await {
+        eprintln!("[send] write_all failed: {e}");
+        return Err(e);
+    }
+    if let Err(e) = writer.flush().await {
+        eprintln!("[send] flush failed: {e}");
+        return Err(e);
+    }
+    eprintln!("[send] write OK");
     Ok(())
 }
 
@@ -106,7 +114,7 @@ impl RustAnalyzer {
         let mut child = tokio::process::Command::new("rust-analyzer")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .spawn()?;
 
         let stdin = child
@@ -117,12 +125,35 @@ impl RustAnalyzer {
             .stdout
             .take()
             .ok_or("Failed to open child stdout pipe")?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or("Failed to open child stderr pipe")?;
+
+        tokio::spawn(async move {
+            let mut stderr = stderr;
+            let mut buf = vec![0u8; 4096];
+            loop {
+                match stderr.read(&mut buf).await {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        eprintln!("[ra-stderr] {}", String::from_utf8_lossy(&buf[..n]).trim_end());
+                    }
+                    Err(e) => {
+                        eprintln!("[ra-stderr] read error: {e}");
+                        break;
+                    }
+                }
+            }
+            eprintln!("[ra-stderr] stream closed");
+        });
 
         let pending: PendingMap = Arc::new(Mutex::new(HashMap::new()));
         let pending_clone = pending.clone();
 
         tokio::spawn(async move {
             let mut stdout = BufReader::new(stdout);
+            eprintln!("[ra-reader] started");
 
             loop {
                 let raw = match read_lsp_message(&mut stdout).await {
@@ -137,6 +168,7 @@ impl RustAnalyzer {
                         // EOF means the child process exited — stop the reader.
                         // Other errors (malformed frames) get a brief backoff then retry.
                         if err.to_string().contains("LSP stream closed (EOF)") {
+                            eprintln!("LSP reader task: EOF detected, stopping reader");
                             break;
                         }
                         tokio::time::sleep(Duration::from_millis(50)).await;

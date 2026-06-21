@@ -157,9 +157,32 @@ impl Backend {
         modified.push(' ');
         modified.push_str(&source[offset..]);
 
-        let transpiled = transpile_mist(mist_path, &modified, extra_mod_decl).ok()?;
-        let rust_pos = find_marker_position(&transpiled.rust_content, &marker)?;
-        let rust_uri = clean_lsp_url(&transpiled.rust_path)?;
+        let transpiled = match transpile_mist(mist_path, &modified, extra_mod_decl) {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("[marker] transpile failed for {marker} at LSP({line},{character}): {e}");
+                return None;
+            }
+        };
+        let rust_pos = match find_marker_position(&transpiled.rust_content, &marker) {
+            Some(p) => p,
+            None => {
+                eprintln!("[marker] marker {marker} not found in transpiled output");
+                return None;
+            }
+        };
+        let rust_uri = match clean_lsp_url(&transpiled.rust_path) {
+            Some(u) => u,
+            None => {
+                eprintln!("[marker] failed to create URI for {:?}", transpiled.rust_path);
+                return None;
+            }
+        };
+
+        eprintln!(
+            "[marker] {marker}: mist LSP({line},{character}) -> rust LSP({},{})",
+            rust_pos.line, rust_pos.character
+        );
 
         Some((rust_uri, rust_pos))
     }
@@ -552,6 +575,7 @@ impl LanguageServer for Backend {
             )
             .await
         else {
+            eprintln!("[completion] resolve_mist_via_marker returned None at ({}, {})", mist_pos.line, mist_pos.character);
             return Ok(None);
         };
 
@@ -624,6 +648,7 @@ impl LanguageServer for Backend {
             )
             .await
         else {
+            eprintln!("[goto_definition] resolve_mist_via_marker returned None at ({}, {})", mist_pos.line, mist_pos.character);
             return Ok(None);
         };
 
@@ -747,6 +772,7 @@ impl LanguageServer for Backend {
             )
             .await
         else {
+            eprintln!("[hover] resolve_mist_via_marker returned None at ({}, {})", mist_pos.line, mist_pos.character);
             return Ok(None);
         };
 
