@@ -6,7 +6,9 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use mist_parser::error::ParseError;
 use mist_parser::rev_mapper::{Mapping, MistMap, RustMap};
+use mist_parser::parse;
 use ropey::Rope;
 use serde::Deserialize;
 use serde_json::Value;
@@ -229,6 +231,102 @@ fn rust_uri_to_mist_uri(rust_uri: &Url) -> Option<Url> {
     clean_lsp_url(&mist_path)
 }
 
+fn byte_offset_to_lsp_pos(source: &str, offset: usize) -> Position {
+    let mut line = 0u32;
+    let mut col = 0u32;
+    for (i, ch) in source.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 0;
+        } else {
+            col += 1;
+        }
+    }
+    Position {
+        line,
+        character: col,
+    }
+}
+
+/// Re-parse the source to extract a proper LSP diagnostic from the error.
+/// Returns None when the error is a semantic check failure (can be multiple
+/// errors) or when re-parsing unexpectedly succeeds.
+fn transpile_error_to_diagnostic(source: &str) -> Option<Diagnostic> {
+    match parse(source) {
+        Err(ParseError::PreAst(pest_err)) => {
+            let (line, col) = match pest_err.line_col {
+                pest::error::LineColLocation::Pos((l, c)) => (l, c),
+                pest::error::LineColLocation::Span((l, c), _) => (l, c),
+            };
+            let message = match &pest_err.variant {
+                pest::error::ErrorVariant::ParsingError {
+                    positives,
+                    negatives,
+                } => {
+                    let mut msg = String::new();
+                    if !positives.is_empty() {
+                        msg.push_str("expected ");
+                        for (i, r) in positives.iter().enumerate() {
+                            if i > 0 {
+                                msg.push_str(" or ");
+                            }
+                            msg.push_str(&format!("{r:?}"));
+                        }
+                    }
+                    if !negatives.is_empty() {
+                        if !msg.is_empty() {
+                            msg.push_str(", ");
+                        }
+                        msg.push_str("unexpected ");
+                        for (i, r) in negatives.iter().enumerate() {
+                            if i > 0 {
+                                msg.push_str(" or ");
+                            }
+                            msg.push_str(&format!("{r:?}"));
+                        }
+                    }
+                    if msg.is_empty() {
+                        msg.push_str("parse error");
+                    }
+                    msg
+                }
+                pest::error::ErrorVariant::CustomError { message } => message.clone(),
+            };
+            Some(Diagnostic {
+                range: Range {
+                    start: Position {
+                        line: line as u32 - 1,
+                        character: col as u32 - 1,
+                    },
+                    end: Position {
+                        line: line as u32 - 1,
+                        character: col as u32,
+                    },
+                },
+                severity: Some(DiagnosticSeverity::ERROR),
+                source: Some("mist".to_string()),
+                message,
+                ..Default::default()
+            })
+        }
+        Err(ParseError::Ast(ast_err)) => {
+            let start = byte_offset_to_lsp_pos(source, ast_err.span.start());
+            let end = byte_offset_to_lsp_pos(source, ast_err.span.end());
+            Some(Diagnostic {
+                range: Range { start, end },
+                severity: Some(DiagnosticSeverity::ERROR),
+                source: Some("mist".to_string()),
+                message: ast_err.error_message.clone(),
+                ..Default::default()
+            })
+        }
+        Ok(_) => None,
+    }
+}
+
 impl Backend {
     /// Resolve a Mist cursor position to a Rust position by injecting a unique marker
     /// into the source at the cursor, transpiling, and finding the marker in the output.
@@ -390,22 +488,24 @@ impl Backend {
             Ok(t) => t,
             Err(e) => {
                 eprintln!("transpile error for {:?}: {e}", mist_path);
-                let diag = Diagnostic {
-                    range: Range {
-                        start: Position {
-                            line: 0,
-                            character: 0,
+                let diag = transpile_error_to_diagnostic(source).unwrap_or_else(|| {
+                    Diagnostic {
+                        range: Range {
+                            start: Position {
+                                line: 0,
+                                character: 0,
+                            },
+                            end: Position {
+                                line: 0,
+                                character: 1,
+                            },
                         },
-                        end: Position {
-                            line: 0,
-                            character: 1,
-                        },
-                    },
-                    severity: Some(DiagnosticSeverity::ERROR),
-                    source: Some("mist".to_string()),
-                    message: format!("Transpile error: {e}"),
-                    ..Default::default()
-                };
+                        severity: Some(DiagnosticSeverity::ERROR),
+                        source: Some("mist".to_string()),
+                        message: format!("Transpile error: {e}"),
+                        ..Default::default()
+                    }
+                });
                 if let Some(uri) = clean_lsp_url(mist_path) {
                     self.publish_diagnostics(uri, vec![diag]).await;
                 }
@@ -435,6 +535,11 @@ impl Backend {
                 .lock()
                 .await
                 .insert(mist_path.to_path_buf(), transpiled.rust_content);
+        }
+
+        // Clear any previous diagnostics — transpile succeeded.
+        if let Some(mist_uri) = clean_lsp_url(mist_path) {
+            self.publish_diagnostics(mist_uri, vec![]).await;
         }
     }
 
