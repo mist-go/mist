@@ -111,18 +111,31 @@ fn inject_marker_at(source: &str, line: u32, character: u32, marker: &str) -> Op
         s.push_str(&source[..token_start]);
         s.push_str(marker);
         s.push_str(&source[token_end..]);
-        Some(s)
-    } else {
-        // Cursor is on whitespace / punctuation — inject as standalone expression.
-        let mut s = String::with_capacity(source.len() + marker.len() + 4);
-        s.push_str(&source[..offset]);
-        s.push(' ');
-        s.push_str(marker);
-        s.push(' ');
-        s.push_str(&source[offset..]);
-        Some(s)
+        return Some(s);
     }
+
+    // Not on an identifier.  If the cursor is on a `.` treat it as a field-access
+    // and inject the marker as an identifier right after the dot.
+    if after.starts_with('.') {
+        let dot_end = offset + '.'.
+            len_utf8();
+        let mut s = String::with_capacity(source.len() + marker.len() + 4);
+        s.push_str(&source[..dot_end]);
+        s.push_str(marker);
+        s.push_str(&source[dot_end..]);
+        return Some(s);
+    }
+
+    // Whitespace / other punctuation — inject as standalone expression.
+    let mut s = String::with_capacity(source.len() + marker.len() + 4);
+    s.push_str(&source[..offset]);
+    s.push(' ');
+    s.push_str(marker);
+    s.push(' ');
+    s.push_str(&source[offset..]);
+    Some(s)
 }
+
 
 fn find_marker_position(content: &str, marker: &str) -> Option<Position> {
     let idx = content.find(marker)?;
