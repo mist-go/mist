@@ -805,54 +805,58 @@ async fn handle_ra_notifications(
 
                     let mist_uri = rust_uri_to_mist_uri(&rust_uri);
 
-                    let mapped_diagnostics: Vec<Diagnostic> = if let Some(ref _mist_uri) = mist_uri
-                    {
-                        let rust_path = rust_uri.to_file_path().ok();
-                        let map_data =
-                            rust_path.and_then(|p| mapping.blocking_lock().get(&p).cloned());
+                    let mapped_diagnostics: Vec<Diagnostic> =
+                        if let Some(ref _mist_uri) = mist_uri {
+                            let rust_path = rust_uri.to_file_path().ok();
+                            let map_data = match rust_path {
+                                Some(ref p) => mapping.lock().await.get(p).cloned(),
+                                None => None,
+                            };
 
-                        diagnostics
-                            .into_iter()
-                            .filter_map(|diag| {
-                                let map = map_data.clone()?;
+                            diagnostics
+                                .into_iter()
+                                .filter_map(|diag| {
+                                    let map = map_data.clone()?;
 
-                                let rust_start = lsp_pos_to_rust_map(&diag.range.start);
-                                let rust_end = lsp_pos_to_rust_map(&diag.range.end);
+                                    let rust_start = lsp_pos_to_rust_map(&diag.range.start);
+                                    let rust_end = lsp_pos_to_rust_map(&diag.range.end);
 
-                                let (_, mist_start) = map.find(&rust_start)?;
-                                let (_, mist_end) = map.find(&rust_end)?;
+                                    let (_, mist_start) = map.find(&rust_start)?;
+                                    let (_, mist_end) = map.find(&rust_end)?;
 
-                                let mist_start_pos = mist_map_to_lsp_pos(&mist_start);
-                                let mist_end_pos = mist_map_to_lsp_pos(&mist_end);
+                                    let mist_start_pos = mist_map_to_lsp_pos(&mist_start);
+                                    let mist_end_pos = mist_map_to_lsp_pos(&mist_end);
 
-                                let final_end = Position {
-                                    line: mist_end_pos.line.max(mist_start_pos.line),
-                                    character: if mist_end_pos.line == mist_start_pos.line {
-                                        mist_end_pos.character.max(mist_start_pos.character + 1)
-                                    } else {
-                                        mist_end_pos.character.max(1)
-                                    },
-                                };
+                                    let final_end = Position {
+                                        line: mist_end_pos.line.max(mist_start_pos.line),
+                                        character: if mist_end_pos.line == mist_start_pos.line {
+                                            mist_end_pos
+                                                .character
+                                                .max(mist_start_pos.character + 1)
+                                        } else {
+                                            mist_end_pos.character.max(1)
+                                        },
+                                    };
 
-                                Some(Diagnostic {
-                                    range: Range {
-                                        start: mist_start_pos,
-                                        end: final_end,
-                                    },
-                                    severity: diag.severity,
-                                    code: diag.code,
-                                    code_description: diag.code_description,
-                                    source: diag.source,
-                                    message: diag.message,
-                                    related_information: diag.related_information,
-                                    tags: diag.tags,
-                                    data: diag.data,
+                                    Some(Diagnostic {
+                                        range: Range {
+                                            start: mist_start_pos,
+                                            end: final_end,
+                                        },
+                                        severity: diag.severity,
+                                        code: diag.code,
+                                        code_description: diag.code_description,
+                                        source: diag.source,
+                                        message: diag.message,
+                                        related_information: diag.related_information,
+                                        tags: diag.tags,
+                                        data: diag.data,
+                                    })
                                 })
-                            })
-                            .collect()
-                    } else {
-                        diagnostics
-                    };
+                                .collect()
+                        } else {
+                            diagnostics
+                        };
 
                     if let Some(mist_uri) = mist_uri.or(Some(rust_uri.clone())) {
                         let prev = previous_diagnostics.lock().await.get(&mist_uri).cloned();
