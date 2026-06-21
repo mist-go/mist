@@ -61,12 +61,15 @@ async fn read_lsp_message<R: AsyncBufReadExt + Unpin>(
     for _ in 0..100 {
         line.clear();
         let bytes_read = reader.read_line(&mut line).await?;
-        if bytes_read == 0 || line == "\r\n" || line.is_empty() {
+        if bytes_read == 0 || line.trim().is_empty() {
             break;
         }
         if line.to_ascii_lowercase().starts_with("content-length:") {
             if let Some(val_str) = line.split(':').nth(1) {
-                content_length = val_str.trim().parse::<usize>()?;
+                let trimmed = val_str.trim();
+                if !trimmed.is_empty() {
+                    content_length = trimmed.parse::<usize>()?;
+                }
             }
         }
     }
@@ -117,12 +120,16 @@ impl RustAnalyzer {
                 let raw = match read_lsp_message(&mut stdout).await {
                     Ok(v) => v,
                     Err(err) => {
-                        eprintln!("LSP fatal stream read failure: {err}");
+                        eprintln!("LSP stream error: {err}");
+                        // Drain pending requests so they don't hang forever.
                         let mut lock = pending_clone.lock().await;
                         for (_, tx) in lock.drain() {
-                            let _ = tx.send(Err(format!("LSP reader task dropped: {}", err)));
+                            let _ = tx.send(Err(format!("LSP reader error: {}", err)));
                         }
-                        break;
+                        // Brief backoff then retry — ra may have sent a malformed frame
+                        // but the connection is still alive.
+                        tokio::time::sleep(Duration::from_millis(50)).await;
+                        continue;
                     }
                 };
 
