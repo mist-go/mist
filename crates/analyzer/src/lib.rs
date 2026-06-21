@@ -4,6 +4,7 @@ pub mod transpiler;
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use mist_parser::rev_mapper::{Mapping, MistMap, RustMap};
 use ropey::Rope;
@@ -15,6 +16,8 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::rust_analyzer::RustAnalyzer;
 use crate::transpiler::transpile_mist;
+
+static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug)]
 struct Backend {
@@ -49,22 +52,41 @@ fn lsp_pos_to_rust_map(pos: &Position) -> RustMap {
     RustMap(pos.line as usize + 1, pos.character as usize)
 }
 
-fn rust_map_to_lsp_pos(map: &RustMap) -> Position {
-    Position {
-        line: map.0.saturating_sub(1) as u32,
-        character: map.1 as u32,
-    }
-}
-
-fn lsp_pos_to_mist_map(pos: &Position) -> MistMap {
-    MistMap(pos.line as usize + 1, pos.character as usize)
-}
-
 fn mist_map_to_lsp_pos(map: &MistMap) -> Position {
     Position {
         line: map.0.saturating_sub(1) as u32,
         character: map.1 as u32,
     }
+}
+
+fn byte_offset_from_lsp(source: &str, line: u32, character: u32) -> Option<usize> {
+    let mut cur_line = 0u32;
+    let mut cur_col = 0u32;
+    for (i, ch) in source.char_indices() {
+        if cur_line == line && cur_col == character {
+            return Some(i);
+        }
+        if ch == '\n' {
+            cur_line += 1;
+            cur_col = 0;
+        } else if cur_line <= line {
+            cur_col += 1;
+        }
+    }
+    if cur_line == line && cur_col == character {
+        Some(source.len())
+    } else {
+        None
+    }
+}
+
+fn find_marker_position(content: &str, marker: &str) -> Option<Position> {
+    let idx = content.find(marker)?;
+    let before = &content[..idx];
+    let line = before.matches('\n').count() as u32;
+    let last_nl = before.rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let character = before[last_nl..].chars().count() as u32;
+    Some(Position { line, character })
 }
 
 fn mist_to_rust_path(mist_path: &Path) -> PathBuf {
@@ -106,12 +128,6 @@ fn rust_to_mist_path(rust_path: &Path) -> PathBuf {
     }
 }
 
-fn mist_uri_to_rust_uri(mist_uri: &Url) -> Option<Url> {
-    let mist_path = mist_uri.to_file_path().ok()?;
-    let rust_path = mist_to_rust_path(&mist_path);
-    clean_lsp_url(&rust_path)
-}
-
 fn rust_uri_to_mist_uri(rust_uri: &Url) -> Option<Url> {
     let rust_path = rust_uri.to_file_path().ok()?;
     let mist_path = rust_to_mist_path(&rust_path);
@@ -119,20 +135,45 @@ fn rust_uri_to_mist_uri(rust_uri: &Url) -> Option<Url> {
 }
 
 impl Backend {
-    async fn map_mist_to_rust_pos(
+    /// Resolve a Mist cursor position to a Rust position by injecting a unique marker
+    /// into the source at the cursor, transpiling, and finding the marker in the output.
+    async fn resolve_mist_via_marker(
         &self,
-        mist_uri: &Url,
-        mist_pos: &Position,
+        mist_path: &Path,
+        source: &str,
+        line: u32,
+        character: u32,
+        extra_mod_decl: &str,
     ) -> Option<(Url, Position)> {
-        let rust_uri = mist_uri_to_rust_uri(mist_uri)?;
-        let rust_path = rust_uri.to_file_path().ok()?;
+        let id = MARKER_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let marker = format!("__mist_mk{id:x}__");
 
-        let mist_target = lsp_pos_to_mist_map(mist_pos);
-        let mapping = self.mapping.lock().await.get(&rust_path)?.clone();
-        let (rust_map, _) = mapping.find_by_mist(&mist_target)?;
+        let offset = byte_offset_from_lsp(source, line, character)?;
 
-        let pos = rust_map_to_lsp_pos(&rust_map);
-        Some((rust_uri, pos))
+        let mut modified = String::with_capacity(source.len() + marker.len() + 4);
+        modified.push_str(&source[..offset]);
+        modified.push(' ');
+        modified.push_str(&marker);
+        modified.push(' ');
+        modified.push_str(&source[offset..]);
+
+        let transpiled = transpile_mist(mist_path, &modified, extra_mod_decl).ok()?;
+        let rust_pos = find_marker_position(&transpiled.rust_content, &marker)?;
+        let rust_uri = clean_lsp_url(&transpiled.rust_path)?;
+
+        Some((rust_uri, rust_pos))
+    }
+
+    async fn compute_mod_decl_for_file(&self, mist_path: &Path) -> String {
+        let ws = match &*self.workspace_folder.lock().await {
+            Some(p) => p.clone(),
+            None => return String::new(),
+        };
+        let src_root = ws.join("src");
+        let package_mist = read_mist_package(&ws);
+        let docs = self.documents.lock().await;
+        let mod_decls = compute_mod_decls(&docs, &src_root, &package_mist);
+        mod_decls.get(mist_path).cloned().unwrap_or_default()
     }
 
     async fn map_rust_to_mist_pos(
@@ -151,8 +192,13 @@ impl Backend {
         Some((mist_uri, pos))
     }
 
-    async fn handle_transpile_and_notify(&self, mist_path: &Path, source: &str) {
-        let transpiled = match transpile_mist(mist_path, source) {
+    async fn handle_transpile_and_notify(
+        &self,
+        mist_path: &Path,
+        source: &str,
+        extra_mod_decl: &str,
+    ) {
+        let transpiled = match transpile_mist(mist_path, source, extra_mod_decl) {
             Ok(t) => t,
             Err(e) => {
                 eprintln!("transpile error for {:?}: {e}", mist_path);
@@ -197,6 +243,34 @@ impl Backend {
             }
 
             map.insert(transpiled.rust_path, transpiled.mapping);
+        }
+    }
+
+    async fn rebuild_module_tree(&self) {
+        let ws = match &*self.workspace_folder.lock().await {
+            Some(p) => p.clone(),
+            None => return,
+        };
+        let src_root = ws.join("src");
+        let package_mist = read_mist_package(&ws);
+
+        // Collect sources first to avoid holding locks during transpile
+        let sources: Vec<(PathBuf, String, String)> = {
+            let docs = self.documents.lock().await;
+            if docs.is_empty() {
+                return;
+            }
+            let mod_decls = compute_mod_decls(&docs, &src_root, &package_mist);
+            mod_decls
+                .into_iter()
+                .filter(|(_, decl)| !decl.is_empty())
+                .filter_map(|(path, decl)| docs.get(&path).map(|r| (path, r.to_string(), decl)))
+                .collect()
+        };
+
+        for (mist_path, source, decl) in sources {
+            self.handle_transpile_and_notify(&mist_path, &source, &decl)
+                .await;
         }
     }
 
@@ -307,7 +381,7 @@ impl LanguageServer for Backend {
                 for file in &files {
                     if let Some(source) = documents_c.lock().await.get(file).map(|r| r.to_string())
                     {
-                        let transpiled = match transpile_mist(file, &source) {
+                        let transpiled = match transpile_mist(file, &source, "") {
                             Ok(t) => t,
                             Err(e) => {
                                 eprintln!("transpile error for {:?}: {e}", file);
@@ -322,6 +396,50 @@ impl LanguageServer for Backend {
                                 .did_open(rust_uri, &transpiled.rust_content)
                                 .await;
                             mapping_c
+                                .lock()
+                                .await
+                                .insert(transpiled.rust_path, transpiled.mapping);
+                        }
+                    }
+                }
+
+                // After loading all documents, rebuild the module tree so rust-analyzer
+                // sees cross-module declarations.
+                // We need a reference to self here; capture what we need via the Arcs.
+                {
+                    let ra = ra.clone();
+                    let mapping = mapping.clone();
+                    let documents = documents.clone();
+
+                    // Read config and compute mod_decls for the root file
+                    let src_root = root.join("src");
+                    let package_mist = read_mist_package(root);
+                    let mod_decls = {
+                        let docs = documents.lock().await;
+                        compute_mod_decls(&docs, &src_root, &package_mist)
+                    };
+                    for (mist_path, decl) in &mod_decls {
+                        if decl.is_empty() {
+                            continue;
+                        }
+                        let source = match documents.lock().await.get(mist_path) {
+                            Some(r) => r.to_string(),
+                            None => continue,
+                        };
+                        let transpiled = match transpile_mist(mist_path, &source, decl) {
+                            Ok(t) => t,
+                            Err(e) => {
+                                eprintln!("module tree transpile error for {:?}: {e}", mist_path);
+                                continue;
+                            }
+                        };
+                        if let Some(rust_uri) = clean_lsp_url(&transpiled.rust_path) {
+                            let _ = ra
+                                .lock()
+                                .await
+                                .did_change(rust_uri, &transpiled.rust_content, 0)
+                                .await;
+                            mapping
                                 .lock()
                                 .await
                                 .insert(transpiled.rust_path, transpiled.mapping);
@@ -371,7 +489,9 @@ impl LanguageServer for Backend {
             .await
             .insert(mist_path.clone(), Rope::from_str(&source));
 
-        self.handle_transpile_and_notify(&mist_path, &source).await;
+        self.handle_transpile_and_notify(&mist_path, &source, "")
+            .await;
+        self.rebuild_module_tree().await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -391,7 +511,9 @@ impl LanguageServer for Backend {
                 .await
                 .insert(mist_path.clone(), Rope::from_str(&source));
 
-            self.handle_transpile_and_notify(&mist_path, &source).await;
+            self.handle_transpile_and_notify(&mist_path, &source, "")
+                .await;
+            self.rebuild_module_tree().await;
         }
     }
 
@@ -410,7 +532,9 @@ impl LanguageServer for Backend {
                 .await
                 .insert(mist_path.clone(), Rope::from_str(&text));
 
-            self.handle_transpile_and_notify(&mist_path, &text).await;
+            self.handle_transpile_and_notify(&mist_path, &text, "")
+                .await;
+            self.rebuild_module_tree().await;
         }
     }
 
@@ -442,7 +566,25 @@ impl LanguageServer for Backend {
         let mist_uri = params.text_document_position.text_document.uri.clone();
         let mist_pos = params.text_document_position.position;
 
-        let Some((rust_uri, rust_pos)) = self.map_mist_to_rust_pos(&mist_uri, &mist_pos).await
+        let mist_path = match mist_uri.to_file_path() {
+            Ok(p) => p,
+            Err(_) => return Ok(None),
+        };
+        let source = match self.documents.lock().await.get(&mist_path) {
+            Some(r) => r.to_string(),
+            None => return Ok(None),
+        };
+
+        let mod_decl = self.compute_mod_decl_for_file(&mist_path).await;
+        let Some((rust_uri, rust_pos)) = self
+            .resolve_mist_via_marker(
+                &mist_path,
+                &source,
+                mist_pos.line,
+                mist_pos.character,
+                &mod_decl,
+            )
+            .await
         else {
             return Ok(None);
         };
@@ -496,7 +638,25 @@ impl LanguageServer for Backend {
         let mist_uri = params.text_document_position_params.text_document.uri;
         let mist_pos = params.text_document_position_params.position;
 
-        let Some((rust_uri, rust_pos)) = self.map_mist_to_rust_pos(&mist_uri, &mist_pos).await
+        let mist_path = match mist_uri.to_file_path() {
+            Ok(p) => p,
+            Err(_) => return Ok(None),
+        };
+        let source = match self.documents.lock().await.get(&mist_path) {
+            Some(r) => r.to_string(),
+            None => return Ok(None),
+        };
+
+        let mod_decl = self.compute_mod_decl_for_file(&mist_path).await;
+        let Some((rust_uri, rust_pos)) = self
+            .resolve_mist_via_marker(
+                &mist_path,
+                &source,
+                mist_pos.line,
+                mist_pos.character,
+                &mod_decl,
+            )
+            .await
         else {
             return Ok(None);
         };
@@ -601,7 +761,25 @@ impl LanguageServer for Backend {
         let mist_uri = params.text_document_position_params.text_document.uri;
         let mist_pos = params.text_document_position_params.position;
 
-        let Some((rust_uri, rust_pos)) = self.map_mist_to_rust_pos(&mist_uri, &mist_pos).await
+        let mist_path = match mist_uri.to_file_path() {
+            Ok(p) => p,
+            Err(_) => return Ok(None),
+        };
+        let source = match self.documents.lock().await.get(&mist_path) {
+            Some(r) => r.to_string(),
+            None => return Ok(None),
+        };
+
+        let mod_decl = self.compute_mod_decl_for_file(&mist_path).await;
+        let Some((rust_uri, rust_pos)) = self
+            .resolve_mist_via_marker(
+                &mist_path,
+                &source,
+                mist_pos.line,
+                mist_pos.character,
+                &mod_decl,
+            )
+            .await
         else {
             return Ok(None);
         };
@@ -760,6 +938,80 @@ pub fn from_mist_to_rust(path: PathBuf) -> PathBuf {
 
 pub fn from_rust_to_mist(path: PathBuf) -> PathBuf {
     rust_to_mist_path(&path)
+}
+
+fn read_mist_package(workspace_root: &Path) -> String {
+    let toml_path = workspace_root.join("Mist.toml");
+    let content = match std::fs::read_to_string(&toml_path) {
+        Ok(c) => c,
+        Err(_) => return "main.mist".to_string(),
+    };
+    for line in content.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("package") {
+            if let Some(eq_pos) = rest.find('=') {
+                let val = rest[eq_pos + 1..]
+                    .trim()
+                    .trim_matches('"')
+                    .trim()
+                    .to_string();
+                if !val.is_empty() {
+                    return val;
+                }
+            }
+        }
+    }
+    "main.mist".to_string()
+}
+
+fn compute_mod_decls(
+    documents: &HashMap<PathBuf, Rope>,
+    src_root: &Path,
+    package_mist: &str,
+) -> HashMap<PathBuf, String> {
+    let package_path = src_root.join(package_mist);
+    let mut result = HashMap::<PathBuf, String>::new();
+
+    // Group .mist files by parent directory
+    let mut dirs: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
+    for mist_path in documents.keys() {
+        if let Ok(rel) = mist_path.strip_prefix(src_root) {
+            let parent = rel.parent().unwrap_or(Path::new(""));
+            dirs.entry(src_root.join(parent))
+                .or_default()
+                .push(mist_path.clone());
+        }
+    }
+
+    for (dir, files) in &dirs {
+        let mut mod_decl = String::new();
+        let mut sorted = files.clone();
+        sorted.sort();
+        for file in &sorted {
+            let stem = match file.file_stem().and_then(|s| s.to_str()) {
+                Some(s) => s,
+                None => continue,
+            };
+            // Skip the root package file itself
+            if *file == package_path {
+                continue;
+            }
+            mod_decl.push_str(&format!("pub mod {};\n", stem));
+        }
+
+        if dir == src_root {
+            // Root directory declarations go to the package entry file
+            result.insert(package_path.clone(), mod_decl);
+        } else {
+            // Subdirectory: declarations go to a package.mist file if it exists
+            let sub_module = dir.join("package.mist");
+            if documents.contains_key(&sub_module) {
+                result.entry(sub_module).or_default().push_str(&mod_decl);
+            }
+        }
+    }
+
+    result
 }
 
 fn clean_completion_item(mut item: CompletionItem) -> CompletionItem {

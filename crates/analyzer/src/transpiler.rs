@@ -11,7 +11,11 @@ pub struct TranspiledFile {
     pub mapping: Mapping,
 }
 
-pub fn transpile_mist(mist_path: &Path, source: &str) -> Result<TranspiledFile, String> {
+pub fn transpile_mist(
+    mist_path: &Path,
+    source: &str,
+    extra_mod_decl: &str,
+) -> Result<TranspiledFile, String> {
     let module_decl = parse_module(source).map_err(|e| format!("parse module error: {e:?}"))?;
     let rust_path = crate::from_mist_to_rust(mist_path.to_path_buf());
 
@@ -25,17 +29,19 @@ pub fn transpile_mist(mist_path: &Path, source: &str) -> Result<TranspiledFile, 
     let mut codegen = RustCodegen::new(mist_path.to_path_buf());
     let output = codegen.generate(parsed);
 
-    let mod_prefix = module_decl
+    let self_mod_prefix = module_decl
         .as_ref()
         .map(|(vis, name)| format!("{}mod {};\n", vis.get_rust(), name.get_rust()))
         .unwrap_or_default();
 
-    codegen.mapping.shift_rust(mod_prefix.lines().count() as isize, 0);
+    let combined_prefix = format!("{}{}", extra_mod_decl, self_mod_prefix);
+
+    codegen.mapping.shift_rust(combined_prefix.lines().count() as isize, 0);
 
     Ok(TranspiledFile {
         mist_path: mist_path.to_path_buf(),
         rust_path,
-        rust_content: format!("{}{}", mod_prefix, output),
+        rust_content: format!("{}{}", combined_prefix, output),
         mapping: codegen.mapping,
     })
 }
