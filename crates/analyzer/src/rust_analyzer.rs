@@ -35,11 +35,9 @@ type PendingMap = Arc<Mutex<HashMap<usize, oneshot::Sender<Result<Value, String>
 
 #[derive(Debug)]
 pub struct RustAnalyzer {
-    // Wrapped in a Mutex to support safe concurrent sharing if the design expands
     stdin: Arc<Mutex<tokio::process::ChildStdin>>,
     pending: PendingMap,
     id: usize,
-    // Keep child handler to explicitly manage child process lifecycle and prevent zombie processes
     _child: tokio::process::Child,
 }
 
@@ -60,7 +58,6 @@ async fn read_lsp_message<R: AsyncBufReadExt + Unpin>(
     let mut line = String::new();
     let mut content_length = 0;
 
-    // Guard against infinite header reading attacks/bugs (Max 100 headers)
     for _ in 0..100 {
         line.clear();
         let bytes_read = reader.read_line(&mut line).await?;
@@ -74,7 +71,6 @@ async fn read_lsp_message<R: AsyncBufReadExt + Unpin>(
         }
     }
 
-    // Explode early if payload size violates strict guard rails to prevent memory-exhaustion (OOM)
     if content_length == 0 {
         return Err("Missing, invalid, or zero Content-Length header".into());
     }
@@ -86,7 +82,6 @@ async fn read_lsp_message<R: AsyncBufReadExt + Unpin>(
         .into());
     }
 
-    // Explicitly secure pre-allocation limit
     let mut buffer = vec![0u8; content_length];
     reader.read_exact(&mut buffer).await?;
 
@@ -94,7 +89,9 @@ async fn read_lsp_message<R: AsyncBufReadExt + Unpin>(
 }
 
 impl RustAnalyzer {
-    pub fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+    pub fn new(
+        notification_tx: tokio::sync::mpsc::UnboundedSender<Value>,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let mut child = tokio::process::Command::new("rust-analyzer")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -113,7 +110,6 @@ impl RustAnalyzer {
         let pending: PendingMap = Arc::new(Mutex::new(HashMap::new()));
         let pending_clone = pending.clone();
 
-        // Background supervisor task loop
         tokio::spawn(async move {
             let mut stdout = BufReader::new(stdout);
 
@@ -122,7 +118,6 @@ impl RustAnalyzer {
                     Ok(v) => v,
                     Err(err) => {
                         eprintln!("LSP fatal stream read failure: {err}");
-                        // CRITICAL: Notify all pending channels that the bridge broke down
                         let mut lock = pending_clone.lock().await;
                         for (_, tx) in lock.drain() {
                             let _ = tx.send(Err(format!("LSP reader task dropped: {}", err)));
@@ -135,12 +130,14 @@ impl RustAnalyzer {
                     Ok(v) => v,
                     Err(err) => {
                         eprintln!("Corrupted JSON received: {err}");
-                        continue; // Keep the connection running despite malformed frame
+                        continue;
                     }
                 };
 
-                // Filter server notification frames
-                if value.get("method").is_some() && value.get("id").is_none() {
+                let is_notification = value.get("method").is_some() && value.get("id").is_none();
+
+                if is_notification {
+                    let _ = notification_tx.send(value);
                     continue;
                 }
 
@@ -181,7 +178,6 @@ impl RustAnalyzer {
 
         let (tx, rx) = oneshot::channel();
 
-        // Scope the lock allocation tightly
         {
             self.pending.lock().await.insert(id, tx);
         }
@@ -193,19 +189,15 @@ impl RustAnalyzer {
             "params": params,
         });
 
-        // Acquire lock on writing stream to ensure thread safety
         let mut stdin_lock = self.stdin.lock().await;
 
         if let Err(err) = send_lsp_message(&mut *stdin_lock, &payload).await {
-            // Rollback the pending map operation to avoid internal memory memory-leaks if serialization/IO errors trigger
             self.pending.lock().await.remove(&id);
             return Err(Box::new(err));
         }
 
-        // Explicit drop of write lock early so other operations can pipe messages synchronously
         drop(stdin_lock);
 
-        // Enforce an absolute time constraint limit to break free from hanging processes
         let response_payload = match timeout(REQUEST_TIMEOUT, rx).await {
             Ok(Ok(Ok(value))) => value,
             Ok(Ok(Err(task_err))) => return Err(task_err.into()),
@@ -215,7 +207,6 @@ impl RustAnalyzer {
                 );
             }
             Err(_timeout_elapsed) => {
-                // Clear state tracking entries dynamically upon expiration failure
                 self.pending.lock().await.remove(&id);
                 return Err(
                     format!("Request ID {} timed out after {:?}", id, REQUEST_TIMEOUT).into(),
@@ -290,8 +281,68 @@ impl RustAnalyzer {
     }
 
     pub async fn initialized(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.notify(Initialized::METHOD, InitializedParams {})
-            .await?;
+        self.notify(
+            <Initialized as Notification>::METHOD,
+            InitializedParams {},
+        )
+        .await?;
         Ok(())
+    }
+}
+
+impl RustAnalyzer {
+    pub async fn did_open(
+        &mut self,
+        uri: Url,
+        text: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.notify(
+            "textDocument/didOpen",
+            json!({
+                "textDocument": {
+                    "uri": uri,
+                    "languageId": "rust",
+                    "version": 1,
+                    "text": text,
+                }
+            }),
+        )
+        .await
+    }
+
+    pub async fn did_change(
+        &mut self,
+        uri: Url,
+        text: &str,
+        version: i32,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.notify(
+            "textDocument/didChange",
+            json!({
+                "textDocument": {
+                    "uri": uri,
+                    "version": version,
+                },
+                "contentChanges": [{
+                    "text": text,
+                }],
+            }),
+        )
+        .await
+    }
+
+    pub async fn did_close(
+        &mut self,
+        uri: Url,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.notify(
+            "textDocument/didClose",
+            json!({
+                "textDocument": {
+                    "uri": uri,
+                }
+            }),
+        )
+        .await
     }
 }

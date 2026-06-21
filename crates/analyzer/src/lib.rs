@@ -1,17 +1,20 @@
 pub mod rust_analyzer;
+pub mod transpiler;
 
-use std::collections::{HashMap, HashSet};
-use std::path::{Component, PathBuf};
+use std::collections::HashMap;
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use mist_parser::rev_mapper;
+use mist_parser::rev_mapper::{Mapping, MistMap, RustMap};
 use ropey::Rope;
+use serde::Deserialize;
+use serde_json::Value;
 use tokio::sync::Mutex;
-use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{self, *};
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::rust_analyzer::RustAnalyzer;
+use crate::transpiler::transpile_mist;
 
 #[derive(Debug)]
 struct Backend {
@@ -19,23 +22,21 @@ struct Backend {
     workspace_folder: Arc<Mutex<Option<PathBuf>>>,
     previous_diagnostics: Arc<Mutex<HashMap<Url, Vec<Diagnostic>>>>,
     rust_analyzer: Arc<Mutex<RustAnalyzer>>,
-    mapping: Arc<Mutex<HashMap<PathBuf, HashSet<(rev_mapper::RustMap, rev_mapper::MistMap)>>>>,
+    mapping: Arc<Mutex<HashMap<PathBuf, Mapping>>>,
     documents: Arc<Mutex<HashMap<PathBuf, Rope>>>,
+    doc_versions: Arc<Mutex<HashMap<PathBuf, i32>>>,
+    notification_rx: Arc<Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<Value>>>>,
 }
 
-/// Helper function to force percent-encoding on Windows drive colons
-/// so that the URLs exactly match what VS Code/LSP clients send.
 fn clean_lsp_url(path: &std::path::Path) -> Option<Url> {
     let mut url_str = Url::from_file_path(path).ok()?.to_string();
 
-    // Look for Windows patterns like file:///D: or file:///d: and switch to %3A
-    if url_str.starts_with("file:///I:") || url_str.starts_with("file:///i:") || // Catch-all or explicit check:
-       (url_str.len() > 10 && url_str.as_bytes()[11] == b':')
+    if url_str.starts_with("file:///I:")
+        || url_str.starts_with("file:///i:")
+        || (url_str.len() > 10 && url_str.as_bytes()[11] == b':')
     {
-        // Safely replace the first colon occurring after "file:///"
         if let Some(pos) = url_str.find(':') {
             if pos == 11 {
-                // Double check it's the drive letter colon
                 url_str.replace_range(pos..=pos, "%3A");
             }
         }
@@ -44,48 +45,183 @@ fn clean_lsp_url(path: &std::path::Path) -> Option<Url> {
     Url::parse(&url_str).ok()
 }
 
+fn lsp_pos_to_rust_map(pos: &Position) -> RustMap {
+    RustMap(pos.line as usize + 1, pos.character as usize)
+}
+
+fn rust_map_to_lsp_pos(map: &RustMap) -> Position {
+    Position {
+        line: map.0.saturating_sub(1) as u32,
+        character: map.1 as u32,
+    }
+}
+
+fn lsp_pos_to_mist_map(pos: &Position) -> MistMap {
+    MistMap(pos.line as usize + 1, pos.character as usize)
+}
+
+fn mist_map_to_lsp_pos(map: &MistMap) -> Position {
+    Position {
+        line: map.0.saturating_sub(1) as u32,
+        character: map.1 as u32,
+    }
+}
+
+fn mist_to_rust_path(mist_path: &Path) -> PathBuf {
+    let mut path = mist_path.to_path_buf();
+    path.set_extension("rs");
+
+    let comps: Vec<Component> = path.components().collect();
+    if let Some(pos) = comps.iter().rposition(|c| c.as_os_str() == "src") {
+        let replacement = Path::new(".mist/src");
+        let mut new_comps: Vec<Component> = comps[..pos].to_vec();
+        new_comps.extend(replacement.components());
+        new_comps.extend(&comps[pos + 1..]);
+        new_comps.iter().collect()
+    } else {
+        path
+    }
+}
+
+fn rust_to_mist_path(rust_path: &Path) -> PathBuf {
+    let mut path = rust_path.to_path_buf();
+    path.set_extension("mist");
+
+    let comps: Vec<Component> = path.components().collect();
+
+    let pattern: Vec<Component> = Path::new(".mist/src").components().collect();
+
+    if let Some(pos) = comps
+        .windows(pattern.len())
+        .rposition(|window| window == pattern.as_slice())
+    {
+        let mut new_comps = comps.clone();
+        new_comps.splice(
+            pos..pos + pattern.len(),
+            std::iter::once(Component::Normal(std::ffi::OsStr::new("src"))),
+        );
+        new_comps.iter().collect()
+    } else {
+        path
+    }
+}
+
+fn mist_uri_to_rust_uri(mist_uri: &Url) -> Option<Url> {
+    let mist_path = mist_uri.to_file_path().ok()?;
+    let rust_path = mist_to_rust_path(&mist_path);
+    clean_lsp_url(&rust_path)
+}
+
+fn rust_uri_to_mist_uri(rust_uri: &Url) -> Option<Url> {
+    let rust_path = rust_uri.to_file_path().ok()?;
+    let mist_path = rust_to_mist_path(&rust_path);
+    clean_lsp_url(&mist_path)
+}
+
 impl Backend {
-    async fn get_mist_location(&self, rs_loc: Location) -> Location {
-        let rs_path = match rs_loc.uri.to_file_path() {
-            Ok(path) => path,
-            Err(_) => return rs_loc,
+    async fn map_mist_to_rust_pos(
+        &self,
+        mist_uri: &Url,
+        mist_pos: &Position,
+    ) -> Option<(Url, Position)> {
+        let rust_uri = mist_uri_to_rust_uri(mist_uri)?;
+        let rust_path = rust_uri.to_file_path().ok()?;
+
+        let mist_target = lsp_pos_to_mist_map(mist_pos);
+        let mapping = self.mapping.lock().await.get(&rust_path)?.clone();
+        let (rust_map, _) = mapping.find_by_mist(&mist_target)?;
+
+        let pos = rust_map_to_lsp_pos(&rust_map);
+        Some((rust_uri, pos))
+    }
+
+    async fn map_rust_to_mist_pos(
+        &self,
+        rust_uri: &Url,
+        rust_pos: &Position,
+    ) -> Option<(Url, Position)> {
+        let mist_uri = rust_uri_to_mist_uri(rust_uri)?;
+        let rust_path = rust_uri.to_file_path().ok()?;
+
+        let rust_target = lsp_pos_to_rust_map(rust_pos);
+        let mapping = self.mapping.lock().await.get(&rust_path)?.clone();
+        let (_, mist_map) = mapping.find(&rust_target)?;
+
+        let pos = mist_map_to_lsp_pos(&mist_map);
+        Some((mist_uri, pos))
+    }
+
+    async fn handle_transpile_and_notify(&self, mist_path: &Path, source: &str) {
+        let transpiled = match transpile_mist(mist_path, source) {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("transpile error for {:?}: {e}", mist_path);
+                let diag = Diagnostic {
+                    range: Range {
+                        start: Position {
+                            line: 0,
+                            character: 0,
+                        },
+                        end: Position {
+                            line: 0,
+                            character: 1,
+                        },
+                    },
+                    severity: Some(DiagnosticSeverity::ERROR),
+                    source: Some("mist".to_string()),
+                    message: format!("Transpile error: {e}"),
+                    ..Default::default()
+                };
+                if let Some(uri) = clean_lsp_url(mist_path) {
+                    self.publish_diagnostics(uri, vec![diag]).await;
+                }
+                return;
+            }
         };
 
-        match self.mapping.lock().await.get(&rs_path) {
-            Some(mapping) => {
-                rs_loc
-                // FIX: Match the find_mapping operation instead of calling .expect("Failed to map")
-                // match rev_mapper::find_mapping(
-                //     mapping,
-                //     &rev_mapper::RustMap(
-                //         rs_loc.range.start.line as usize,
-                //         rs_loc.range.start.character as usize,
-                //     ),
-                // ) {
-                //     Some((_, rev_mapper::MistMap(line, character))) => Location {
-                //         uri: Url::from_file_path(from_rust_to_mist(rs_path)).unwrap(),
-                //         range: Range {
-                //             start: Position {
-                //                 line: line as u32 - 1,
-                //                 character: character as u32,
-                //             },
-                //             end: Position {
-                //                 line: line as u32 - 1,
-                //                 character: character as u32 + 1,
-                //             },
-                //         },
-                //     },
-                //     None => rs_loc,
-                // }
+        if let Some(rust_uri) = clean_lsp_url(&transpiled.rust_path) {
+            let mut ra = self.rust_analyzer.lock().await;
+            let mut map = self.mapping.lock().await;
+            let mut versions = self.doc_versions.lock().await;
+
+            let version = versions.entry(mist_path.to_path_buf()).or_insert(0);
+            *version += 1;
+            let current_version = *version;
+
+            if map.contains_key(&transpiled.rust_path) {
+                let _ = ra
+                    .did_change(rust_uri, &transpiled.rust_content, current_version)
+                    .await;
+            } else {
+                let _ = ra.did_open(rust_uri, &transpiled.rust_content).await;
             }
-            None => rs_loc,
+
+            map.insert(transpiled.rust_path, transpiled.mapping);
+        }
+    }
+
+    async fn publish_diagnostics(&self, uri: Url, diagnostics: Vec<Diagnostic>) {
+        let key = uri.clone();
+        let prev = self.previous_diagnostics.lock().await.get(&key).cloned();
+
+        if prev.as_ref() != Some(&diagnostics) {
+            self.previous_diagnostics
+                .lock()
+                .await
+                .insert(key, diagnostics.clone());
+            self.client
+                .publish_diagnostics(uri, diagnostics, None)
+                .await;
         }
     }
 }
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(
+        &self,
+        params: InitializeParams,
+    ) -> tower_lsp::jsonrpc::Result<InitializeResult> {
         let mut res = InitializeResult::default();
 
         res.capabilities.text_document_sync = Some(TextDocumentSyncCapability::Options(
@@ -99,7 +235,7 @@ impl LanguageServer for Backend {
         ));
 
         res.capabilities.completion_provider = Some(CompletionOptions {
-            resolve_provider: Some(true),
+            resolve_provider: Some(false),
             trigger_characters: Some(vec![
                 ":".to_owned(),
                 ".".to_owned(),
@@ -116,6 +252,7 @@ impl LanguageServer for Backend {
         });
 
         res.capabilities.definition_provider = Some(OneOf::Left(true));
+        res.capabilities.hover_provider = Some(HoverProviderCapability::Simple(true));
 
         let folder_path = params
             .workspace_folders
@@ -127,31 +264,79 @@ impl LanguageServer for Backend {
             *self.workspace_folder.lock().await = Some(path.clone());
         }
 
-        let workspace_folder = self.workspace_folder.clone();
-
-        let analyzer = self.rust_analyzer.clone();
-
-        let documents = self.documents.clone();
-
+        let ws = self.workspace_folder.clone();
+        let ra = self.rust_analyzer.clone();
         let mapping = self.mapping.clone();
+        let documents = self.documents.clone();
+        let client = self.client.clone();
+        let previous_diagnostics = self.previous_diagnostics.clone();
+        let notification_rx = self.notification_rx.clone();
 
         tokio::spawn(async move {
-            if let Some(root) = &*workspace_folder.lock().await {
+            if let Some(root) = &*ws.lock().await {
                 let src_root = root.join("src");
 
-                analyzer
-                    .lock()
-                    .await
-                    .initialize(root)
-                    .await
-                    .expect("Failed to initialize rust analyzer");
+                if let Err(e) = ra.lock().await.initialize(root).await {
+                    eprintln!("Failed to initialize rust-analyzer: {e}");
+                    return;
+                }
 
-                // ---- LOAD ALL .MIST FILES ----
+                if let Err(e) = ra.lock().await.initialized().await {
+                    eprintln!("rust-analyzer initialized failed: {e}");
+                    return;
+                }
+
                 let mut files = Vec::new();
                 collect_mist_files(&src_root, &mut files);
 
-                for file in files {
-                    if let Ok(text) = std::fs::read_to_string(&file) {}
+                for file in &files {
+                    if let Ok(text) = std::fs::read_to_string(file) {
+                        documents
+                            .lock()
+                            .await
+                            .insert(file.clone(), Rope::from_str(&text));
+                    }
+                }
+
+                eprintln!("Loaded {} mist files", files.len());
+
+                let mapping_c = mapping.clone();
+                let documents_c = documents.clone();
+                let ra_c = ra.clone();
+
+                for file in &files {
+                    if let Some(source) = documents_c.lock().await.get(file).map(|r| r.to_string())
+                    {
+                        let transpiled = match transpile_mist(file, &source) {
+                            Ok(t) => t,
+                            Err(e) => {
+                                eprintln!("transpile error for {:?}: {e}", file);
+                                continue;
+                            }
+                        };
+
+                        if let Some(rust_uri) = clean_lsp_url(&transpiled.rust_path) {
+                            let _ = ra_c
+                                .lock()
+                                .await
+                                .did_open(rust_uri, &transpiled.rust_content)
+                                .await;
+                            mapping_c
+                                .lock()
+                                .await
+                                .insert(transpiled.rust_path, transpiled.mapping);
+                        }
+                    }
+                }
+
+                if let Some(rx) = notification_rx.lock().await.take() {
+                    tokio::spawn(handle_ra_notifications(
+                        rx,
+                        client,
+                        mapping,
+                        documents,
+                        previous_diagnostics,
+                    ));
                 }
 
                 eprintln!("Ready to use");
@@ -162,20 +347,386 @@ impl LanguageServer for Backend {
     }
 
     async fn initialized(&self, _: InitializedParams) {
-        self.rust_analyzer
-            .lock()
-            .await
-            .initialized()
-            .await
-            .expect("Failed to initialize rust analyzer");
-
         self.client
             .log_message(MessageType::INFO, "server initialized!")
             .await;
     }
 
-    async fn shutdown(&self) -> Result<()> {
+    async fn shutdown(&self) -> tower_lsp::jsonrpc::Result<()> {
         Ok(())
+    }
+
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        let uri = params.text_document.uri;
+        let mist_path = match uri.to_file_path() {
+            Ok(p) => p,
+            Err(_) => {
+                return;
+            }
+        };
+        let source = params.text_document.text;
+
+        self.documents
+            .lock()
+            .await
+            .insert(mist_path.clone(), Rope::from_str(&source));
+
+        self.handle_transpile_and_notify(&mist_path, &source).await;
+    }
+
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        let uri = params.text_document.uri;
+        let mist_path = match uri.to_file_path() {
+            Ok(p) => p,
+            Err(_) => {
+                return;
+            }
+        };
+
+        if let Some(change) = params.content_changes.into_iter().last() {
+            let source = change.text;
+
+            self.documents
+                .lock()
+                .await
+                .insert(mist_path.clone(), Rope::from_str(&source));
+
+            self.handle_transpile_and_notify(&mist_path, &source).await;
+        }
+    }
+
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        let uri = params.text_document.uri;
+        let mist_path = match uri.to_file_path() {
+            Ok(p) => p,
+            Err(_) => {
+                return;
+            }
+        };
+
+        if let Some(text) = params.text {
+            self.documents
+                .lock()
+                .await
+                .insert(mist_path.clone(), Rope::from_str(&text));
+
+            self.handle_transpile_and_notify(&mist_path, &text).await;
+        }
+    }
+
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        let uri = params.text_document.uri;
+        let mist_path = match uri.to_file_path() {
+            Ok(p) => p,
+            Err(_) => {
+                return;
+            }
+        };
+
+        self.documents.lock().await.remove(&mist_path);
+
+        let rust_path = mist_to_rust_path(&mist_path);
+        self.mapping.lock().await.remove(&rust_path);
+
+        if let Some(rust_uri) = clean_lsp_url(&rust_path) {
+            let _ = self.rust_analyzer.lock().await.did_close(rust_uri).await;
+        }
+
+        self.publish_diagnostics(uri, Vec::new()).await;
+    }
+
+    async fn completion(
+        &self,
+        params: CompletionParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<CompletionResponse>> {
+        let mist_uri = params.text_document_position.text_document.uri.clone();
+        let mist_pos = params.text_document_position.position;
+
+        let Some((rust_uri, rust_pos)) = self.map_mist_to_rust_pos(&mist_uri, &mist_pos).await
+        else {
+            return Ok(None);
+        };
+
+        let comp_params = CompletionParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: rust_uri },
+                position: rust_pos,
+            },
+            work_done_progress_params: WorkDoneProgressParams {
+                work_done_token: None,
+            },
+            partial_result_params: PartialResultParams {
+                partial_result_token: None,
+            },
+            context: params.context,
+        };
+
+        match self
+            .rust_analyzer
+            .lock()
+            .await
+            .request::<lsp_types::request::Completion>(comp_params)
+            .await
+        {
+            Ok(Some(CompletionResponse::Array(items))) => {
+                let cleaned: Vec<CompletionItem> =
+                    items.into_iter().map(clean_completion_item).collect();
+                Ok(Some(CompletionResponse::Array(cleaned)))
+            }
+            Ok(Some(CompletionResponse::List(list))) => {
+                let cleaned: Vec<CompletionItem> =
+                    list.items.into_iter().map(clean_completion_item).collect();
+                Ok(Some(CompletionResponse::List(CompletionList {
+                    is_incomplete: list.is_incomplete,
+                    items: cleaned,
+                })))
+            }
+            Ok(None) => Ok(None),
+            Err(e) => {
+                eprintln!("completion error: {e}");
+                Ok(None)
+            }
+        }
+    }
+
+    async fn goto_definition(
+        &self,
+        params: GotoDefinitionParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<GotoDefinitionResponse>> {
+        let mist_uri = params.text_document_position_params.text_document.uri;
+        let mist_pos = params.text_document_position_params.position;
+
+        let Some((rust_uri, rust_pos)) = self.map_mist_to_rust_pos(&mist_uri, &mist_pos).await
+        else {
+            return Ok(None);
+        };
+
+        let gd_params = GotoDefinitionParams {
+            text_document_position_params: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: rust_uri },
+                position: rust_pos,
+            },
+            work_done_progress_params: WorkDoneProgressParams {
+                work_done_token: None,
+            },
+            partial_result_params: PartialResultParams {
+                partial_result_token: None,
+            },
+        };
+
+        match self
+            .rust_analyzer
+            .lock()
+            .await
+            .request::<lsp_types::request::GotoDefinition>(gd_params)
+            .await
+        {
+            Ok(Some(GotoDefinitionResponse::Scalar(loc))) => {
+                let mapped = self.map_rust_to_mist_pos(&loc.uri, &loc.range.start).await;
+                match mapped {
+                    Some((mist_uri, mist_start)) => {
+                        let mist_range = Range {
+                            start: mist_start,
+                            end: Position {
+                                line: mist_start.line,
+                                character: mist_start.character + 1,
+                            },
+                        };
+                        Ok(Some(GotoDefinitionResponse::Scalar(Location {
+                            uri: mist_uri,
+                            range: mist_range,
+                        })))
+                    }
+                    None => Ok(Some(GotoDefinitionResponse::Scalar(loc))),
+                }
+            }
+            Ok(Some(GotoDefinitionResponse::Array(locs))) => {
+                let mut mapped = Vec::new();
+                for loc in locs {
+                    if let Some((mist_uri, mist_start)) =
+                        self.map_rust_to_mist_pos(&loc.uri, &loc.range.start).await
+                    {
+                        mapped.push(Location {
+                            uri: mist_uri,
+                            range: Range {
+                                start: mist_start,
+                                end: Position {
+                                    line: mist_start.line,
+                                    character: mist_start.character + 1,
+                                },
+                            },
+                        });
+                    }
+                }
+                Ok(Some(GotoDefinitionResponse::Array(mapped)))
+            }
+            Ok(Some(GotoDefinitionResponse::Link(links))) => {
+                let mut mapped = Vec::new();
+                for link in links {
+                    if let Some((mist_uri, mist_start)) = self
+                        .map_rust_to_mist_pos(&link.target_uri, &link.target_selection_range.start)
+                        .await
+                    {
+                        mapped.push(LocationLink {
+                            origin_selection_range: link.origin_selection_range,
+                            target_uri: mist_uri,
+                            target_range: Range {
+                                start: mist_start,
+                                end: Position {
+                                    line: mist_start.line,
+                                    character: mist_start.character + 1,
+                                },
+                            },
+                            target_selection_range: Range {
+                                start: mist_start,
+                                end: Position {
+                                    line: mist_start.line,
+                                    character: mist_start.character + 1,
+                                },
+                            },
+                        });
+                    }
+                }
+                Ok(Some(GotoDefinitionResponse::Link(mapped)))
+            }
+            Ok(None) => Ok(None),
+            Err(e) => {
+                eprintln!("goto_definition error: {e}");
+                Ok(None)
+            }
+        }
+    }
+
+    async fn hover(&self, params: HoverParams) -> tower_lsp::jsonrpc::Result<Option<Hover>> {
+        let mist_uri = params.text_document_position_params.text_document.uri;
+        let mist_pos = params.text_document_position_params.position;
+
+        let Some((rust_uri, rust_pos)) = self.map_mist_to_rust_pos(&mist_uri, &mist_pos).await
+        else {
+            return Ok(None);
+        };
+
+        let h_params = HoverParams {
+            text_document_position_params: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: rust_uri },
+                position: rust_pos,
+            },
+            work_done_progress_params: WorkDoneProgressParams {
+                work_done_token: None,
+            },
+        };
+
+        match self
+            .rust_analyzer
+            .lock()
+            .await
+            .request::<lsp_types::request::HoverRequest>(h_params)
+            .await
+        {
+            Ok(hover) => Ok(hover),
+            Err(e) => {
+                eprintln!("hover error: {e}");
+                Ok(None)
+            }
+        }
+    }
+}
+
+async fn handle_ra_notifications(
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<Value>,
+    client: Client,
+    mapping: Arc<Mutex<HashMap<PathBuf, Mapping>>>,
+    _documents: Arc<Mutex<HashMap<PathBuf, Rope>>>,
+    previous_diagnostics: Arc<Mutex<HashMap<Url, Vec<Diagnostic>>>>,
+) {
+    #[derive(Deserialize)]
+    struct PublishDiagnosticsParams {
+        uri: Url,
+        diagnostics: Vec<Diagnostic>,
+    }
+
+    while let Some(notification) = rx.recv().await {
+        let method = notification
+            .get("method")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        match method.as_deref() {
+            Some("textDocument/publishDiagnostics") => {
+                if let Ok(params) = serde_json::from_value::<PublishDiagnosticsParams>(
+                    notification["params"].clone(),
+                ) {
+                    let rust_uri = params.uri;
+                    let diagnostics = params.diagnostics;
+
+                    let mist_uri = rust_uri_to_mist_uri(&rust_uri);
+
+                    let mapped_diagnostics: Vec<Diagnostic> = if let Some(ref _mist_uri) = mist_uri
+                    {
+                        let rust_path = rust_uri.to_file_path().ok();
+                        let map_data =
+                            rust_path.and_then(|p| mapping.blocking_lock().get(&p).cloned());
+
+                        diagnostics
+                            .into_iter()
+                            .filter_map(|diag| {
+                                let map = map_data.clone()?;
+
+                                let rust_start = lsp_pos_to_rust_map(&diag.range.start);
+                                let rust_end = lsp_pos_to_rust_map(&diag.range.end);
+
+                                let (_, mist_start) = map.find(&rust_start)?;
+                                let (_, mist_end) = map.find(&rust_end)?;
+
+                                let mist_start_pos = mist_map_to_lsp_pos(&mist_start);
+                                let mist_end_pos = mist_map_to_lsp_pos(&mist_end);
+
+                                let final_end = Position {
+                                    line: mist_end_pos.line.max(mist_start_pos.line),
+                                    character: if mist_end_pos.line == mist_start_pos.line {
+                                        mist_end_pos.character.max(mist_start_pos.character + 1)
+                                    } else {
+                                        mist_end_pos.character.max(1)
+                                    },
+                                };
+
+                                Some(Diagnostic {
+                                    range: Range {
+                                        start: mist_start_pos,
+                                        end: final_end,
+                                    },
+                                    severity: diag.severity,
+                                    code: diag.code,
+                                    code_description: diag.code_description,
+                                    source: diag.source,
+                                    message: diag.message,
+                                    related_information: diag.related_information,
+                                    tags: diag.tags,
+                                    data: diag.data,
+                                })
+                            })
+                            .collect()
+                    } else {
+                        diagnostics
+                    };
+
+                    if let Some(mist_uri) = mist_uri.or(Some(rust_uri.clone())) {
+                        let prev = previous_diagnostics.lock().await.get(&mist_uri).cloned();
+
+                        if prev.as_ref() != Some(&mapped_diagnostics) {
+                            previous_diagnostics
+                                .lock()
+                                .await
+                                .insert(mist_uri.clone(), mapped_diagnostics.clone());
+                            client
+                                .publish_diagnostics(mist_uri, mapped_diagnostics, None)
+                                .await;
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
     }
 }
 
@@ -184,103 +735,37 @@ pub async fn start() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
-    let (service, socket) = LspService::new(|client| Backend {
-        client,
-        workspace_folder: Arc::new(Mutex::new(None)),
-        previous_diagnostics: Arc::new(Mutex::new(HashMap::new())),
-        mapping: Arc::new(Mutex::new(HashMap::new())),
-        documents: Arc::new(Mutex::new(HashMap::new())),
-        rust_analyzer: Arc::new(Mutex::new(
-            RustAnalyzer::new().expect("Failed to create rust analyzer"),
-        )),
+    let (service, socket) = LspService::new(|client| {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+
+        Backend {
+            client,
+            workspace_folder: Arc::new(Mutex::new(None)),
+            previous_diagnostics: Arc::new(Mutex::new(HashMap::new())),
+            mapping: Arc::new(Mutex::new(HashMap::new())),
+            documents: Arc::new(Mutex::new(HashMap::new())),
+            doc_versions: Arc::new(Mutex::new(HashMap::new())),
+            rust_analyzer: Arc::new(Mutex::new(
+                RustAnalyzer::new(tx).expect("Failed to create rust analyzer"),
+            )),
+            notification_rx: Arc::new(Mutex::new(Some(rx))),
+        }
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }
 
-pub fn from_mist_to_rust(mut path: PathBuf) -> PathBuf {
-    path.set_extension("rs");
-
-    let mut comps: Vec<Component> = path.components().collect();
-
-    if let Some(pos) = comps.iter().rposition(|c| c.as_os_str() == "src") {
-        let replacement = std::path::Path::new(".mist/src");
-        comps.splice(pos..=pos, replacement.components());
-        comps.iter().collect()
-    } else {
-        path
-    }
+pub fn from_mist_to_rust(path: PathBuf) -> PathBuf {
+    mist_to_rust_path(&path)
 }
 
-pub fn from_rust_to_mist(mut path: PathBuf) -> PathBuf {
-    // reverse extension
-    path.set_extension("mist");
-
-    let comps: Vec<Component> = path.components().collect();
-
-    let pattern: Vec<Component> = std::path::Path::new(".mist/src").components().collect();
-
-    // find the last occurrence of the pattern
-    if let Some(pos) = comps
-        .windows(pattern.len())
-        .rposition(|window| window == pattern.as_slice())
-    {
-        let mut new_comps = comps.clone();
-
-        // replace the matched range with "src"
-        new_comps.splice(
-            pos..pos + pattern.len(),
-            std::iter::once(Component::Normal(std::ffi::OsStr::new("src"))),
-        );
-
-        new_comps.iter().collect()
-    } else {
-        path
-    }
+pub fn from_rust_to_mist(path: PathBuf) -> PathBuf {
+    rust_to_mist_path(&path)
 }
 
-fn insert_at_position(rope: &Rope, line: usize, col: usize, insert: &str) -> Rope {
-    let mut rope = rope.clone();
-
-    let line_idx = line.saturating_sub(1);
-    let col_idx = col.saturating_sub(1);
-
-    let line_idx = line_idx.min(rope.len_lines().saturating_sub(1));
-
-    let line_start = rope.line_to_char(line_idx);
-
-    let line_slice = rope.line(line_idx);
-    let line_len = line_slice.len_chars();
-
-    let col_idx = col_idx.min(line_len);
-
-    let idx = line_start + col_idx;
-
-    rope.insert(idx, insert);
-
-    rope
-}
-
-fn find_row_col(rope: &Rope, needle: &str) -> Option<(usize, usize)> {
-    let text = rope.to_string();
-
-    let byte_idx = text.find(needle)?;
-
-    let char_idx = text[..byte_idx].chars().count();
-
-    let line_idx = rope.char_to_line(char_idx);
-
-    let line_start = rope.line_to_char(line_idx);
-
-    let col_idx = char_idx - line_start;
-
-    Some((line_idx, col_idx + 1))
-}
-
-fn simplify_item(mut item: CompletionItem) -> CompletionItem {
+fn clean_completion_item(mut item: CompletionItem) -> CompletionItem {
     item.text_edit = None;
     item.additional_text_edits = None;
     item.command = None;
-
     item
 }
 
