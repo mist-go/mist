@@ -1,7 +1,7 @@
 pub mod rust_analyzer;
 pub mod transpiler;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -18,6 +18,42 @@ use crate::rust_analyzer::RustAnalyzer;
 use crate::transpiler::transpile_mist;
 
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+const KEYWORDS: [&'static str; 24] = [
+    "if",
+    "else",
+    "for",
+    "while",
+    "match",
+    "return",
+    "break",
+    "continue",
+    "struct",
+    "enum",
+    "class",
+    "trait",
+    "impl",
+    "pub",
+    "mut",
+    "let",
+    "true",
+    "false",
+    "dyn",
+    "loop",
+    "fn",
+    "unsafe",
+    "override",
+    "module"
+];
+
+fn keyword_completion_items() -> impl Iterator<Item = CompletionItem> {
+    KEYWORDS.into_iter().map(|kw| CompletionItem {
+        label: kw.to_string(),
+        kind: Some(CompletionItemKind::KEYWORD),
+        insert_text: Some(kw.to_string()),
+        ..Default::default()
+    })
+}
 
 #[derive(Debug)]
 struct Backend {
@@ -793,17 +829,35 @@ impl LanguageServer for Backend {
             .await
         {
             Ok(Some(CompletionResponse::Array(items))) => {
-                let cleaned: Vec<CompletionItem> =
+                let mut cleaned: Vec<CompletionItem> =
                     items.into_iter().map(clean_completion_item).collect();
+
+                let existing: HashSet<String> =
+                    cleaned.iter().map(|item| item.label.clone()).collect();
+
+                cleaned.extend(
+                    keyword_completion_items()
+                        .filter(|item| !existing.contains(&item.label)),
+                );
+
                 Ok(Some(CompletionResponse::Array(cleaned)))
             }
-            Ok(Some(CompletionResponse::List(list))) => {
-                let cleaned: Vec<CompletionItem> =
+
+            Ok(Some(CompletionResponse::List(mut list))) => {
+                let mut cleaned: Vec<CompletionItem> =
                     list.items.into_iter().map(clean_completion_item).collect();
-                Ok(Some(CompletionResponse::List(CompletionList {
-                    is_incomplete: list.is_incomplete,
-                    items: cleaned,
-                })))
+
+                let existing: HashSet<String> =
+                    cleaned.iter().map(|item| item.label.clone()).collect();
+
+                cleaned.extend(
+                    keyword_completion_items()
+                        .filter(|item| !existing.contains(&item.label)),
+                );
+
+                list.items = cleaned;
+
+                Ok(Some(CompletionResponse::List(list)))
             }
             Ok(None) => Ok(None),
             Err(e) => {
