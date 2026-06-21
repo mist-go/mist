@@ -80,16 +80,48 @@ fn byte_offset_from_lsp(source: &str, line: u32, character: u32) -> Option<usize
     }
 }
 
-/// Back up to the start of the current identifier/word so the marker isn't
-/// injected in the middle of a token (which would break parsing).
-fn snap_to_word_start(source: &str, offset: usize) -> usize {
+/// Inject a marker at the exact cursor position. If the cursor is inside or
+/// at the start of an identifier-like token, the entire token is replaced with
+/// the marker so parsing doesn't break from a mid-token split.
+fn inject_marker_at(source: &str, line: u32, character: u32, marker: &str) -> Option<String> {
+    let offset = byte_offset_from_lsp(source, line, character)?;
+
     let before = &source[..offset];
-    let trim = before
+    let after = &source[offset..];
+
+    // Identifier chars immediately before and after the cursor (as byte-counts).
+    let trail_bytes: usize = before
         .chars()
         .rev()
         .take_while(|c| c.is_alphanumeric() || *c == '_')
-        .count();
-    offset - trim
+        .map(|c| c.len_utf8())
+        .sum();
+    let lead_bytes: usize = after
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .map(|c| c.len_utf8())
+        .sum();
+
+    if trail_bytes > 0 || lead_bytes > 0 {
+        // Cursor touches an identifier — replace the whole token with the marker.
+        let token_start = offset - trail_bytes;
+        let token_end = offset + lead_bytes;
+
+        let mut s = String::with_capacity(source.len() + marker.len() + 4);
+        s.push_str(&source[..token_start]);
+        s.push_str(marker);
+        s.push_str(&source[token_end..]);
+        Some(s)
+    } else {
+        // Cursor is on whitespace / punctuation — inject as standalone expression.
+        let mut s = String::with_capacity(source.len() + marker.len() + 4);
+        s.push_str(&source[..offset]);
+        s.push(' ');
+        s.push_str(marker);
+        s.push(' ');
+        s.push_str(&source[offset..]);
+        Some(s)
+    }
 }
 
 fn find_marker_position(content: &str, marker: &str) -> Option<Position> {
@@ -160,15 +192,13 @@ impl Backend {
         let id = MARKER_COUNTER.fetch_add(1, Ordering::Relaxed);
         let marker = format!("__mist_mk{id:x}__");
 
-        let offset = byte_offset_from_lsp(source, line, character)?;
-        let offset = snap_to_word_start(source, offset);
-
-        let mut modified = String::with_capacity(source.len() + marker.len() + 4);
-        modified.push_str(&source[..offset]);
-        modified.push(' ');
-        modified.push_str(&marker);
-        modified.push(' ');
-        modified.push_str(&source[offset..]);
+        let modified = match inject_marker_at(source, line, character, &marker) {
+            Some(m) => m,
+            None => {
+                eprintln!("[marker] inject_marker_at returned None for LSP({line},{character})");
+                return None;
+            }
+        };
 
         let transpiled = match transpile_mist(mist_path, &modified, extra_mod_decl) {
             Ok(t) => t,
