@@ -80,6 +80,18 @@ fn byte_offset_from_lsp(source: &str, line: u32, character: u32) -> Option<usize
     }
 }
 
+/// Back up to the start of the current identifier/word so the marker isn't
+/// injected in the middle of a token (which would break parsing).
+fn snap_to_word_start(source: &str, offset: usize) -> usize {
+    let before = &source[..offset];
+    let trim = before
+        .chars()
+        .rev()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .count();
+    offset - trim
+}
+
 fn find_marker_position(content: &str, marker: &str) -> Option<Position> {
     let idx = content.find(marker)?;
     let before = &content[..idx];
@@ -149,6 +161,7 @@ impl Backend {
         let marker = format!("__mist_mk{id:x}__");
 
         let offset = byte_offset_from_lsp(source, line, character)?;
+        let offset = snap_to_word_start(source, offset);
 
         let mut modified = String::with_capacity(source.len() + marker.len() + 4);
         modified.push_str(&source[..offset]);
@@ -373,14 +386,19 @@ impl LanguageServer for Backend {
             if let Some(root) = &*ws.lock().await {
                 let src_root = root.join("src");
 
-                if let Err(e) = ra.lock().await.initialize(root).await {
-                    eprintln!("Failed to initialize rust-analyzer: {e}");
-                    return;
-                }
-
-                if let Err(e) = ra.lock().await.initialized().await {
-                    eprintln!("rust-analyzer initialized failed: {e}");
-                    return;
+                // Hold the lock across both initialize + initialized so the
+                // editor's didOpen cannot race in-between and send notifications
+                // to rust-analyzer before it has received Initialized.
+                {
+                    let mut guard = ra.lock().await;
+                    if let Err(e) = guard.initialize(root).await {
+                        eprintln!("Failed to initialize rust-analyzer: {e}");
+                        return;
+                    }
+                    if let Err(e) = guard.initialized().await {
+                        eprintln!("rust-analyzer initialized failed: {e}");
+                        return;
+                    }
                 }
 
                 let mut files = Vec::new();

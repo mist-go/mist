@@ -47,16 +47,8 @@ async fn send_lsp_message<W: AsyncWriteExt + Unpin>(
 ) -> std::io::Result<()> {
     let payload = serde_json::to_string(value)?;
     let frame = format!("Content-Length: {}\r\n\r\n{}", payload.len(), payload);
-    eprintln!("[send] writing {} bytes to child stdin", frame.len());
-    if let Err(e) = writer.write_all(frame.as_bytes()).await {
-        eprintln!("[send] write_all failed: {e}");
-        return Err(e);
-    }
-    if let Err(e) = writer.flush().await {
-        eprintln!("[send] flush failed: {e}");
-        return Err(e);
-    }
-    eprintln!("[send] write OK");
+    writer.write_all(frame.as_bytes()).await?;
+    writer.flush().await?;
     Ok(())
 }
 
