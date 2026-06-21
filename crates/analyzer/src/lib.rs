@@ -28,6 +28,7 @@ struct Backend {
     mapping: Arc<Mutex<HashMap<PathBuf, Mapping>>>,
     documents: Arc<Mutex<HashMap<PathBuf, Rope>>>,
     doc_versions: Arc<Mutex<HashMap<PathBuf, i32>>>,
+    last_rust_contents: Arc<Mutex<HashMap<PathBuf, String>>>,
     notification_rx: Arc<Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<Value>>>>,
 }
 
@@ -217,7 +218,65 @@ impl Backend {
             Ok(t) => t,
             Err(e) => {
                 eprintln!("[marker] transpile failed for {marker} at LSP({line},{character}): {e}");
-                return None;
+
+                // Fallback: the source has a syntax error that prevents transpilation.
+                // Use the last known working Rust content + mapping to inject the
+                // marker at the nearest valid Rust position.
+                let mist_target = MistMap(line as usize + 1, character as usize);
+                let mut rust_path = crate::from_mist_to_rust(mist_path.to_path_buf());
+                if mist_path.file_name().and_then(|n| n.to_str()) == Some("package.mist") {
+                    rust_path.set_file_name("mod.rs");
+                }
+
+                let (last_mapping, last_content) = {
+                    let map_guard = self.mapping.lock().await;
+                    let content_guard = self.last_rust_contents.lock().await;
+                    let m = map_guard.get(&rust_path)?.clone();
+                    let c = content_guard.get(mist_path)?.clone();
+                    (m, c)
+                };
+
+                let (_rust_before, mist_before) = last_mapping.find_by_mist(&mist_target)?;
+
+                // Find the next mapping entry after mist_before — the marker goes
+                // right before it in the Rust output, filling the gap.
+                let rust_next = last_mapping
+                    .map
+                    .iter()
+                    .filter(|(_, mist)| *mist > mist_before)
+                    .min_by_key(|(_, mist)| *mist)
+                    .map(|(rust, _)| *rust);
+
+                let (modified_rust, rust_pos) = if let Some(next_rust) = rust_next {
+                    let lsp_line = (next_rust.0 - 1) as u32;
+                    let lsp_col = next_rust.1 as u32;
+                    let modified = inject_marker_at(&last_content, lsp_line, lsp_col, &marker)?;
+                    let pos = find_marker_position(&modified, &marker)?;
+                    (modified, pos)
+                } else {
+                    let modified = format!("{last_content}\nlet _ = {};", marker);
+                    let pos = find_marker_position(&modified, &marker)?;
+                    (modified, pos)
+                };
+
+                let rust_uri = clean_lsp_url(&rust_path)?;
+
+                {
+                    let mut ra = self.rust_analyzer.lock().await;
+                    let mut versions = self.doc_versions.lock().await;
+                    let version = versions.entry(mist_path.to_path_buf()).or_insert(0);
+                    *version += 1;
+                    let _ = ra
+                        .did_change(rust_uri.clone(), &modified_rust, *version)
+                        .await;
+                }
+
+                eprintln!(
+                    "[marker] {marker} (fallback): mist LSP({line},{character}) -> rust LSP({},{})",
+                    rust_pos.line, rust_pos.character
+                );
+
+                return Some((rust_uri, rust_pos));
             }
         };
         let rust_pos = match find_marker_position(&transpiled.rust_content, &marker) {
@@ -335,6 +394,10 @@ impl Backend {
             }
 
             map.insert(transpiled.rust_path, transpiled.mapping);
+            self.last_rust_contents
+                .lock()
+                .await
+                .insert(mist_path.to_path_buf(), transpiled.rust_content);
         }
     }
 
@@ -443,6 +506,7 @@ impl LanguageServer for Backend {
         let ra = self.rust_analyzer.clone();
         let mapping = self.mapping.clone();
         let documents = self.documents.clone();
+        let last_rust_contents = self.last_rust_contents.clone();
         let client = self.client.clone();
         let previous_diagnostics = self.previous_diagnostics.clone();
         let notification_rx = self.notification_rx.clone();
@@ -518,6 +582,10 @@ impl LanguageServer for Backend {
                             .lock()
                             .await
                             .insert(transpiled.rust_path, transpiled.mapping);
+                        last_rust_contents
+                            .lock()
+                            .await
+                            .insert(file.clone(), transpiled.rust_content);
                     }
                 }
 
@@ -552,6 +620,10 @@ impl LanguageServer for Backend {
                                 .lock()
                                 .await
                                 .insert(transpiled.rust_path, transpiled.mapping);
+                            last_rust_contents
+                                .lock()
+                                .await
+                                .insert(syn_path.clone(), transpiled.rust_content);
                         }
                     }
                 }
@@ -1076,6 +1148,7 @@ pub async fn start() {
             mapping: Arc::new(Mutex::new(HashMap::new())),
             documents: Arc::new(Mutex::new(HashMap::new())),
             doc_versions: Arc::new(Mutex::new(HashMap::new())),
+            last_rust_contents: Arc::new(Mutex::new(HashMap::new())),
             rust_analyzer: Arc::new(Mutex::new(
                 RustAnalyzer::new(tx).expect("Failed to create rust analyzer"),
             )),
