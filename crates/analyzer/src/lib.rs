@@ -701,6 +701,10 @@ impl LanguageServer for Backend {
     ) -> tower_lsp::jsonrpc::Result<Option<GotoDefinitionResponse>> {
         let mist_uri = params.text_document_position_params.text_document.uri;
         let mist_pos = params.text_document_position_params.position;
+        eprintln!(
+            "[goto_definition] entered at mist ({}, {})",
+            mist_pos.line, mist_pos.character
+        );
 
         let mist_path = match mist_uri.to_file_path() {
             Ok(p) => p,
@@ -728,7 +732,7 @@ impl LanguageServer for Backend {
 
         let gd_params = GotoDefinitionParams {
             text_document_position_params: TextDocumentPositionParams {
-                text_document: TextDocumentIdentifier { uri: rust_uri },
+                text_document: TextDocumentIdentifier { uri: rust_uri.clone() },
                 position: rust_pos,
             },
             work_done_progress_params: WorkDoneProgressParams {
@@ -738,6 +742,10 @@ impl LanguageServer for Backend {
                 partial_result_token: None,
             },
         };
+        eprintln!(
+            "[goto_definition] rust-analyzer request at {} ({},{})",
+            rust_uri, rust_pos.line, rust_pos.character
+        );
 
         match self
             .rust_analyzer
@@ -747,6 +755,7 @@ impl LanguageServer for Backend {
             .await
         {
             Ok(Some(GotoDefinitionResponse::Scalar(loc))) => {
+                eprintln!("[goto_definition] Scalar response");
                 let mapped = self.map_rust_to_mist_pos(&loc.uri, &loc.range.start).await;
                 match mapped {
                     Some((mist_uri, mist_start)) => {
@@ -762,10 +771,14 @@ impl LanguageServer for Backend {
                             range: mist_range,
                         })))
                     }
-                    None => Ok(Some(GotoDefinitionResponse::Scalar(loc))),
+                    None => {
+                        eprintln!("[goto_definition] map_rust_to_mist_pos failed, returning raw rust loc");
+                        Ok(Some(GotoDefinitionResponse::Scalar(loc)))
+                    }
                 }
             }
             Ok(Some(GotoDefinitionResponse::Array(locs))) => {
+                eprintln!("[goto_definition] Array response with {} items", locs.len());
                 let mut mapped = Vec::new();
                 for loc in locs {
                     if let Some((mist_uri, mist_start)) =
@@ -786,6 +799,7 @@ impl LanguageServer for Backend {
                 Ok(Some(GotoDefinitionResponse::Array(mapped)))
             }
             Ok(Some(GotoDefinitionResponse::Link(links))) => {
+                eprintln!("[goto_definition] Link response with {} items", links.len());
                 let mut mapped = Vec::new();
                 for link in links {
                     if let Some((mist_uri, mist_start)) = self
@@ -814,7 +828,10 @@ impl LanguageServer for Backend {
                 }
                 Ok(Some(GotoDefinitionResponse::Link(mapped)))
             }
-            Ok(None) => Ok(None),
+            Ok(None) => {
+                eprintln!("[goto_definition] rust-analyzer returned None");
+                Ok(None)
+            }
             Err(e) => {
                 eprintln!("goto_definition error: {e}");
                 Ok(None)
