@@ -240,6 +240,19 @@ impl Backend {
             rust_pos.line, rust_pos.character
         );
 
+        // If actual source can't be transpiled, rust-analyzer's file is stale.
+        // Push the markered transpiled content so the upcoming LSP request (completion,
+        // hover, goto_def) sees the right context (the marker acts as placeholder).
+        if transpile_mist(mist_path, source, extra_mod_decl).is_err() {
+            let mut ra = self.rust_analyzer.lock().await;
+            let mut versions = self.doc_versions.lock().await;
+            let version = versions.entry(mist_path.to_path_buf()).or_insert(0);
+            *version += 1;
+            let _ = ra
+                .did_change(rust_uri.clone(), &transpiled.rust_content, *version)
+                .await;
+        }
+
         Some((rust_uri, rust_pos))
     }
 
