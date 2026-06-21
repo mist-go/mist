@@ -756,8 +756,7 @@ impl LanguageServer for Backend {
         {
             Ok(Some(GotoDefinitionResponse::Scalar(loc))) => {
                 eprintln!("[goto_definition] Scalar response");
-                let mapped = self.map_rust_to_mist_pos(&loc.uri, &loc.range.start).await;
-                match mapped {
+                match self.map_rust_to_mist_pos(&loc.uri, &loc.range.start).await {
                     Some((mist_uri, mist_start)) => {
                         let mist_range = Range {
                             start: mist_start,
@@ -772,8 +771,15 @@ impl LanguageServer for Backend {
                         })))
                     }
                     None => {
-                        eprintln!("[goto_definition] map_rust_to_mist_pos failed, returning raw rust loc");
-                        Ok(Some(GotoDefinitionResponse::Scalar(loc)))
+                        if let Some(normalized) = loc.uri.to_file_path().ok().and_then(|p| clean_lsp_url(&p)) {
+                            eprintln!("[goto_definition] returning raw rust loc");
+                            Ok(Some(GotoDefinitionResponse::Scalar(Location {
+                                uri: normalized,
+                                range: loc.range,
+                            })))
+                        } else {
+                            Ok(Some(GotoDefinitionResponse::Scalar(loc)))
+                        }
                     }
                 }
             }
@@ -793,6 +799,11 @@ impl LanguageServer for Backend {
                                     character: mist_start.character + 1,
                                 },
                             },
+                        });
+                    } else if let Some(normalized) = loc.uri.to_file_path().ok().and_then(|p| clean_lsp_url(&p)) {
+                        mapped.push(Location {
+                            uri: normalized,
+                            range: loc.range,
                         });
                     }
                 }
@@ -823,6 +834,15 @@ impl LanguageServer for Backend {
                                     character: mist_start.character + 1,
                                 },
                             },
+                        });
+                    } else if let Some(normalized) =
+                        link.target_uri.to_file_path().ok().and_then(|p| clean_lsp_url(&p))
+                    {
+                        mapped.push(LocationLink {
+                            origin_selection_range: link.origin_selection_range,
+                            target_uri: normalized,
+                            target_range: link.target_range,
+                            target_selection_range: link.target_selection_range,
                         });
                     }
                 }
