@@ -178,17 +178,12 @@ impl ClassProcessedData {
         cg.indent += 1;
 
         if has_parent {
-            cg.add_indentedln(&format!(
-                "let mut table = [std::ptr::null(); {}::__V_COUNT + {}];",
-                parent_path,
-                self.v_table.len()
-            ));
+            cg.add_indentedln("let mut table = [std::ptr::null(); Self::__V_COUNT];");
 
             cg.add_indentedln(&format!("let parent_table = {}::__V_TABLE;", parent_path));
-            cg.add_indentedln(&format!(
-                "let mut i = 0; while i < {}::__V_COUNT {{ table[i] = parent_table[i]; i += 1; }}",
-                parent_path
-            ));
+            cg.add_indentedln(
+                "let mut i = 0; while i < Self::__PARENT_V_COUNT {{ table[i] = parent_table[i]; i += 1; }}",
+            );
 
             for (override_tier, overriden_method_idents) in &self.override_v_table {
                 let base_class_path = override_tier
