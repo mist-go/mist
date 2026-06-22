@@ -20,12 +20,12 @@ pub struct MistDiagnosticMessage {
 
 #[derive(Debug, Clone)]
 pub enum MistDiagnostic {
-    Error[MistDiagnosticMessage],
-    Warning[MistDiagnosticMessage],
-    Rust[CompilerMessage],
+    Error(MistDiagnosticMessage),
+    Warning(MistDiagnosticMessage),
+    Rust(CompilerMessage),
 }
 
-pub fn build(mut args Vec<String>, root PathBuf) bool {
+pub fn bool build(mut args Vec<String>, root PathBuf) {
     args.remove(0);
     args.insert(1, "--message-format=json".to_string());
 
@@ -45,7 +45,7 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
 
     for message in cargo_metadata::Message::parse_stream(&mut reader) {
         match message {
-            Ok[Message::CompilerMessage[msg]] => {
+            Ok(Message::CompilerMessage(msg)) => {
                 for span in &msg.message.spans {
                     if span.is_primary {
                         let rust_path = root.join(&span.file_name);
@@ -65,7 +65,7 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
 
                         let mist_file = map.mist_path.strip_prefix(&root);
 
-                        let [_, rev_mapper::MistMap[line, column]] =
+                        let (_, rev_mapper::MistMap(line, column)) =
                             map.find(&rev_mapper::RustMap(span.line_end, span.column_start))
                                 .expect("Unable to find mapping");
 
@@ -100,7 +100,7 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
                 }
             }
 
-            Ok[Message::BuildFinished[finish]] => {
+            Ok(Message::BuildFinished(finish)) => {
                 print_diagnostics(&diagnostics);
 
                 let mut raw_reader = reader.into_inner();
@@ -115,7 +115,7 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
                 return finish.success;
             }
 
-            Ok[Message::TextLine[text]] => println!("{text}");
+            Ok(Message::TextLine(text)) => println!("{text}");
             _ => {}
         }
     }
@@ -123,12 +123,12 @@ pub fn build(mut args Vec<String>, root PathBuf) bool {
     false
 }
 
-pub fn print_diagnostics(diagnostics *Vec<MistDiagnostic>) {
+pub fn void print_diagnostics(diagnostics *Vec<MistDiagnostic>) {
     let mut files = HashMap::new();
 
     for diag in diagnostics {
         match diag {
-            MistDiagnostic::Error[msg] => {
+            MistDiagnostic::Error(msg) => {
                 let line = get_line(&mut files, &msg);
 
                 println!(
@@ -141,7 +141,7 @@ pub fn print_diagnostics(diagnostics *Vec<MistDiagnostic>) {
                 )
             }
 
-            MistDiagnostic::Warning[msg] => {
+            MistDiagnostic::Warning(msg) => {
                 let line = get_line(&mut files, &msg);
 
                 println!(
@@ -154,15 +154,15 @@ pub fn print_diagnostics(diagnostics *Vec<MistDiagnostic>) {
                 )
             }
 
-            MistDiagnostic::Rust[rs] => println!("{rs}");
+            MistDiagnostic::Rust(rs) => println!("{rs}");
         }
     }
 }
 
-pub fn get_line(
+pub fn Option<String> get_line(
     files *mut HashMap<PathBuf, Vec<String>>,
     msg *MistDiagnosticMessage,
-) Option<String> {
+) {
     let src_path = msg.file_path.clone();
 
     let lines = files.entry(src_path.clone()).or_insert_with(fn() {

@@ -37,10 +37,10 @@ pub class Module {
         }
     }
 
-    fn scan_directory(*mut self, search_dir *Path, config *MistConfig) {
+    fn void scan_directory(*mut self, search_dir *Path, config *MistConfig) {
         let entries = match fs::read_dir(search_dir) {
-            Ok[entries] => entries;
-            Err[e] => {
+            Ok(entries) => entries;
+            Err(e) => {
                 eprintln!("error: failed to read directory {}\n  {}", search_dir.display(), e);
                 process::exit(1);
             }
@@ -48,8 +48,8 @@ pub class Module {
 
         for entry in entries {
             let entry = match entry {
-                Ok[entry] => entry;
-                Err[e] => {
+                Ok(entry) => entry;
+                Err(e) => {
                     eprintln!("error: failed to read directory entry\n  {}", e);
                     process::exit(1);
                 }
@@ -65,11 +65,11 @@ pub class Module {
         }
     }
 
-    pub fn is_package(*self) bool {
+    pub fn bool is_package(*self) {
         self.path.file_name().map(fn(v) -> v.to_str()).unwrap_or_default() == Some("package.mist")
     }
 
-    pub fn output_dir(*self, parent_dir *PathBuf) PathBuf {
+    pub fn PathBuf output_dir(*self, parent_dir *PathBuf) {
         if self.path.is_dir() || self.is_package() {
             parent_dir.join(&self.name)
         } else {
@@ -77,8 +77,8 @@ pub class Module {
         }
     }
 
-    pub fn output_path(*self, parent_dir *PathBuf, curr_mod_decl *Option<[mist_parser::ast::Visibility, mist_parser::ast::Identifier]>) PathBuf {
-        let name = if let Some[[_, name]] = curr_mod_decl {
+    pub fn PathBuf output_path(*self, parent_dir *PathBuf, curr_mod_decl *Option<(mist_parser::ast::Visibility, mist_parser::ast::Identifier)>) {
+        let name = if let Some((_, name)) = curr_mod_decl {
             &name.0
         } else {
             &self.name
