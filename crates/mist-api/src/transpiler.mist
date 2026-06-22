@@ -165,7 +165,7 @@ impl modules::Module {
                 transpile_file(&self.path, &source, output_file, &output, &curr_mod_decl);
             }
 
-            (should_change, if let Some[[vis, name]] = &curr_mod_decl {
+            (should_change, if let Some((vis, name)) = &curr_mod_decl {
                 format!("{}mod {};\n", vis.get_rust(), name.get_rust())
             } else {
                 String::new()
@@ -193,9 +193,9 @@ pub enum TranspileError<'a> {
 pub fn Result<(PathBuf, mist_codegen::RustCodegen, String), TranspileError<'a>>
     transpile_code<'a>(path *PathBuf, source *'a str, mut output_file PathBuf, mod_decl *str, curr_mod_decl *Option<(mist_parser::ast::Visibility, mist_parser::ast::Identifier)>) {
 
-    if let Some[[_, name]] = &curr_mod_decl {
+    if let Some((_, name)) = &curr_mod_decl {
         if output_file.file_name().map(fn(v) -> v.to_str()).unwrap_or_default() != Some("mod.rs") {
-            if let Some[ext] = output_file.extension().map(fn(e) -> e.to_owned()) {
+            if let Some(ext) = output_file.extension().map(fn(e) -> e.to_owned()) {
                 let mut new_name = std::ffi::OsString::from(&name.0);
 
                 new_name.push(".");
