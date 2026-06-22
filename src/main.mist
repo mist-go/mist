@@ -4,7 +4,7 @@ use std::fs;
 use mist_api::builder;
 use mist_api::transpiler;
 
-fn main() {
+fn void main() {
     let args Vec<String> = env::args().collect();
 
     if args.len() < 2 {
@@ -44,7 +44,7 @@ fn main() {
     }
 }
 
-fn print_usage() {
+fn void print_usage() {
     println!("Mist - the mist compiler\n");
     println!("󰖟 View our documentation! \x1b[35mhttps://mist.selimaj.dev\x1b[0m");
     println!(" Follow us on github!    \x1b[35mhttps://github.com/mist-go\x1b[0m\n");
@@ -66,7 +66,7 @@ fn print_usage() {
     println!(" \x1b[36m mist help\x1b[0m              print this message\n");
 }
 
-fn init_project(mut args Vec<String>) {
+fn void init_project(mut args Vec<String>) {
     args.remove(0);
 
     process::Command::new("cargo")
@@ -92,7 +92,7 @@ fn init_project(mut args Vec<String>) {
     println!("\n\x1b[34minfo\x1b[0m: Please open Cargo.toml and adjust `\x1b[35mname\x1b[0m = ` as needed, Thank you for using Mist!\n");
 }
 
-fn inject_mist_target(is_lib bool) {
+fn void inject_mist_target(is_lib bool) {
     let toml_content String = fs::read_to_string("Cargo.toml").expect("Failed to read Cargo.toml");
 
     let inject *str = if is_lib {
