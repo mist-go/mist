@@ -11,6 +11,7 @@ categories = ["compilers"]
 [dependencies]
 mist-parser = { workspace = true }
 mist-codegen = { workspace = true }
+pest = "2.8.6"
 
 dashmap = "6.1.0"
 tokio = { version = "1.52.3", features = ["full", "macros", "rt", "rt-multi-thread"] }

@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use mist_codegen::{GetRust, RustCodegen};
+use mist_codegen::RustCodegen;
 use mist_parser::rev_mapper::Mapping;
-use mist_parser::{parse, parse_module};
+use mist_parser::parse;
 
 pub struct TranspiledFile {
     pub mist_path: PathBuf,
@@ -16,8 +16,13 @@ pub fn transpile_mist(
     source: &str,
     extra_mod_decl: &str,
 ) -> Result<TranspiledFile, String> {
-    let module_decl = parse_module(source).map_err(|e| format!("parse module error: {e:?}"))?;
-    let rust_path = crate::from_mist_to_rust(mist_path.to_path_buf());
+    let mut rust_path = crate::from_mist_to_rust(mist_path.to_path_buf());
+    // Package files (package.mist) must output as <dir>/mod.rs so the Rust module
+    // hierarchy resolves correctly (pub mod <child>; declarations look for sibling
+    // .rs files, and the parent module declaration looks for <dir>/mod.rs).
+    if mist_path.file_name().and_then(|n| n.to_str()) == Some("package.mist") {
+        rust_path.set_file_name("mod.rs");
+    }
 
     let parsed = parse(source).map_err(|e| format!("parse error: {e:?}"))?;
 
@@ -29,19 +34,12 @@ pub fn transpile_mist(
     let mut codegen = RustCodegen::new(mist_path.to_path_buf());
     let output = codegen.generate(parsed);
 
-    let self_mod_prefix = module_decl
-        .as_ref()
-        .map(|(vis, name)| format!("{}mod {};\n", vis.get_rust(), name.get_rust()))
-        .unwrap_or_default();
-
-    let combined_prefix = format!("{}{}", extra_mod_decl, self_mod_prefix);
-
-    codegen.mapping.shift_rust(combined_prefix.lines().count() as isize, 0);
+    codegen.mapping.shift_rust(extra_mod_decl.lines().count() as isize, 0);
 
     Ok(TranspiledFile {
         mist_path: mist_path.to_path_buf(),
         rust_path,
-        rust_content: format!("{}{}", combined_prefix, output),
+        rust_content: format!("{}{}", extra_mod_decl, output),
         mapping: codegen.mapping,
     })
 }

@@ -1,12 +1,14 @@
 pub mod rust_analyzer;
 pub mod transpiler;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use mist_parser::error::ParseError;
 use mist_parser::rev_mapper::{Mapping, MistMap, RustMap};
+use mist_parser::parse;
 use ropey::Rope;
 use serde::Deserialize;
 use serde_json::Value;
@@ -19,6 +21,43 @@ use crate::transpiler::transpile_mist;
 
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
 
+const KEYWORDS: [&'static str; 25] = [
+    "if",
+    "else",
+    "for",
+    "while",
+    "match",
+    "return",
+    "break",
+    "continue",
+    "struct",
+    "enum",
+    "class",
+    "trait",
+    "impl",
+    "pub",
+    "mut",
+    "let",
+    "true",
+    "false",
+    "dyn",
+    "loop",
+    "fn",
+    "unsafe",
+    "override",
+    "module",
+    "void"
+];
+
+fn keyword_completion_items() -> impl Iterator<Item = CompletionItem> {
+    KEYWORDS.into_iter().map(|kw| CompletionItem {
+        label: kw.to_string(),
+        kind: Some(CompletionItemKind::KEYWORD),
+        insert_text: Some(kw.to_string()),
+        ..Default::default()
+    })
+}
+
 #[derive(Debug)]
 struct Backend {
     client: Client,
@@ -28,6 +67,7 @@ struct Backend {
     mapping: Arc<Mutex<HashMap<PathBuf, Mapping>>>,
     documents: Arc<Mutex<HashMap<PathBuf, Rope>>>,
     doc_versions: Arc<Mutex<HashMap<PathBuf, i32>>>,
+    last_rust_contents: Arc<Mutex<HashMap<PathBuf, String>>>,
     notification_rx: Arc<Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<Value>>>>,
 }
 
@@ -79,6 +119,63 @@ fn byte_offset_from_lsp(source: &str, line: u32, character: u32) -> Option<usize
         None
     }
 }
+
+/// Inject a marker at the exact cursor position. If the cursor is inside or
+/// at the start of an identifier-like token, the entire token is replaced with
+/// the marker so parsing doesn't break from a mid-token split.
+fn inject_marker_at(source: &str, line: u32, character: u32, marker: &str) -> Option<String> {
+    let offset = byte_offset_from_lsp(source, line, character)?;
+
+    let before = &source[..offset];
+    let after = &source[offset..];
+
+    // Identifier chars immediately before and after the cursor (as byte-counts).
+    let trail_bytes: usize = before
+        .chars()
+        .rev()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .map(|c| c.len_utf8())
+        .sum();
+    let lead_bytes: usize = after
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .map(|c| c.len_utf8())
+        .sum();
+
+    if trail_bytes > 0 || lead_bytes > 0 {
+        // Cursor touches an identifier — replace the whole token with the marker.
+        let token_start = offset - trail_bytes;
+        let token_end = offset + lead_bytes;
+
+        let mut s = String::with_capacity(source.len() + marker.len() + 4);
+        s.push_str(&source[..token_start]);
+        s.push_str(marker);
+        s.push_str(&source[token_end..]);
+        return Some(s);
+    }
+
+    // Not on an identifier.  If the cursor is on a `.` treat it as a field-access
+    // and inject the marker as an identifier right after the dot.
+    if after.starts_with('.') {
+        let dot_end = offset + '.'.
+            len_utf8();
+        let mut s = String::with_capacity(source.len() + marker.len() + 4);
+        s.push_str(&source[..dot_end]);
+        s.push_str(marker);
+        s.push_str(&source[dot_end..]);
+        return Some(s);
+    }
+
+    // Whitespace / other punctuation — inject as standalone expression.
+    let mut s = String::with_capacity(source.len() + marker.len() + 4);
+    s.push_str(&source[..offset]);
+    s.push(' ');
+    s.push_str(marker);
+    s.push(' ');
+    s.push_str(&source[offset..]);
+    Some(s)
+}
+
 
 fn find_marker_position(content: &str, marker: &str) -> Option<Position> {
     let idx = content.find(marker)?;
@@ -134,6 +231,102 @@ fn rust_uri_to_mist_uri(rust_uri: &Url) -> Option<Url> {
     clean_lsp_url(&mist_path)
 }
 
+fn byte_offset_to_lsp_pos(source: &str, offset: usize) -> Position {
+    let mut line = 0u32;
+    let mut col = 0u32;
+    for (i, ch) in source.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 0;
+        } else {
+            col += 1;
+        }
+    }
+    Position {
+        line,
+        character: col,
+    }
+}
+
+/// Re-parse the source to extract a proper LSP diagnostic from the error.
+/// Returns None when the error is a semantic check failure (can be multiple
+/// errors) or when re-parsing unexpectedly succeeds.
+fn transpile_error_to_diagnostic(source: &str) -> Option<Diagnostic> {
+    match parse(source) {
+        Err(ParseError::PreAst(pest_err)) => {
+            let (line, col) = match pest_err.line_col {
+                pest::error::LineColLocation::Pos((l, c)) => (l, c),
+                pest::error::LineColLocation::Span((l, c), _) => (l, c),
+            };
+            let message = match &pest_err.variant {
+                pest::error::ErrorVariant::ParsingError {
+                    positives,
+                    negatives,
+                } => {
+                    let mut msg = String::new();
+                    if !positives.is_empty() {
+                        msg.push_str("expected ");
+                        for (i, r) in positives.iter().enumerate() {
+                            if i > 0 {
+                                msg.push_str(" or ");
+                            }
+                            msg.push_str(&format!("{r:?}"));
+                        }
+                    }
+                    if !negatives.is_empty() {
+                        if !msg.is_empty() {
+                            msg.push_str(", ");
+                        }
+                        msg.push_str("unexpected ");
+                        for (i, r) in negatives.iter().enumerate() {
+                            if i > 0 {
+                                msg.push_str(" or ");
+                            }
+                            msg.push_str(&format!("{r:?}"));
+                        }
+                    }
+                    if msg.is_empty() {
+                        msg.push_str("parse error");
+                    }
+                    msg
+                }
+                pest::error::ErrorVariant::CustomError { message } => message.clone(),
+            };
+            Some(Diagnostic {
+                range: Range {
+                    start: Position {
+                        line: line as u32 - 1,
+                        character: col as u32 - 1,
+                    },
+                    end: Position {
+                        line: line as u32 - 1,
+                        character: col as u32,
+                    },
+                },
+                severity: Some(DiagnosticSeverity::ERROR),
+                source: Some("mist".to_string()),
+                message,
+                ..Default::default()
+            })
+        }
+        Err(ParseError::Ast(ast_err)) => {
+            let start = byte_offset_to_lsp_pos(source, ast_err.span.start());
+            let end = byte_offset_to_lsp_pos(source, ast_err.span.end());
+            Some(Diagnostic {
+                range: Range { start, end },
+                severity: Some(DiagnosticSeverity::ERROR),
+                source: Some("mist".to_string()),
+                message: ast_err.error_message.clone(),
+                ..Default::default()
+            })
+        }
+        Ok(_) => None,
+    }
+}
+
 impl Backend {
     /// Resolve a Mist cursor position to a Rust position by injecting a unique marker
     /// into the source at the cursor, transpiling, and finding the marker in the output.
@@ -148,18 +341,111 @@ impl Backend {
         let id = MARKER_COUNTER.fetch_add(1, Ordering::Relaxed);
         let marker = format!("__mist_mk{id:x}__");
 
-        let offset = byte_offset_from_lsp(source, line, character)?;
+        let modified = match inject_marker_at(source, line, character, &marker) {
+            Some(m) => m,
+            None => {
+                eprintln!("[marker] inject_marker_at returned None for LSP({line},{character})");
+                return None;
+            }
+        };
 
-        let mut modified = String::with_capacity(source.len() + marker.len() + 4);
-        modified.push_str(&source[..offset]);
-        modified.push(' ');
-        modified.push_str(&marker);
-        modified.push(' ');
-        modified.push_str(&source[offset..]);
+        let transpiled = match transpile_mist(mist_path, &modified, extra_mod_decl) {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("[marker] transpile failed for {marker} at LSP({line},{character}): {e}");
 
-        let transpiled = transpile_mist(mist_path, &modified, extra_mod_decl).ok()?;
-        let rust_pos = find_marker_position(&transpiled.rust_content, &marker)?;
-        let rust_uri = clean_lsp_url(&transpiled.rust_path)?;
+                // Fallback: the source has a syntax error that prevents transpilation.
+                // Use the last known working Rust content + mapping to inject the
+                // marker at the nearest valid Rust position.
+                let mist_target = MistMap(line as usize + 1, character as usize);
+                let mut rust_path = crate::from_mist_to_rust(mist_path.to_path_buf());
+                if mist_path.file_name().and_then(|n| n.to_str()) == Some("package.mist") {
+                    rust_path.set_file_name("mod.rs");
+                }
+
+                let (last_mapping, last_content) = {
+                    let map_guard = self.mapping.lock().await;
+                    let content_guard = self.last_rust_contents.lock().await;
+                    let m = map_guard.get(&rust_path)?.clone();
+                    let c = content_guard.get(mist_path)?.clone();
+                    (m, c)
+                };
+
+                let (_rust_before, mist_before) = last_mapping.find_by_mist(&mist_target)?;
+
+                // Find the next mapping entry after mist_before — the marker goes
+                // right before it in the Rust output, filling the gap.
+                let rust_next = last_mapping
+                    .map
+                    .iter()
+                    .filter(|(_, mist)| *mist > mist_before)
+                    .min_by_key(|(_, mist)| *mist)
+                    .map(|(rust, _)| *rust);
+
+                let (modified_rust, rust_pos) = if let Some(next_rust) = rust_next {
+                    let lsp_line = (next_rust.0 - 1) as u32;
+                    let lsp_col = next_rust.1 as u32;
+                    let modified = inject_marker_at(&last_content, lsp_line, lsp_col, &marker)?;
+                    let pos = find_marker_position(&modified, &marker)?;
+                    (modified, pos)
+                } else {
+                    let modified = format!("{last_content}\nlet _ = {};", marker);
+                    let pos = find_marker_position(&modified, &marker)?;
+                    (modified, pos)
+                };
+
+                let rust_uri = clean_lsp_url(&rust_path)?;
+
+                {
+                    let mut ra = self.rust_analyzer.lock().await;
+                    let mut versions = self.doc_versions.lock().await;
+                    let version = versions.entry(mist_path.to_path_buf()).or_insert(0);
+                    *version += 1;
+                    let _ = ra
+                        .did_change(rust_uri.clone(), &modified_rust, *version)
+                        .await;
+                }
+
+                eprintln!(
+                    "[marker] {marker} (fallback): mist LSP({line},{character}) -> rust LSP({},{})",
+                    rust_pos.line, rust_pos.character
+                );
+
+                return Some((rust_uri, rust_pos));
+            }
+        };
+        let rust_pos = match find_marker_position(&transpiled.rust_content, &marker) {
+            Some(p) => p,
+            None => {
+                eprintln!("[marker] marker {marker} not found in transpiled output");
+                return None;
+            }
+        };
+        let rust_uri = match clean_lsp_url(&transpiled.rust_path) {
+            Some(u) => u,
+            None => {
+                eprintln!("[marker] failed to create URI for {:?}", transpiled.rust_path);
+                return None;
+            }
+        };
+
+        eprintln!(
+            "[marker] {marker}: mist LSP({line},{character}) -> rust LSP({},{})",
+            rust_pos.line, rust_pos.character
+        );
+
+        // If actual source can't be transpiled, rust-analyzer's file is stale.
+        // Push the markered transpiled content so the upcoming LSP request (completion,
+        // hover, goto_def) sees the right context (the marker acts as placeholder).
+        if transpile_mist(mist_path, source, extra_mod_decl).is_err() {
+            let mut ra = self.rust_analyzer.lock().await;
+            let mut versions = self.doc_versions.lock().await;
+            let version = versions.entry(mist_path.to_path_buf()).or_insert(0);
+            *version += 1;
+            let _ = ra
+                .did_change(rust_uri.clone(), &transpiled.rust_content, *version)
+                .await;
+        }
 
         Some((rust_uri, rust_pos))
     }
@@ -202,22 +488,24 @@ impl Backend {
             Ok(t) => t,
             Err(e) => {
                 eprintln!("transpile error for {:?}: {e}", mist_path);
-                let diag = Diagnostic {
-                    range: Range {
-                        start: Position {
-                            line: 0,
-                            character: 0,
+                let diag = transpile_error_to_diagnostic(source).unwrap_or_else(|| {
+                    Diagnostic {
+                        range: Range {
+                            start: Position {
+                                line: 0,
+                                character: 0,
+                            },
+                            end: Position {
+                                line: 0,
+                                character: 1,
+                            },
                         },
-                        end: Position {
-                            line: 0,
-                            character: 1,
-                        },
-                    },
-                    severity: Some(DiagnosticSeverity::ERROR),
-                    source: Some("mist".to_string()),
-                    message: format!("Transpile error: {e}"),
-                    ..Default::default()
-                };
+                        severity: Some(DiagnosticSeverity::ERROR),
+                        source: Some("mist".to_string()),
+                        message: format!("Transpile error: {e}"),
+                        ..Default::default()
+                    }
+                });
                 if let Some(uri) = clean_lsp_url(mist_path) {
                     self.publish_diagnostics(uri, vec![diag]).await;
                 }
@@ -243,6 +531,15 @@ impl Backend {
             }
 
             map.insert(transpiled.rust_path, transpiled.mapping);
+            self.last_rust_contents
+                .lock()
+                .await
+                .insert(mist_path.to_path_buf(), transpiled.rust_content);
+        }
+
+        // Clear any previous diagnostics — transpile succeeded.
+        if let Some(mist_uri) = clean_lsp_url(mist_path) {
+            self.publish_diagnostics(mist_uri, vec![]).await;
         }
     }
 
@@ -253,6 +550,8 @@ impl Backend {
         };
         let src_root = ws.join("src");
         let package_mist = read_mist_package(&ws);
+
+        self.ensure_implicit_packages(&src_root).await;
 
         // Collect sources first to avoid holding locks during transpile
         let sources: Vec<(PathBuf, String, String)> = {
@@ -272,6 +571,13 @@ impl Backend {
             self.handle_transpile_and_notify(&mist_path, &source, &decl)
                 .await;
         }
+    }
+
+    /// Create synthetic `package.mist` documents for subdirectories that contain
+    /// .mist files but no real package.mist (implicit packages).
+    async fn ensure_implicit_packages(&self, src_root: &Path) {
+        let mut docs = self.documents.lock().await;
+        ensure_implicit_packages_impl(&mut *docs, src_root);
     }
 
     async fn publish_diagnostics(&self, uri: Url, diagnostics: Vec<Diagnostic>) {
@@ -342,6 +648,7 @@ impl LanguageServer for Backend {
         let ra = self.rust_analyzer.clone();
         let mapping = self.mapping.clone();
         let documents = self.documents.clone();
+        let last_rust_contents = self.last_rust_contents.clone();
         let client = self.client.clone();
         let previous_diagnostics = self.previous_diagnostics.clone();
         let notification_rx = self.notification_rx.clone();
@@ -350,14 +657,19 @@ impl LanguageServer for Backend {
             if let Some(root) = &*ws.lock().await {
                 let src_root = root.join("src");
 
-                if let Err(e) = ra.lock().await.initialize(root).await {
-                    eprintln!("Failed to initialize rust-analyzer: {e}");
-                    return;
-                }
-
-                if let Err(e) = ra.lock().await.initialized().await {
-                    eprintln!("rust-analyzer initialized failed: {e}");
-                    return;
+                // Hold the lock across both initialize + initialized so the
+                // editor's didOpen cannot race in-between and send notifications
+                // to rust-analyzer before it has received Initialized.
+                {
+                    let mut guard = ra.lock().await;
+                    if let Err(e) = guard.initialize(root).await {
+                        eprintln!("Failed to initialize rust-analyzer: {e}");
+                        return;
+                    }
+                    if let Err(e) = guard.initialized().await {
+                        eprintln!("rust-analyzer initialized failed: {e}");
+                        return;
+                    }
                 }
 
                 let mut files = Vec::new();
@@ -373,6 +685,8 @@ impl LanguageServer for Backend {
                 }
 
                 eprintln!("Loaded {} mist files", files.len());
+
+                ensure_implicit_packages_impl(&mut *documents.lock().await, &src_root);
 
                 // Compute mod_decls before any transpile so the root file gets its
                 // child module declarations from the very first didOpen.
@@ -410,6 +724,49 @@ impl LanguageServer for Backend {
                             .lock()
                             .await
                             .insert(transpiled.rust_path, transpiled.mapping);
+                        last_rust_contents
+                            .lock()
+                            .await
+                            .insert(file.clone(), transpiled.rust_content);
+                    }
+                }
+
+                // Also transpile synthetic package.mist files (implicit packages)
+                // so rust-analyzer has their content from the start.
+                let synthetic_paths: Vec<PathBuf> = documents
+                    .lock()
+                    .await
+                    .keys()
+                    .filter(|p| {
+                        !files.contains(p)
+                            && p.file_name().and_then(|n| n.to_str()) == Some("package.mist")
+                    })
+                    .cloned()
+                    .collect();
+                for syn_path in &synthetic_paths {
+                    let decl = mod_decls.get(syn_path).map(String::as_str).unwrap_or("");
+                    let source = documents
+                        .lock()
+                        .await
+                        .get(syn_path)
+                        .map(|r| r.to_string())
+                        .unwrap_or_default();
+                    if let Ok(transpiled) = transpile_mist(syn_path, &source, decl) {
+                        if let Some(rust_uri) = clean_lsp_url(&transpiled.rust_path) {
+                            let _ = ra
+                                .lock()
+                                .await
+                                .did_open(rust_uri, &transpiled.rust_content)
+                                .await;
+                            mapping
+                                .lock()
+                                .await
+                                .insert(transpiled.rust_path, transpiled.mapping);
+                            last_rust_contents
+                                .lock()
+                                .await
+                                .insert(syn_path.clone(), transpiled.rust_content);
+                        }
                     }
                 }
 
@@ -552,6 +909,7 @@ impl LanguageServer for Backend {
             )
             .await
         else {
+            eprintln!("[completion] resolve_mist_via_marker returned None at ({}, {})", mist_pos.line, mist_pos.character);
             return Ok(None);
         };
 
@@ -577,17 +935,35 @@ impl LanguageServer for Backend {
             .await
         {
             Ok(Some(CompletionResponse::Array(items))) => {
-                let cleaned: Vec<CompletionItem> =
+                let mut cleaned: Vec<CompletionItem> =
                     items.into_iter().map(clean_completion_item).collect();
+
+                let existing: HashSet<String> =
+                    cleaned.iter().map(|item| item.label.clone()).collect();
+
+                cleaned.extend(
+                    keyword_completion_items()
+                        .filter(|item| !existing.contains(&item.label)),
+                );
+
                 Ok(Some(CompletionResponse::Array(cleaned)))
             }
-            Ok(Some(CompletionResponse::List(list))) => {
-                let cleaned: Vec<CompletionItem> =
+
+            Ok(Some(CompletionResponse::List(mut list))) => {
+                let mut cleaned: Vec<CompletionItem> =
                     list.items.into_iter().map(clean_completion_item).collect();
-                Ok(Some(CompletionResponse::List(CompletionList {
-                    is_incomplete: list.is_incomplete,
-                    items: cleaned,
-                })))
+
+                let existing: HashSet<String> =
+                    cleaned.iter().map(|item| item.label.clone()).collect();
+
+                cleaned.extend(
+                    keyword_completion_items()
+                        .filter(|item| !existing.contains(&item.label)),
+                );
+
+                list.items = cleaned;
+
+                Ok(Some(CompletionResponse::List(list)))
             }
             Ok(None) => Ok(None),
             Err(e) => {
@@ -603,6 +979,10 @@ impl LanguageServer for Backend {
     ) -> tower_lsp::jsonrpc::Result<Option<GotoDefinitionResponse>> {
         let mist_uri = params.text_document_position_params.text_document.uri;
         let mist_pos = params.text_document_position_params.position;
+        eprintln!(
+            "[goto_definition] entered at mist ({}, {})",
+            mist_pos.line, mist_pos.character
+        );
 
         let mist_path = match mist_uri.to_file_path() {
             Ok(p) => p,
@@ -624,12 +1004,13 @@ impl LanguageServer for Backend {
             )
             .await
         else {
+            eprintln!("[goto_definition] resolve_mist_via_marker returned None at ({}, {})", mist_pos.line, mist_pos.character);
             return Ok(None);
         };
 
         let gd_params = GotoDefinitionParams {
             text_document_position_params: TextDocumentPositionParams {
-                text_document: TextDocumentIdentifier { uri: rust_uri },
+                text_document: TextDocumentIdentifier { uri: rust_uri.clone() },
                 position: rust_pos,
             },
             work_done_progress_params: WorkDoneProgressParams {
@@ -639,6 +1020,10 @@ impl LanguageServer for Backend {
                 partial_result_token: None,
             },
         };
+        eprintln!(
+            "[goto_definition] rust-analyzer request at {} ({},{})",
+            rust_uri, rust_pos.line, rust_pos.character
+        );
 
         match self
             .rust_analyzer
@@ -648,8 +1033,8 @@ impl LanguageServer for Backend {
             .await
         {
             Ok(Some(GotoDefinitionResponse::Scalar(loc))) => {
-                let mapped = self.map_rust_to_mist_pos(&loc.uri, &loc.range.start).await;
-                match mapped {
+                eprintln!("[goto_definition] Scalar response");
+                match self.map_rust_to_mist_pos(&loc.uri, &loc.range.start).await {
                     Some((mist_uri, mist_start)) => {
                         let mist_range = Range {
                             start: mist_start,
@@ -663,10 +1048,21 @@ impl LanguageServer for Backend {
                             range: mist_range,
                         })))
                     }
-                    None => Ok(Some(GotoDefinitionResponse::Scalar(loc))),
+                    None => {
+                        if let Some(normalized) = loc.uri.to_file_path().ok().and_then(|p| clean_lsp_url(&p)) {
+                            eprintln!("[goto_definition] returning raw rust loc");
+                            Ok(Some(GotoDefinitionResponse::Scalar(Location {
+                                uri: normalized,
+                                range: loc.range,
+                            })))
+                        } else {
+                            Ok(Some(GotoDefinitionResponse::Scalar(loc)))
+                        }
+                    }
                 }
             }
             Ok(Some(GotoDefinitionResponse::Array(locs))) => {
+                eprintln!("[goto_definition] Array response with {} items", locs.len());
                 let mut mapped = Vec::new();
                 for loc in locs {
                     if let Some((mist_uri, mist_start)) =
@@ -682,11 +1078,17 @@ impl LanguageServer for Backend {
                                 },
                             },
                         });
+                    } else if let Some(normalized) = loc.uri.to_file_path().ok().and_then(|p| clean_lsp_url(&p)) {
+                        mapped.push(Location {
+                            uri: normalized,
+                            range: loc.range,
+                        });
                     }
                 }
                 Ok(Some(GotoDefinitionResponse::Array(mapped)))
             }
             Ok(Some(GotoDefinitionResponse::Link(links))) => {
+                eprintln!("[goto_definition] Link response with {} items", links.len());
                 let mut mapped = Vec::new();
                 for link in links {
                     if let Some((mist_uri, mist_start)) = self
@@ -711,11 +1113,23 @@ impl LanguageServer for Backend {
                                 },
                             },
                         });
+                    } else if let Some(normalized) =
+                        link.target_uri.to_file_path().ok().and_then(|p| clean_lsp_url(&p))
+                    {
+                        mapped.push(LocationLink {
+                            origin_selection_range: link.origin_selection_range,
+                            target_uri: normalized,
+                            target_range: link.target_range,
+                            target_selection_range: link.target_selection_range,
+                        });
                     }
                 }
                 Ok(Some(GotoDefinitionResponse::Link(mapped)))
             }
-            Ok(None) => Ok(None),
+            Ok(None) => {
+                eprintln!("[goto_definition] rust-analyzer returned None");
+                Ok(None)
+            }
             Err(e) => {
                 eprintln!("goto_definition error: {e}");
                 Ok(None)
@@ -747,6 +1161,7 @@ impl LanguageServer for Backend {
             )
             .await
         else {
+            eprintln!("[hover] resolve_mist_via_marker returned None at ({}, {})", mist_pos.line, mist_pos.character);
             return Ok(None);
         };
 
@@ -893,6 +1308,7 @@ pub async fn start() {
             mapping: Arc::new(Mutex::new(HashMap::new())),
             documents: Arc::new(Mutex::new(HashMap::new())),
             doc_versions: Arc::new(Mutex::new(HashMap::new())),
+            last_rust_contents: Arc::new(Mutex::new(HashMap::new())),
             rust_analyzer: Arc::new(Mutex::new(
                 RustAnalyzer::new(tx).expect("Failed to create rust analyzer"),
             )),
@@ -962,8 +1378,13 @@ fn compute_mod_decls(
                 Some(s) => s,
                 None => continue,
             };
-            // Skip the root package file itself
+            // Skip the root package entry file (e.g. main.mist)
             if *file == package_path {
+                continue;
+            }
+            // Skip any subdirectory package.mist — it's the directory's own
+            // entry file, not a sibling submodule.
+            if stem == "package" {
                 continue;
             }
             mod_decl.push_str(&format!("pub mod {};\n", stem));
@@ -981,7 +1402,66 @@ fn compute_mod_decls(
         }
     }
 
+    // For each subdirectory that is a Mist module, add pub mod <dirname>;
+    // to the parent directory's declarations so the parent's transpiled Rust
+    // output includes the child module declaration.
+    for dir in dirs.keys() {
+        if dir == src_root {
+            continue;
+        }
+        let dirname = match dir.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n,
+            None => continue,
+        };
+        let parent = dir.parent().unwrap();
+        let parent_target = if parent == src_root {
+            package_path.clone()
+        } else {
+            let pkg = parent.join("package.mist");
+            if !documents.contains_key(&pkg) {
+                continue;
+            }
+            pkg
+        };
+        result
+            .entry(parent_target)
+            .or_default()
+            .push_str(&format!("pub mod {};\n", dirname));
+    }
+
     result
+}
+
+fn ensure_implicit_packages_impl(
+    docs: &mut HashMap<PathBuf, Rope>,
+    src_root: &Path,
+) {
+    let mut dirs_with_mist: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
+    for mist_path in docs.keys() {
+        if let Ok(rel) = mist_path.strip_prefix(src_root) {
+            if let Some(parent) = rel.parent() {
+                if !parent.as_os_str().is_empty() {
+                    dirs_with_mist
+                        .entry(src_root.join(parent))
+                        .or_default()
+                        .push(mist_path.clone());
+                }
+            }
+        }
+    }
+
+    for dir in dirs_with_mist.keys() {
+        let pkg_path = dir.join("package.mist");
+        if !docs.contains_key(&pkg_path) {
+            let dirname = dir
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("module")
+                .to_string();
+            let content = format!("pub module {dirname};\n");
+            docs.insert(pkg_path, Rope::from_str(&content));
+        }
+    }
 }
 
 fn clean_completion_item(mut item: CompletionItem) -> CompletionItem {

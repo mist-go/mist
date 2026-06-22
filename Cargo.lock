@@ -476,6 +476,7 @@ dependencies = [
  "dashmap 6.1.0",
  "mist-codegen",
  "mist-parser",
+ "pest",
  "ropey",
  "serde",
  "serde_json",
