@@ -1,21 +1,21 @@
 pub module class_test;
 
 pub class Animal {
-    pub name String;
+    pub String name;
 
     constructor() {
         self.name = "Rex".to_string();
     }
 
-    pub fn String speak(*self) {
+    pub String speak(&self) {
         "Unknown".to_string()
     }
 
-    pub fn void test_speak(*self) {
+    pub void test_speak(&self) {
         assert_eq!(self.speak(), "Woof!");
     }
 
-    pub fn void static_method() {}
+    pub void static_method() {}
 }
 
 pub class Mammal : Animal {
@@ -23,7 +23,7 @@ pub class Mammal : Animal {
         super = Super::new();
     }
 
-    pub fn void args_test(*self, x i32, y *str) {
+    pub void args_test(&self, i32 x, str& y) {
         assert_eq!(x, 10);
         assert_eq!(y, "hello");
     }
@@ -34,18 +34,18 @@ pub class Dog : Mammal {
         super = Super::new();
     }
 
-    pub fn String speak(*self) override(Animal) {
+    pub String speak(&self) override(Animal) {
         "Woof!".to_string()
     }
 
     impl std::fmt::Display {
-        fn Result<(), std::fmt::Error> fmt(*self, f *mut std::fmt::Formatter<'_>) {
+     Result<(), std::fmt::Error> fmt(&self, std::fmt::Formatter<'_> mut& f) {
             write!(f, "🐾 {}", self.name)
         }
     }
 }
 
-pub fn void run_tests() {
+pub void run_tests() {
     let dawg = Dog::new();
 
     dawg.args_test(10, "hello");

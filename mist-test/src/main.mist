@@ -1,4 +1,4 @@
-fn void main() {
+void main() {
     println!("running common tests...");
     common::test_package();
     common::expr_test::run_tests();
