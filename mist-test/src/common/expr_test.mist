@@ -88,7 +88,7 @@ pub void test_as_cast() {
 }
 
 pub void test_closure() {
-    let add = fn(a, b) -> a + b;
+    let add = (a, b) => a + b;
     assert_eq!(add(2, 3), 5);
 }
 
