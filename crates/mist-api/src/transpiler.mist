@@ -16,13 +16,13 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct MistConfig {
-    pub package PathBuf,
-    pub packages Vec<PathBuf>,
-    pub main_mods String
+    pub PathBuf package,
+    pub Vec<PathBuf> packages,
+    pub String main_mods
 }
 
 impl MistConfig {
-    pub fn bool should_ignore(*self, path *Path) {
+    pub bool should_ignore(&self, Path& path) {
         if path == self.package {
             return true;
         }
@@ -37,7 +37,7 @@ impl MistConfig {
     }
 }
 impl Default for MistConfig {
-    fn Self default() {
+ Self default() {
         Self {
             package: PathBuf::from("main.mist"),
             packages: Vec::new(),
@@ -46,7 +46,7 @@ impl Default for MistConfig {
     }
 }
 
-pub fn PathBuf transpile() {
+pub PathBuf transpile() {
     let start = time::Instant::now();
 
     let root = env::current_dir().expect("Unable to find project root");
@@ -58,7 +58,7 @@ pub fn PathBuf transpile() {
     let toml_content = fs::read_to_string(&toml_path)
         .unwrap_or_else(fn(_) -> panic!("Could not read file at {:?}", toml_path));
 
-    let mut config MistConfig = toml::from_str(&toml_content)
+    MistConfig mut config = toml::from_str(&toml_content)
         .unwrap_or_else(fn(_) -> panic!("Failed to parse Mist.toml from {:?}", toml_path));
     
     for pkg in &mut config.packages {
@@ -85,7 +85,7 @@ pub fn PathBuf transpile() {
 }
 
 impl modules::Module {
-    fn (bool, String) transpile(*self, parent_dir *PathBuf, config *mut MistConfig) {
+    (bool, String) transpile(&self, PathBuf& parent_dir, MistConfig mut& config) {
         if !self.path.is_dir() && self.path.extension().and_then(fn(v) -> v.to_str()) != Some("mist") {
             let file_name = self.path.file_name()
                 .and_then(fn(s) -> s.to_str())
@@ -124,7 +124,7 @@ impl modules::Module {
         self.write_transpile(output, parent_dir, child_changed)
     }
 
-    fn (bool, String) write_transpile(*self, output String, parent_dir *PathBuf, child_changed bool) {
+    (bool, String) write_transpile(&self, String output, PathBuf& parent_dir, bool child_changed) {
         if self.path.is_dir() {
             let output_file = self.output_path(parent_dir, &None);
 
@@ -174,7 +174,7 @@ impl modules::Module {
     }
 }
 
-fn std::io::Result<bool> is_source_newer(source *Path, output *Path) {
+std::io::Result<bool> is_source_newer(Path& source, Path& output) {
     if !output.exists() {
         return Ok(true);
     }
@@ -190,8 +190,14 @@ pub enum TranspileError<'a> {
     Semantic(Vec<mist_parser::semantics::SemanticError>)
 }
 
-pub fn Result<(PathBuf, mist_codegen::RustCodegen, String), TranspileError<'a>>
-    transpile_code<'a>(path *PathBuf, source *'a str, mut output_file PathBuf, mod_decl *str, curr_mod_decl *Option<(mist_parser::ast::Visibility, mist_parser::ast::Identifier)>) {
+pub Result<(PathBuf, mist_codegen::RustCodegen, String), TranspileError<'a>>
+    transpile_code<'a>(
+            PathBuf& path,
+            str 'a& source,
+            PathBuf mut output_file,
+            str& mod_decl,
+            Option<(mist_parser::ast::Visibility, mist_parser::ast::Identifier)>& curr_mod_decl
+    ) {
 
     if let Some((_, name)) = &curr_mod_decl {
         if output_file.file_name().map(fn(v) -> v.to_str()).unwrap_or_default() != Some("mod.rs") {
@@ -225,7 +231,14 @@ pub fn Result<(PathBuf, mist_codegen::RustCodegen, String), TranspileError<'a>>
     Ok((output_file, gc, output))
 }
 
-pub fn void transpile_file(path *PathBuf, source *str, output_file PathBuf, mod_decl *str, curr_mod_decl *Option<(mist_parser::ast::Visibility, mist_parser::ast::Identifier)>) {
+pub void transpile_file(
+        PathBuf& path,
+        str& source,
+        PathBuf output_file,
+        str& mod_decl,
+        Option<(mist_parser::ast::Visibility, mist_parser::ast::Identifier)>& curr_mod_decl
+    ) {
+
     let (output_file, gc, output) = match transpile_code(path, source, output_file, mod_decl, curr_mod_decl) {
         Ok(output) => output;
         Err(e) => {
@@ -261,7 +274,7 @@ pub fn void transpile_file(path *PathBuf, source *str, output_file PathBuf, mod_
     }
 }
 
-pub fn void decode_err<'a>(err *TranspileError<'a>, path *PathBuf) {
+pub void decode_err<'a>(TranspileError<'a>& err, PathBuf& path) {
     let curr_dir = std::env::current_dir().unwrap();
 
     match err {
