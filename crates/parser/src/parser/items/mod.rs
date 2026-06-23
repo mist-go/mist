@@ -16,12 +16,15 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevel {
     type Error = AstError<'a, Self>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        let mut inner = pair.into_inner();
+        let mut inner = pair.clone().into_inner();
 
         let attributes = collect_recovered(inner.next().unwrap().into_inner());
 
         ast_expr!(TopLevel(
-            inner.next().map(Spanned::try_from).unwrap(),
+            inner
+                .next()
+                .map(Spanned::try_from)
+                .unwrap_or_else(move || Ok(Spanned::new_pair(pair, TopLevelKind::ModAttribute))),
             attributes,
         ))
     }

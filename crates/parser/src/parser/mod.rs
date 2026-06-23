@@ -28,6 +28,18 @@ pub fn consume_rule<'a>(
     if consumed { pairs.next() } else { None }
 }
 
+impl<T> Spanned<T> {
+    fn new_pair(pair: pest::iterators::Pair<'_, Rule>, item: T) -> Self {
+        let span = pair.as_span().start_pos().line_col();
+
+        Self {
+            line: span.0,
+            column: span.1,
+            item,
+        }
+    }
+}
+
 impl<'a, T: TryFrom<pest::iterators::Pair<'a, Rule>, Error = AstError<'a, T>>>
     TryFrom<pest::iterators::Pair<'a, Rule>> for Spanned<T>
 {
