@@ -212,13 +212,15 @@ pub fn Result<(PathBuf, mist_codegen::RustCodegen, String), TranspileError<'a>>
 
     let parsed = mist_parser::parse(source).map_err(TranspileError::Parse)?;
 
-    for i in &parsed {
+    for i in &parsed.items {
         let _ = mist_parser::semantics::check_class_semantics(i).map_err(TranspileError::Semantic)?;
     }
 
-    let output = gc.generate(parsed);
+    gc.generate(parsed.mod_attributes);
 
-    gc.mapping.shift_rust(mod_decl.lines().count() as isize, 0);
+    gc.add(mod_decl);
+
+    let output = gc.generate(parsed.items);
 
     Ok((output_file, gc, output))
 }
@@ -232,7 +234,7 @@ pub fn void transpile_file(path *PathBuf, source *str, output_file PathBuf, mod_
         }
     };
 
-    let res = fs::write(&output_file, format!("{mod_decl}{output}"));
+    let res = fs::write(&output_file, output);
 
     let output_file_map = output_file.with_extension("map.json");
 

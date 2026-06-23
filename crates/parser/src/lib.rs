@@ -15,7 +15,12 @@ use crate::error::{IntoErr, ParseError};
 #[grammar = "./src/grammar.pest"]
 pub struct MistParser;
 
-pub fn parse<'a>(source: &'a str) -> Result<Vec<TopLevel>, ParseError<'a, Vec<TopLevel>>> {
+pub struct Program {
+    pub mod_attributes: Vec<TopLevel>,
+    pub items: Vec<TopLevel>,
+}
+
+pub fn parse<'a>(source: &'a str) -> Result<Program, ParseError<'a, Vec<TopLevel>>> {
     let mut pairs = MistParser::parse(Rule::program, source)?;
 
     let mut statements = vec![];
@@ -29,7 +34,16 @@ pub fn parse<'a>(source: &'a str) -> Result<Vec<TopLevel>, ParseError<'a, Vec<To
     }
 
     match analyzer.build(statements) {
-        Ok(v) => Ok(v),
+        Ok(v) => {
+            let (mod_attributes, items): (Vec<_>, Vec<_>) = v
+                .into_iter()
+                .partition(|item| matches!(item.0.item, TopLevelKind::ModAttribute));
+
+            Ok(Program {
+                items,
+                mod_attributes,
+            })
+        }
         Err(e) => {
             let rec = e.recovered.clone();
 

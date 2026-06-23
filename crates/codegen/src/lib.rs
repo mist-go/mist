@@ -48,7 +48,7 @@ impl RustCodegen {
         "    ".repeat(self.indent)
     }
 
-    fn add(&mut self, s: &str) {
+    pub fn add(&mut self, s: &str) {
         let newline_count = bytecount::count(s.as_bytes(), b'\n');
 
         if newline_count == 0 {
@@ -63,17 +63,17 @@ impl RustCodegen {
         self.output.push_str(s);
     }
 
-    fn addln(&mut self, s: &str) {
+    pub fn addln(&mut self, s: &str) {
         self.add(s);
         self.add("\n");
     }
 
-    fn add_indented(&mut self, s: &str) {
+    pub fn add_indented(&mut self, s: &str) {
         let line = format!("{}{}", self.indent_str(), s);
         self.add(&line);
     }
 
-    fn add_indentedln(&mut self, s: &str) {
+    pub fn add_indentedln(&mut self, s: &str) {
         let line = format!("{}{}\n", self.indent_str(), s);
         self.add(&line);
     }
