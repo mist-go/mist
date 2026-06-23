@@ -57,7 +57,7 @@ pub bool build(Vec<String> mut args, PathBuf root) {
                             break;
                         }
 
-                        let map = mapping.entry(mapping_path.clone()).or_insert_with(fn() {
+                        let map = mapping.entry(mapping_path.clone()).or_insert_with(() => {
                             let map_str = fs::read_to_string(mapping_path).expect("Failed to read map file");
 
                             serde_json::from_str<rev_mapper::Mapping>(&map_str).expect("Failed to parse map file")
@@ -107,7 +107,7 @@ pub bool build(Vec<String> mut args, PathBuf root) {
                 let mut stdout = std::io::stdout();
 
                 std::io::copy(&mut raw_reader, &mut stdout)
-                    .map_err(fn(v) -> v.to_string())
+                    .map_err((v) => v.to_string())
                     .expect("(Mist) Failed to copy IO");
 
                 command.wait().unwrap();
@@ -165,7 +165,7 @@ pub Option<String> get_line(
 ) {
     let src_path = msg.file_path.clone();
 
-    let lines = files.entry(src_path.clone()).or_insert_with(fn() {
+    let lines = files.entry(src_path.clone()).or_insert_with(() => {
         fs::read_to_string(src_path)
             .expect("Unable to read mist file")
             .lines()
@@ -174,5 +174,5 @@ pub Option<String> get_line(
             .collect()
     });
 
-    lines.get(msg.line - 1).map(fn(v) -> v.trim().to_string())
+    lines.get(msg.line - 1).map((v) => v.trim().to_string())
 }

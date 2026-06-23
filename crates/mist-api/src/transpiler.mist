@@ -56,10 +56,10 @@ pub PathBuf transpile() {
     let out = root.join(".mist/src");
 
     let toml_content = fs::read_to_string(&toml_path)
-        .unwrap_or_else(fn(_) -> panic!("Could not read file at {:?}", toml_path));
+        .unwrap_or_else((_) => panic!("Could not read file at {:?}", toml_path));
 
     MistConfig mut config = toml::from_str(&toml_content)
-        .unwrap_or_else(fn(_) -> panic!("Failed to parse Mist.toml from {:?}", toml_path));
+        .unwrap_or_else((_) => panic!("Failed to parse Mist.toml from {:?}", toml_path));
     
     for pkg in &mut config.packages {
         *pkg = src.join(&*pkg);
@@ -86,9 +86,9 @@ pub PathBuf transpile() {
 
 impl modules::Module {
     (bool, String) transpile(&self, PathBuf& parent_dir, MistConfig mut& config) {
-        if !self.path.is_dir() && self.path.extension().and_then(fn(v) -> v.to_str()) != Some("mist") {
+        if !self.path.is_dir() && self.path.extension().and_then((v) => v.to_str()) != Some("mist") {
             let file_name = self.path.file_name()
-                .and_then(fn(s) -> s.to_str())
+                .and_then((s) => s.to_str())
                 .expect("Failed to get file name");
 
             fs::copy(&self.path, parent_dir.join(&file_name)).expect("Failed to copy SideFile");
@@ -200,8 +200,8 @@ pub Result<(PathBuf, mist_codegen::RustCodegen, String), TranspileError<'a>>
     ) {
 
     if let Some((_, name)) = &curr_mod_decl {
-        if output_file.file_name().map(fn(v) -> v.to_str()).unwrap_or_default() != Some("mod.rs") {
-            if let Some(ext) = output_file.extension().map(fn(e) -> e.to_owned()) {
+        if output_file.file_name().map((v) => v.to_str()).unwrap_or_default() != Some("mod.rs") {
+            if let Some(ext) = output_file.extension().map((e) => e.to_owned()) {
                 let mut new_name = std::ffi::OsString::from(&name.0);
 
                 new_name.push(".");
