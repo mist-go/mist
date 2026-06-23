@@ -2,7 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_ensure, ast_expr,
-    error::{AstError, AstResult, IntoErr, collect_recovered},
+    error::{AstError, IntoErr, collect_recovered},
     parser::{consume_rule, listen_rule},
 };
 
@@ -15,7 +15,27 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
 
         match rule {
             Rule::generic => Self::try_from(inner.next().unwrap()),
-            Rule::type_expr => inner.next().unwrap().try_into(),
+            Rule::type_expr => {
+                let mut inner = inner;
+
+                let mut ty = TypeExpr::try_from(inner.next().unwrap())?;
+
+                for ref_pair in inner {
+                    let mut ref_inner = ref_pair.into_inner();
+
+                    ty = TypeExpr::Ref {
+                        lifetime: consume_rule(&mut ref_inner, Rule::ref_lifetime)
+                            .map(|v| v.into_inner().next().map(Lifetime::try_from))
+                            .unwrap_or_default()
+                            .transpose()
+                            .get()?,
+                        mutable: listen_rule(&mut ref_inner, Rule::mutable),
+                        ty: Box::new(ty),
+                    };
+                }
+
+                Ok(ty)
+            }
             Rule::lifetime => ast_expr!(TypeExpr::Lifetime(inner.next().unwrap().try_into())),
 
             Rule::tuple_type => ast_expr!(TypeExpr::Tuple(collect_recovered(inner))),
@@ -26,16 +46,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
                 ))
             }
 
-            Rule::ref_type => {
-                ast_expr!(TypeExpr::Ref {
-                    lifetime: consume_rule(&mut inner, Rule::ref_lifetime)
-                        .map(|v| v.into_inner().next().map(Lifetime::try_from))
-                        .unwrap_or_default()
-                        .transpose(),
-                    mutable: Ok(listen_rule(&mut inner, Rule::mutable)) as AstResult<bool>,
-                    ty: TypeExpr::try_from(inner.next().unwrap()).map(Box::new),
-                })
-            }
             Rule::dyn_type => {
                 ast_expr!(TypeExpr::Dyn(
                     TypeExpr::try_from(inner.next().unwrap()).map(Box::new),

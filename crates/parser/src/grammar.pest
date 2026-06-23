@@ -82,7 +82,7 @@ module_program = {
 
 visibility = { "pub" ~ ("(" ~ static_path ~ ")")? }
 mutable    = { "mut" }
-unsafe_kw    = { "unsafe" }
+unsafe_kw  = { "unsafe" }
 
 // ======================================================
 // GENERICS
@@ -108,7 +108,7 @@ path_type = {
 ref_lifetime = { lifetime | unsafe_kw }
 
 ref_type = {
-    "*" ~ ref_lifetime? ~ mutable? ~ type_expr
+    mutable? ~ ref_lifetime? ~ "&"
 }
 
 dyn_type = {
@@ -116,7 +116,7 @@ dyn_type = {
 }
 
 type_expr = {
-    (path_type | tuple_type | ref_type | dyn_type)
+    (path_type | tuple_type | dyn_type) ~ ref_type*
 }
 
 lifetime = {
@@ -200,15 +200,16 @@ attributes = {
 // DECLARATION HELPERS
 // ======================================================
 var_decl = {
-    "let" ~ pattern ~ type_expr?
+    ("let" | type_expr) ~ pattern
 }
 
 field = {
-    visibility? ~ identifier ~ type_expr
+    visibility? ~ type_expr ~ identifier
 }
 
 param = {
-    pattern ~ type_expr?
+    (type_expr ~ pattern)
+  | pattern
 }
 
 field_list = {
@@ -286,7 +287,7 @@ class_field = {
 }
 
 self_param = {
-    (deref_px ~ lifetime?)? ~ mutable? ~ "self"
+    (ref_px ~ lifetime?)? ~ mutable? ~ "self"
 }
 
 method_args = _{
@@ -333,7 +334,7 @@ trait_decl = {
 override_kw = { "override" ~ ("(" ~ expr_path ~ ")")? }
 
 function_decl = {
-    visibility? ~ "fn" ~ ("void" | type_expr) ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ override_kw? ~ (block | semicolon)
+    visibility? ~ ("void" | type_expr) ~ identifier ~ generics_decl? ~ "(" ~ method_args ~ ")" ~ override_kw? ~ (block | semicolon)
 }
 
 // ======================================================

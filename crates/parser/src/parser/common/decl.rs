@@ -3,6 +3,7 @@ use crate::{
     ast::*,
     ast_expr,
     error::{AstError, IntoErr, collect_recovered},
+    parser::consume_rule,
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDeclStmt {
@@ -52,8 +53,10 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDecl {
                 let mut inner = pair.into_inner();
 
                 ast_expr!(VarDecl {
+                    type_: consume_rule(&mut inner, Rule::type_expr)
+                        .map(TypeExpr::try_from)
+                        .transpose(),
                     name: Pattern::try_from(inner.next().unwrap()),
-                    type_: inner.next().map(TypeExpr::try_from).transpose(),
                 })
             }
 
@@ -72,8 +75,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FieldDecl {
 
                 ast_expr!(FieldDecl {
                     visibility: Visibility::try_from(&mut inner),
-                    name: Identifier::try_from(inner.next().unwrap()),
                     type_: TypeExpr::try_from(inner.next().unwrap()),
+                    name: Identifier::try_from(inner.next().unwrap()),
                 })
             }
 
