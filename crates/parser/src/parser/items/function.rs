@@ -27,7 +27,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
 
             let self_param = consume_rule(&mut inner, Rule::self_param).map(|param| {
                 let mut param_inner = param.into_inner();
-                let is_ref = listen_rule(&mut param_inner, Rule::deref_px);
+                let is_ref = listen_rule(&mut param_inner, Rule::ref_px);
                 let lifetime = consume_rule(&mut param_inner, Rule::lifetime);
                 let mutable = listen_rule(&mut param_inner, Rule::mutable);
                 let name = Pattern::Path(mutable && !is_ref, Path(vec![Identifier(String::from("self"))]));

@@ -19,7 +19,7 @@ The `div` reduces the vertical height. The `picture` prevents autolinking.
 
 **Fast and works with Rust**
 
-- All of your favourite Rust libraries work with Mist
+- All of your favorite Rust libraries work with Mist
 - Compiles directly into efficient Rust code
 - Zero-cost abstractions, no runtime overhead
 

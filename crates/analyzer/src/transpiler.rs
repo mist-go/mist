@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use mist_codegen::RustCodegen;
-use mist_parser::rev_mapper::Mapping;
 use mist_parser::parse;
+use mist_parser::rev_mapper::Mapping;
 
 pub struct TranspiledFile {
     pub mist_path: PathBuf,
@@ -26,20 +26,23 @@ pub fn transpile_mist(
 
     let parsed = parse(source).map_err(|e| format!("parse error: {e:?}"))?;
 
-    for item in &parsed {
+    for item in &parsed.items {
         mist_parser::semantics::check_class_semantics(item)
             .map_err(|e| format!("semantic error: {}", e[0].error_message))?;
     }
 
     let mut codegen = RustCodegen::new(mist_path.to_path_buf());
-    let output = codegen.generate(parsed);
 
-    codegen.mapping.shift_rust(extra_mod_decl.lines().count() as isize, 0);
+    codegen.generate(parsed.mod_attributes);
+
+    codegen.add(extra_mod_decl);
+
+    let output = codegen.generate(parsed.items);
 
     Ok(TranspiledFile {
         mist_path: mist_path.to_path_buf(),
         rust_path,
-        rust_content: format!("{}{}", extra_mod_decl, output),
+        rust_content: output,
         mapping: codegen.mapping,
     })
 }

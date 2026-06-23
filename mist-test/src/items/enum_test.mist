@@ -5,7 +5,7 @@ enum OptionInt {
     Some(i32),
 }
 
-pub fn void test_enum_named() {
+pub void test_enum_named() {
     let x = OptionInt::None;
     match x {
         OptionInt::None => { assert_eq!(1, 1); }
@@ -13,7 +13,7 @@ pub fn void test_enum_named() {
     }
 }
 
-pub fn void test_enum_tuple() {
+pub void test_enum_tuple() {
     let x = OptionInt::Some(42);
     match x {
         OptionInt::None => { assert_eq!(0, 1); }
@@ -22,11 +22,11 @@ pub fn void test_enum_tuple() {
 }
 
 enum Shape {
-    Circle { radius i32 },
-    Rect { w i32, h i32 },
+    Circle { i32 radius },
+    Rect { i32 w, i32 h },
 }
 
-pub fn void test_enum_struct() {
+pub void test_enum_struct() {
     let c = Shape::Circle { radius: 5 };
     match c {
         Shape::Circle { radius } => { assert_eq!(radius, 5); }
@@ -46,7 +46,7 @@ enum Color {
     Blue,
 }
 
-pub fn void test_enum_eq() {
+pub void test_enum_eq() {
     let c = Color::Red;
     match c {
         Color::Red => { assert_eq!(1, 1); }
@@ -54,7 +54,7 @@ pub fn void test_enum_eq() {
     }
 }
 
-pub fn void run_tests() {
+pub void run_tests() {
     test_enum_named();
     test_enum_tuple();
     test_enum_struct();

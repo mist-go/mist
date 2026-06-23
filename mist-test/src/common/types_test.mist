@@ -1,58 +1,58 @@
 pub module types_test;
 
-pub fn void test_integer_type() {
-    let x i32 = 42;
+pub void test_integer_type() {
+    i32 x = 42;
     assert_eq!(x, 42);
 }
 
-pub fn void test_float_type() {
-    let x f64 = 3.14;
+pub void test_float_type() {
+    f64 x = 3.14;
     assert_eq!(x, 3.14);
 }
 
-pub fn void test_bool_type() {
-    let x bool = true;
+pub void test_bool_type() {
+    bool x = true;
     assert_eq!(x, true);
 
-    let y bool = false;
+    bool y = false;
     assert_eq!(y, false);
 }
 
-pub fn void test_string_type() {
-    let s *str = "hello";
+pub void test_string_type() {
+    str& s = "hello";
     assert_eq!(s, "hello");
 }
 
-pub fn void test_tuple_type() {
-    let t (i32, *str) = (42, "answer");
+pub void test_tuple_type() {
+    (i32, str&) t = (42, "answer");
     assert_eq!(t.0, 42);
     assert_eq!(t.1, "answer");
 }
 
-pub fn void test_ref_type() {
-    let x i32 = 42;
-    let r *i32 = &x;
+pub void test_ref_type() {
+    i32 x = 42;
+    i32& r = &x;
     assert_eq!(*r, 42);
 }
 
-pub fn void test_mut_ref_type() {
+pub void test_mut_ref_type() {
     let mut x = 42;
-    let r *mut i32 = &mut x;
+    i32 mut& r = &mut x;
     *r = 100;
     assert_eq!(x, 100);
 }
 
-pub fn void test_void_type() {}
+pub void test_void_type() {}
 
-fn i32 add(a i32, b i32) {
+i32 add(i32 a, i32 b) {
     a + b
 }
 
-pub fn void test_fn_return_type() {
+pub void test_fn_return_type() {
     assert_eq!(add(3, 4), 7);
 }
 
-pub fn void run_tests() {
+pub void run_tests() {
     test_integer_type();
     test_float_type();
     test_bool_type();
