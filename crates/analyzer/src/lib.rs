@@ -7,8 +7,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use mist_parser::error::ParseError;
-use mist_parser::rev_mapper::{Mapping, MistMap, RustMap};
 use mist_parser::parse;
+use mist_parser::rev_mapper::{Mapping, MistMap, RustMap};
 use ropey::Rope;
 use serde::Deserialize;
 use serde_json::Value;
@@ -22,31 +22,9 @@ use crate::transpiler::transpile_mist;
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 const KEYWORDS: [&'static str; 25] = [
-    "if",
-    "else",
-    "for",
-    "while",
-    "match",
-    "return",
-    "break",
-    "continue",
-    "struct",
-    "enum",
-    "class",
-    "trait",
-    "impl",
-    "pub",
-    "mut",
-    "let",
-    "true",
-    "false",
-    "dyn",
-    "loop",
-    "fn",
-    "unsafe",
-    "override",
-    "module",
-    "void"
+    "if", "else", "for", "while", "match", "return", "break", "continue", "struct", "enum",
+    "class", "trait", "impl", "pub", "mut", "let", "true", "false", "dyn", "loop", "fn", "unsafe",
+    "override", "module", "void",
 ];
 
 fn keyword_completion_items() -> impl Iterator<Item = CompletionItem> {
@@ -157,8 +135,7 @@ fn inject_marker_at(source: &str, line: u32, character: u32, marker: &str) -> Op
     // Not on an identifier.  If the cursor is on a `.` treat it as a field-access
     // and inject the marker as an identifier right after the dot.
     if after.starts_with('.') {
-        let dot_end = offset + '.'.
-            len_utf8();
+        let dot_end = offset + '.'.len_utf8();
         let mut s = String::with_capacity(source.len() + marker.len() + 4);
         s.push_str(&source[..dot_end]);
         s.push_str(marker);
@@ -175,7 +152,6 @@ fn inject_marker_at(source: &str, line: u32, character: u32, marker: &str) -> Op
     s.push_str(&source[offset..]);
     Some(s)
 }
-
 
 fn find_marker_position(content: &str, marker: &str) -> Option<Position> {
     let idx = content.find(marker)?;
@@ -424,7 +400,10 @@ impl Backend {
         let rust_uri = match clean_lsp_url(&transpiled.rust_path) {
             Some(u) => u,
             None => {
-                eprintln!("[marker] failed to create URI for {:?}", transpiled.rust_path);
+                eprintln!(
+                    "[marker] failed to create URI for {:?}",
+                    transpiled.rust_path
+                );
                 return None;
             }
         };
@@ -488,23 +467,21 @@ impl Backend {
             Ok(t) => t,
             Err(e) => {
                 eprintln!("transpile error for {:?}: {e}", mist_path);
-                let diag = transpile_error_to_diagnostic(source).unwrap_or_else(|| {
-                    Diagnostic {
-                        range: Range {
-                            start: Position {
-                                line: 0,
-                                character: 0,
-                            },
-                            end: Position {
-                                line: 0,
-                                character: 1,
-                            },
+                let diag = transpile_error_to_diagnostic(source).unwrap_or_else(|| Diagnostic {
+                    range: Range {
+                        start: Position {
+                            line: 0,
+                            character: 0,
                         },
-                        severity: Some(DiagnosticSeverity::ERROR),
-                        source: Some("mist".to_string()),
-                        message: format!("Transpile error: {e}"),
-                        ..Default::default()
-                    }
+                        end: Position {
+                            line: 0,
+                            character: 1,
+                        },
+                    },
+                    severity: Some(DiagnosticSeverity::ERROR),
+                    source: Some("mist".to_string()),
+                    message: format!("Transpile error: {e}"),
+                    ..Default::default()
                 });
                 if let Some(uri) = clean_lsp_url(mist_path) {
                     self.publish_diagnostics(uri, vec![diag]).await;
@@ -909,7 +886,10 @@ impl LanguageServer for Backend {
             )
             .await
         else {
-            eprintln!("[completion] resolve_mist_via_marker returned None at ({}, {})", mist_pos.line, mist_pos.character);
+            eprintln!(
+                "[completion] resolve_mist_via_marker returned None at ({}, {})",
+                mist_pos.line, mist_pos.character
+            );
             return Ok(None);
         };
 
@@ -942,9 +922,14 @@ impl LanguageServer for Backend {
                     cleaned.iter().map(|item| item.label.clone()).collect();
 
                 cleaned.extend(
-                    keyword_completion_items()
-                        .filter(|item| !existing.contains(&item.label)),
+                    keyword_completion_items().filter(|item| !existing.contains(&item.label)),
                 );
+
+                for item in &mut cleaned {
+                    if item.label.starts_with("__") {
+                        item.sort_text = Some("zzzz".to_string());
+                    }
+                }
 
                 Ok(Some(CompletionResponse::Array(cleaned)))
             }
@@ -957,9 +942,14 @@ impl LanguageServer for Backend {
                     cleaned.iter().map(|item| item.label.clone()).collect();
 
                 cleaned.extend(
-                    keyword_completion_items()
-                        .filter(|item| !existing.contains(&item.label)),
+                    keyword_completion_items().filter(|item| !existing.contains(&item.label)),
                 );
+
+                for item in &mut cleaned {
+                    if item.label.starts_with("__") {
+                        item.sort_text = Some("zzzz".to_string());
+                    }
+                }
 
                 list.items = cleaned;
 
@@ -1004,13 +994,18 @@ impl LanguageServer for Backend {
             )
             .await
         else {
-            eprintln!("[goto_definition] resolve_mist_via_marker returned None at ({}, {})", mist_pos.line, mist_pos.character);
+            eprintln!(
+                "[goto_definition] resolve_mist_via_marker returned None at ({}, {})",
+                mist_pos.line, mist_pos.character
+            );
             return Ok(None);
         };
 
         let gd_params = GotoDefinitionParams {
             text_document_position_params: TextDocumentPositionParams {
-                text_document: TextDocumentIdentifier { uri: rust_uri.clone() },
+                text_document: TextDocumentIdentifier {
+                    uri: rust_uri.clone(),
+                },
                 position: rust_pos,
             },
             work_done_progress_params: WorkDoneProgressParams {
@@ -1049,7 +1044,9 @@ impl LanguageServer for Backend {
                         })))
                     }
                     None => {
-                        if let Some(normalized) = loc.uri.to_file_path().ok().and_then(|p| clean_lsp_url(&p)) {
+                        if let Some(normalized) =
+                            loc.uri.to_file_path().ok().and_then(|p| clean_lsp_url(&p))
+                        {
                             eprintln!("[goto_definition] returning raw rust loc");
                             Ok(Some(GotoDefinitionResponse::Scalar(Location {
                                 uri: normalized,
@@ -1078,7 +1075,9 @@ impl LanguageServer for Backend {
                                 },
                             },
                         });
-                    } else if let Some(normalized) = loc.uri.to_file_path().ok().and_then(|p| clean_lsp_url(&p)) {
+                    } else if let Some(normalized) =
+                        loc.uri.to_file_path().ok().and_then(|p| clean_lsp_url(&p))
+                    {
                         mapped.push(Location {
                             uri: normalized,
                             range: loc.range,
@@ -1113,8 +1112,11 @@ impl LanguageServer for Backend {
                                 },
                             },
                         });
-                    } else if let Some(normalized) =
-                        link.target_uri.to_file_path().ok().and_then(|p| clean_lsp_url(&p))
+                    } else if let Some(normalized) = link
+                        .target_uri
+                        .to_file_path()
+                        .ok()
+                        .and_then(|p| clean_lsp_url(&p))
                     {
                         mapped.push(LocationLink {
                             origin_selection_range: link.origin_selection_range,
@@ -1161,7 +1163,10 @@ impl LanguageServer for Backend {
             )
             .await
         else {
-            eprintln!("[hover] resolve_mist_via_marker returned None at ({}, {})", mist_pos.line, mist_pos.character);
+            eprintln!(
+                "[hover] resolve_mist_via_marker returned None at ({}, {})",
+                mist_pos.line, mist_pos.character
+            );
             return Ok(None);
         };
 
@@ -1220,58 +1225,56 @@ async fn handle_ra_notifications(
 
                     let mist_uri = rust_uri_to_mist_uri(&rust_uri);
 
-                    let mapped_diagnostics: Vec<Diagnostic> =
-                        if let Some(ref _mist_uri) = mist_uri {
-                            let rust_path = rust_uri.to_file_path().ok();
-                            let map_data = match rust_path {
-                                Some(ref p) => mapping.lock().await.get(p).cloned(),
-                                None => None,
-                            };
-
-                            diagnostics
-                                .into_iter()
-                                .filter_map(|diag| {
-                                    let map = map_data.clone()?;
-
-                                    let rust_start = lsp_pos_to_rust_map(&diag.range.start);
-                                    let rust_end = lsp_pos_to_rust_map(&diag.range.end);
-
-                                    let (_, mist_start) = map.find(&rust_start)?;
-                                    let (_, mist_end) = map.find(&rust_end)?;
-
-                                    let mist_start_pos = mist_map_to_lsp_pos(&mist_start);
-                                    let mist_end_pos = mist_map_to_lsp_pos(&mist_end);
-
-                                    let final_end = Position {
-                                        line: mist_end_pos.line.max(mist_start_pos.line),
-                                        character: if mist_end_pos.line == mist_start_pos.line {
-                                            mist_end_pos
-                                                .character
-                                                .max(mist_start_pos.character + 1)
-                                        } else {
-                                            mist_end_pos.character.max(1)
-                                        },
-                                    };
-
-                                    Some(Diagnostic {
-                                        range: Range {
-                                            start: mist_start_pos,
-                                            end: final_end,
-                                        },
-                                        severity: diag.severity,
-                                        code: diag.code,
-                                        code_description: diag.code_description,
-                                        source: diag.source,
-                                        message: diag.message,
-                                        related_information: diag.related_information,
-                                        tags: diag.tags,
-                                        data: diag.data,
-                                    })
-                                })
-                                .collect()
-                        } else {
-                            diagnostics
+                    let mapped_diagnostics: Vec<Diagnostic> = if let Some(ref _mist_uri) = mist_uri
+                    {
+                        let rust_path = rust_uri.to_file_path().ok();
+                        let map_data = match rust_path {
+                            Some(ref p) => mapping.lock().await.get(p).cloned(),
+                            None => None,
                         };
+
+                        diagnostics
+                            .into_iter()
+                            .filter_map(|diag| {
+                                let map = map_data.clone()?;
+
+                                let rust_start = lsp_pos_to_rust_map(&diag.range.start);
+                                let rust_end = lsp_pos_to_rust_map(&diag.range.end);
+
+                                let (_, mist_start) = map.find(&rust_start)?;
+                                let (_, mist_end) = map.find(&rust_end)?;
+
+                                let mist_start_pos = mist_map_to_lsp_pos(&mist_start);
+                                let mist_end_pos = mist_map_to_lsp_pos(&mist_end);
+
+                                let final_end = Position {
+                                    line: mist_end_pos.line.max(mist_start_pos.line),
+                                    character: if mist_end_pos.line == mist_start_pos.line {
+                                        mist_end_pos.character.max(mist_start_pos.character + 1)
+                                    } else {
+                                        mist_end_pos.character.max(1)
+                                    },
+                                };
+
+                                Some(Diagnostic {
+                                    range: Range {
+                                        start: mist_start_pos,
+                                        end: final_end,
+                                    },
+                                    severity: diag.severity,
+                                    code: diag.code,
+                                    code_description: diag.code_description,
+                                    source: diag.source,
+                                    message: diag.message,
+                                    related_information: diag.related_information,
+                                    tags: diag.tags,
+                                    data: diag.data,
+                                })
+                            })
+                            .collect()
+                    } else {
+                        diagnostics
+                    };
 
                     if let Some(mist_uri) = mist_uri.or(Some(rust_uri.clone())) {
                         let prev = previous_diagnostics.lock().await.get(&mist_uri).cloned();
@@ -1432,10 +1435,7 @@ fn compute_mod_decls(
     result
 }
 
-fn ensure_implicit_packages_impl(
-    docs: &mut HashMap<PathBuf, Rope>,
-    src_root: &Path,
-) {
+fn ensure_implicit_packages_impl(docs: &mut HashMap<PathBuf, Rope>, src_root: &Path) {
     let mut dirs_with_mist: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
     for mist_path in docs.keys() {
         if let Ok(rel) = mist_path.strip_prefix(src_root) {
