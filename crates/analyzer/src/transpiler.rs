@@ -11,11 +11,17 @@ pub struct TranspiledFile {
     pub mapping: Mapping,
 }
 
-pub fn transpile_mist(
+#[derive(Debug)]
+pub enum TranspileError<'a> {
+    Parse(mist_parser::error::ParseError<'a, Vec<mist_parser::ast::TopLevel>>),
+    Semantic(Vec<mist_parser::semantics::SemanticError>),
+}
+
+pub fn transpile_mist<'a>(
     mist_path: &Path,
-    source: &str,
+    source: &'a str,
     extra_mod_decl: &str,
-) -> Result<TranspiledFile, String> {
+) -> Result<TranspiledFile, TranspileError<'a>> {
     let mut rust_path = crate::from_mist_to_rust(mist_path.to_path_buf());
     // Package files (package.mist) must output as <dir>/mod.rs so the Rust module
     // hierarchy resolves correctly (pub mod <child>; declarations look for sibling
@@ -24,11 +30,10 @@ pub fn transpile_mist(
         rust_path.set_file_name("mod.rs");
     }
 
-    let parsed = parse(source).map_err(|e| format!("parse error: {e:?}"))?;
+    let parsed = parse(source).map_err(TranspileError::Parse)?;
 
     for item in &parsed.items {
-        mist_parser::semantics::check_class_semantics(item)
-            .map_err(|e| format!("semantic error: {}", e[0].error_message))?;
+        mist_parser::semantics::check_class_semantics(item).map_err(TranspileError::Semantic)?;
     }
 
     let mut codegen = RustCodegen::new(mist_path.to_path_buf());

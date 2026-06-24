@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use mist_parser::error::ParseError;
-use mist_parser::parse;
 use mist_parser::rev_mapper::{Mapping, MistMap, RustMap};
 use ropey::Rope;
 use serde::Deserialize;
@@ -17,7 +16,7 @@ use tower_lsp::lsp_types::{self, *};
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::rust_analyzer::RustAnalyzer;
-use crate::transpiler::{transpile_mist, transpile_mist_no_sem};
+use crate::transpiler::{TranspileError, transpile_mist, transpile_mist_no_sem};
 
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -240,9 +239,9 @@ struct MarkerRestore {
 /// Re-parse the source to extract a proper LSP diagnostic from the error.
 /// Returns None when the error is a semantic check failure (can be multiple
 /// errors) or when re-parsing unexpectedly succeeds.
-fn transpile_error_to_diagnostic(source: &str) -> Option<Diagnostic> {
-    match parse(source) {
-        Err(ParseError::PreAst(pest_err)) => {
+fn transpile_error_to_diagnostic(source: &str, error: TranspileError<'_>) -> Vec<Diagnostic> {
+    match error {
+        TranspileError::Parse(ParseError::PreAst(pest_err)) => {
             let (line, col) = match pest_err.line_col {
                 pest::error::LineColLocation::Pos((l, c)) => (l, c),
                 pest::error::LineColLocation::Span((l, c), _) => (l, c),
@@ -281,7 +280,7 @@ fn transpile_error_to_diagnostic(source: &str) -> Option<Diagnostic> {
                 }
                 pest::error::ErrorVariant::CustomError { message } => message.clone(),
             };
-            Some(Diagnostic {
+            vec![Diagnostic {
                 range: Range {
                     start: Position {
                         line: line as u32 - 1,
@@ -296,20 +295,38 @@ fn transpile_error_to_diagnostic(source: &str) -> Option<Diagnostic> {
                 source: Some("mist".to_string()),
                 message,
                 ..Default::default()
-            })
+            }]
         }
-        Err(ParseError::Ast(ast_err)) => {
+        TranspileError::Parse(ParseError::Ast(ast_err)) => {
             let start = byte_offset_to_lsp_pos(source, ast_err.span.start());
             let end = byte_offset_to_lsp_pos(source, ast_err.span.end());
-            Some(Diagnostic {
+            vec![Diagnostic {
                 range: Range { start, end },
                 severity: Some(DiagnosticSeverity::ERROR),
                 source: Some("mist".to_string()),
                 message: ast_err.error_message.clone(),
                 ..Default::default()
-            })
+            }]
         }
-        Ok(_) => None,
+        TranspileError::Semantic(e) => e
+            .into_iter()
+            .map(|e| Diagnostic {
+                range: Range {
+                    start: Position {
+                        line: e.line as u32 - 1,
+                        character: e.column as u32 - 1,
+                    },
+                    end: Position {
+                        line: e.line as u32 - 1,
+                        character: e.column as u32,
+                    },
+                },
+                severity: Some(DiagnosticSeverity::ERROR),
+                source: Some("mist".to_string()),
+                message: e.error_message,
+                ..Default::default()
+            })
+            .collect(),
     }
 }
 
@@ -512,25 +529,10 @@ impl Backend {
         let transpiled = match transpile_mist(mist_path, source, extra_mod_decl) {
             Ok(t) => t,
             Err(e) => {
-                eprintln!("transpile error for {:?}: {e}", mist_path);
-                let diag = transpile_error_to_diagnostic(source).unwrap_or_else(|| Diagnostic {
-                    range: Range {
-                        start: Position {
-                            line: 0,
-                            character: 0,
-                        },
-                        end: Position {
-                            line: 0,
-                            character: 1,
-                        },
-                    },
-                    severity: Some(DiagnosticSeverity::ERROR),
-                    source: Some("mist".to_string()),
-                    message: format!("Transpile error: {e}"),
-                    ..Default::default()
-                });
+                eprintln!("transpile error for {:?}: {e:?}", mist_path);
+                let diag = transpile_error_to_diagnostic(source, e);
                 if let Some(uri) = clean_lsp_url(mist_path) {
-                    self.publish_diagnostics(uri, vec![diag]).await;
+                    self.publish_diagnostics(uri, diag).await;
                 }
                 return;
             }
@@ -758,7 +760,7 @@ impl LanguageServer for Backend {
                     let transpiled = match transpile_mist(file, &source, decl) {
                         Ok(t) => t,
                         Err(e) => {
-                            eprintln!("transpile error for {:?}: {e}", file);
+                            eprintln!("transpile error for {:?}: {e:?}", file);
                             continue;
                         }
                     };
@@ -990,8 +992,7 @@ impl LanguageServer for Backend {
             self.restore_after_marker(restore).await;
         }
 
-        match completion_result
-        {
+        match completion_result {
             Ok(Some(CompletionResponse::Array(items))) => {
                 let mut cleaned: Vec<CompletionItem> =
                     items.into_iter().map(clean_completion_item).collect();
