@@ -46,3 +46,35 @@ pub fn transpile_mist(
         mapping: codegen.mapping,
     })
 }
+
+/// No Semantics
+pub fn transpile_mist_no_sem(
+    mist_path: &Path,
+    source: &str,
+    extra_mod_decl: &str,
+) -> Result<TranspiledFile, String> {
+    let mut rust_path = crate::from_mist_to_rust(mist_path.to_path_buf());
+    // Package files (package.mist) must output as <dir>/mod.rs so the Rust module
+    // hierarchy resolves correctly (pub mod <child>; declarations look for sibling
+    // .rs files, and the parent module declaration looks for <dir>/mod.rs).
+    if mist_path.file_name().and_then(|n| n.to_str()) == Some("package.mist") {
+        rust_path.set_file_name("mod.rs");
+    }
+
+    let parsed = parse(source).map_err(|e| format!("parse error: {e:?}"))?;
+
+    let mut codegen = RustCodegen::new(mist_path.to_path_buf());
+
+    codegen.generate(parsed.mod_attributes);
+
+    codegen.add(extra_mod_decl);
+
+    let output = codegen.generate(parsed.items);
+
+    Ok(TranspiledFile {
+        mist_path: mist_path.to_path_buf(),
+        rust_path,
+        rust_content: output,
+        mapping: codegen.mapping,
+    })
+}
