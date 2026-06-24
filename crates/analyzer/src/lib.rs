@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use mist_parser::error::ParseError;
-use mist_parser::parse;
 use mist_parser::rev_mapper::{Mapping, MistMap, RustMap};
 use ropey::Rope;
 use serde::Deserialize;
@@ -17,7 +16,7 @@ use tower_lsp::lsp_types::{self, *};
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::rust_analyzer::RustAnalyzer;
-use crate::transpiler::transpile_mist;
+use crate::transpiler::{TranspileError, transpile_mist, transpile_mist_no_sem};
 
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -227,12 +226,22 @@ fn byte_offset_to_lsp_pos(source: &str, offset: usize) -> Position {
     }
 }
 
+/// Holds saved state for restoring rust-analyzer content after a temporary
+/// marker-driven request (goto, hover, completion). Only populated when
+/// markered content was pushed to rust-analyzer and must be reverted.
+struct MarkerRestore {
+    rust_uri: Url,
+    mist_path: PathBuf,
+    original_content: String,
+    original_version: i32,
+}
+
 /// Re-parse the source to extract a proper LSP diagnostic from the error.
 /// Returns None when the error is a semantic check failure (can be multiple
 /// errors) or when re-parsing unexpectedly succeeds.
-fn transpile_error_to_diagnostic(source: &str) -> Option<Diagnostic> {
-    match parse(source) {
-        Err(ParseError::PreAst(pest_err)) => {
+fn transpile_error_to_diagnostic(source: &str, error: TranspileError<'_>) -> Vec<Diagnostic> {
+    match error {
+        TranspileError::Parse(ParseError::PreAst(pest_err)) => {
             let (line, col) = match pest_err.line_col {
                 pest::error::LineColLocation::Pos((l, c)) => (l, c),
                 pest::error::LineColLocation::Span((l, c), _) => (l, c),
@@ -271,7 +280,7 @@ fn transpile_error_to_diagnostic(source: &str) -> Option<Diagnostic> {
                 }
                 pest::error::ErrorVariant::CustomError { message } => message.clone(),
             };
-            Some(Diagnostic {
+            vec![Diagnostic {
                 range: Range {
                     start: Position {
                         line: line as u32 - 1,
@@ -286,26 +295,48 @@ fn transpile_error_to_diagnostic(source: &str) -> Option<Diagnostic> {
                 source: Some("mist".to_string()),
                 message,
                 ..Default::default()
-            })
+            }]
         }
-        Err(ParseError::Ast(ast_err)) => {
+        TranspileError::Parse(ParseError::Ast(ast_err)) => {
             let start = byte_offset_to_lsp_pos(source, ast_err.span.start());
             let end = byte_offset_to_lsp_pos(source, ast_err.span.end());
-            Some(Diagnostic {
+            vec![Diagnostic {
                 range: Range { start, end },
                 severity: Some(DiagnosticSeverity::ERROR),
                 source: Some("mist".to_string()),
                 message: ast_err.error_message.clone(),
                 ..Default::default()
-            })
+            }]
         }
-        Ok(_) => None,
+        TranspileError::Semantic(e) => e
+            .into_iter()
+            .map(|e| Diagnostic {
+                range: Range {
+                    start: Position {
+                        line: e.line as u32 - 1,
+                        character: e.column as u32 - 1,
+                    },
+                    end: Position {
+                        line: e.line as u32 - 1,
+                        character: e.column as u32,
+                    },
+                },
+                severity: Some(DiagnosticSeverity::ERROR),
+                source: Some("mist".to_string()),
+                message: e.error_message,
+                ..Default::default()
+            })
+            .collect(),
     }
 }
 
 impl Backend {
     /// Resolve a Mist cursor position to a Rust position by injecting a unique marker
     /// into the source at the cursor, transpiling, and finding the marker in the output.
+    ///
+    /// The third return element is an optional `MarkerRestore` that the caller MUST
+    /// pass to `restore_after_marker` **after** it finishes its rust-analyzer request.
+    /// This ensures markered content never pollutes the permanent rust-analyzer state.
     async fn resolve_mist_via_marker(
         &self,
         mist_path: &Path,
@@ -313,7 +344,7 @@ impl Backend {
         line: u32,
         character: u32,
         extra_mod_decl: &str,
-    ) -> Option<(Url, Position)> {
+    ) -> Option<(Url, Position, Option<MarkerRestore>)> {
         let id = MARKER_COUNTER.fetch_add(1, Ordering::Relaxed);
         let marker = format!("__mist_mk{id:x}__");
 
@@ -325,7 +356,7 @@ impl Backend {
             }
         };
 
-        let transpiled = match transpile_mist(mist_path, &modified, extra_mod_decl) {
+        let transpiled = match transpile_mist_no_sem(mist_path, &modified, extra_mod_decl) {
             Ok(t) => t,
             Err(e) => {
                 eprintln!("[marker] transpile failed for {marker} at LSP({line},{character}): {e}");
@@ -339,18 +370,18 @@ impl Backend {
                     rust_path.set_file_name("mod.rs");
                 }
 
-                let (last_mapping, last_content) = {
+                let (last_mapping, last_content, original_version) = {
                     let map_guard = self.mapping.lock().await;
                     let content_guard = self.last_rust_contents.lock().await;
+                    let versions = self.doc_versions.lock().await;
                     let m = map_guard.get(&rust_path)?.clone();
                     let c = content_guard.get(mist_path)?.clone();
-                    (m, c)
+                    let v = versions.get(mist_path).copied().unwrap_or(0);
+                    (m, c, v)
                 };
 
                 let (_rust_before, mist_before) = last_mapping.find_by_mist(&mist_target)?;
 
-                // Find the next mapping entry after mist_before — the marker goes
-                // right before it in the Rust output, filling the gap.
                 let rust_next = last_mapping
                     .map
                     .iter()
@@ -372,22 +403,30 @@ impl Backend {
 
                 let rust_uri = clean_lsp_url(&rust_path)?;
 
+                // Save original state, then push markered content temporarily.
                 {
                     let mut ra = self.rust_analyzer.lock().await;
                     let mut versions = self.doc_versions.lock().await;
-                    let version = versions.entry(mist_path.to_path_buf()).or_insert(0);
-                    *version += 1;
+                    let temp_version = original_version + 1;
+                    versions.insert(mist_path.to_path_buf(), temp_version);
                     let _ = ra
-                        .did_change(rust_uri.clone(), &modified_rust, *version)
+                        .did_change(rust_uri.clone(), &modified_rust, temp_version)
                         .await;
                 }
+
+                let restore = MarkerRestore {
+                    rust_uri: rust_uri.clone(),
+                    mist_path: mist_path.to_path_buf(),
+                    original_content: last_content,
+                    original_version,
+                };
 
                 eprintln!(
                     "[marker] {marker} (fallback): mist LSP({line},{character}) -> rust LSP({},{})",
                     rust_pos.line, rust_pos.character
                 );
 
-                return Some((rust_uri, rust_pos));
+                return Some((rust_uri, rust_pos, Some(restore)));
             }
         };
         let rust_pos = match find_marker_position(&transpiled.rust_content, &marker) {
@@ -413,20 +452,44 @@ impl Backend {
             rust_pos.line, rust_pos.character
         );
 
-        // If actual source can't be transpiled, rust-analyzer's file is stale.
-        // Push the markered transpiled content so the upcoming LSP request (completion,
-        // hover, goto_def) sees the right context (the marker acts as placeholder).
-        if transpile_mist(mist_path, source, extra_mod_decl).is_err() {
-            let mut ra = self.rust_analyzer.lock().await;
-            let mut versions = self.doc_versions.lock().await;
-            let version = versions.entry(mist_path.to_path_buf()).or_insert(0);
-            *version += 1;
-            let _ = ra
-                .did_change(rust_uri.clone(), &transpiled.rust_content, *version)
-                .await;
-        }
+        // If the actual source can't be transpiled, rust-analyzer's file is stale.
+        // Push the markered transpiled content temporarily — the caller MUST restore.
+        let restore = if transpile_mist(mist_path, source, extra_mod_decl).is_err() {
+            let original_content = self
+                .last_rust_contents
+                .lock()
+                .await
+                .get(mist_path)
+                .cloned()?;
+            let original_version = self
+                .doc_versions
+                .lock()
+                .await
+                .get(mist_path)
+                .copied()
+                .unwrap_or(0);
 
-        Some((rust_uri, rust_pos))
+            {
+                let mut ra = self.rust_analyzer.lock().await;
+                let mut versions = self.doc_versions.lock().await;
+                let temp_version = original_version + 1;
+                versions.insert(mist_path.to_path_buf(), temp_version);
+                let _ = ra
+                    .did_change(rust_uri.clone(), &transpiled.rust_content, temp_version)
+                    .await;
+            }
+
+            Some(MarkerRestore {
+                rust_uri: rust_uri.clone(),
+                mist_path: mist_path.to_path_buf(),
+                original_content,
+                original_version,
+            })
+        } else {
+            None
+        };
+
+        Some((rust_uri, rust_pos, restore))
     }
 
     async fn compute_mod_decl_for_file(&self, mist_path: &Path) -> String {
@@ -466,25 +529,10 @@ impl Backend {
         let transpiled = match transpile_mist(mist_path, source, extra_mod_decl) {
             Ok(t) => t,
             Err(e) => {
-                eprintln!("transpile error for {:?}: {e}", mist_path);
-                let diag = transpile_error_to_diagnostic(source).unwrap_or_else(|| Diagnostic {
-                    range: Range {
-                        start: Position {
-                            line: 0,
-                            character: 0,
-                        },
-                        end: Position {
-                            line: 0,
-                            character: 1,
-                        },
-                    },
-                    severity: Some(DiagnosticSeverity::ERROR),
-                    source: Some("mist".to_string()),
-                    message: format!("Transpile error: {e}"),
-                    ..Default::default()
-                });
+                eprintln!("transpile error for {:?}: {e:?}", mist_path);
+                let diag = transpile_error_to_diagnostic(source, e);
                 if let Some(uri) = clean_lsp_url(mist_path) {
-                    self.publish_diagnostics(uri, vec![diag]).await;
+                    self.publish_diagnostics(uri, diag).await;
                 }
                 return;
             }
@@ -570,6 +618,32 @@ impl Backend {
                 .publish_diagnostics(uri, diagnostics, None)
                 .await;
         }
+    }
+
+    /// Restore rust-analyzer content that was temporarily replaced by a marker.
+    /// Only restores if no intervening change has bumped the version further.
+    async fn restore_after_marker(&self, restore: MarkerRestore) {
+        let current_version = self
+            .doc_versions
+            .lock()
+            .await
+            .get(&restore.mist_path)
+            .copied()
+            .unwrap_or(0);
+
+        if current_version != restore.original_version + 1 {
+            // Something else changed the content in the meantime — don't
+            // clobber it with stale data.
+            return;
+        }
+
+        let mut ra = self.rust_analyzer.lock().await;
+        let mut versions = self.doc_versions.lock().await;
+        let new_version = current_version + 1;
+        versions.insert(restore.mist_path.clone(), new_version);
+        let _ = ra
+            .did_change(restore.rust_uri, &restore.original_content, new_version)
+            .await;
     }
 }
 
@@ -686,7 +760,7 @@ impl LanguageServer for Backend {
                     let transpiled = match transpile_mist(file, &source, decl) {
                         Ok(t) => t,
                         Err(e) => {
-                            eprintln!("transpile error for {:?}: {e}", file);
+                            eprintln!("transpile error for {:?}: {e:?}", file);
                             continue;
                         }
                     };
@@ -876,7 +950,7 @@ impl LanguageServer for Backend {
         };
 
         let mod_decl = self.compute_mod_decl_for_file(&mist_path).await;
-        let Some((rust_uri, rust_pos)) = self
+        let Some((rust_uri, rust_pos, marker_restore)) = self
             .resolve_mist_via_marker(
                 &mist_path,
                 &source,
@@ -907,13 +981,18 @@ impl LanguageServer for Backend {
             context: params.context,
         };
 
-        match self
+        let completion_result = self
             .rust_analyzer
             .lock()
             .await
             .request::<lsp_types::request::Completion>(comp_params)
-            .await
-        {
+            .await;
+
+        if let Some(restore) = marker_restore {
+            self.restore_after_marker(restore).await;
+        }
+
+        match completion_result {
             Ok(Some(CompletionResponse::Array(items))) => {
                 let mut cleaned: Vec<CompletionItem> =
                     items.into_iter().map(clean_completion_item).collect();
@@ -984,7 +1063,7 @@ impl LanguageServer for Backend {
         };
 
         let mod_decl = self.compute_mod_decl_for_file(&mist_path).await;
-        let Some((rust_uri, rust_pos)) = self
+        let Some((rust_uri, rust_pos, marker_restore)) = self
             .resolve_mist_via_marker(
                 &mist_path,
                 &source,
@@ -1020,13 +1099,20 @@ impl LanguageServer for Backend {
             rust_uri, rust_pos.line, rust_pos.character
         );
 
-        match self
+        let result = self
             .rust_analyzer
             .lock()
             .await
             .request::<lsp_types::request::GotoDefinition>(gd_params)
-            .await
-        {
+            .await;
+
+        // Restore original content before processing result — must happen
+        // even when the request fails to keep rust-analyzer state clean.
+        if let Some(restore) = marker_restore {
+            self.restore_after_marker(restore).await;
+        }
+
+        match result {
             Ok(Some(GotoDefinitionResponse::Scalar(loc))) => {
                 eprintln!("[goto_definition] Scalar response");
                 match self.map_rust_to_mist_pos(&loc.uri, &loc.range.start).await {
@@ -1153,7 +1239,7 @@ impl LanguageServer for Backend {
         };
 
         let mod_decl = self.compute_mod_decl_for_file(&mist_path).await;
-        let Some((rust_uri, rust_pos)) = self
+        let Some((rust_uri, rust_pos, marker_restore)) = self
             .resolve_mist_via_marker(
                 &mist_path,
                 &source,
@@ -1180,13 +1266,18 @@ impl LanguageServer for Backend {
             },
         };
 
-        match self
+        let result = self
             .rust_analyzer
             .lock()
             .await
             .request::<lsp_types::request::HoverRequest>(h_params)
-            .await
-        {
+            .await;
+
+        if let Some(restore) = marker_restore {
+            self.restore_after_marker(restore).await;
+        }
+
+        match result {
             Ok(hover) => Ok(hover),
             Err(e) => {
                 eprintln!("hover error: {e}");
