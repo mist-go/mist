@@ -1,8 +1,8 @@
 use crate::{
     Rule,
     ast::*,
-    ast_ensure, ast_expr,
-    error::{self, AstError, AstResult, IntoErr},
+    ast_ensure,
+    error::{self, AstError, AstResult},
     parser::{consume_rule, listen_rule},
 };
 
@@ -12,18 +12,18 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         ast_ensure!(pair, Rule::function_decl => {
         let mut inner = pair.into_inner();
-            let visibility = Visibility::try_from(&mut inner);
+            let visibility = Visibility::try_from(&mut inner)?;
 
             let return_type = consume_rule(&mut inner, Rule::type_expr)
                 .map(TypeExpr::try_from)
-                .transpose();
+                .transpose()?;
 
-            let name = Identifier::try_from(inner.next().unwrap());
+            let name = Identifier::try_from(inner.next().unwrap())?;
 
             let generics = consume_rule(&mut inner, Rule::generics_decl)
                 .map(GenericsDecl::try_from)
                 .transpose()
-                .map(|v| v.unwrap_or_default());
+                .map(|v| v.unwrap_or_default())?;
 
             let self_param = consume_rule(&mut inner, Rule::self_param).map(|param| {
                 let mut param_inner = param.into_inner();
@@ -61,11 +61,11 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
                         Ok(params)
                     }
                 })
-                .unwrap_or_else(|| Ok(ParamList(self_param.into_iter().collect())));
+                .unwrap_or_else(|| Ok(ParamList(self_param.into_iter().collect())))?;
 
-            let is_override = consume_rule(&mut inner, Rule::override_kw).map(Override::try_from).transpose();
+            let is_override = consume_rule(&mut inner, Rule::override_kw).map(Override::try_from).transpose()?;
 
-            let body = inner.next().map(Block::try_from).transpose();
+            let body = inner.next().map(Block::try_from).transpose()?;
 
             Ok(Self {
                 visibility: visibility,
@@ -85,7 +85,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Override {
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         ast_ensure!(pair, Rule::override_kw => {
-            Ok(Override(pair.into_inner().next().map(ExprPath::try_from).transpose()))
+            Ok(Override(pair.into_inner().next().map(ExprPath::try_from).transpose()?))
         })
     }
 }
@@ -98,7 +98,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Lifetime {
 
         match pair.as_rule() {
             Rule::ref_lifetime => inner.next().unwrap().try_into(),
-            Rule::lifetime => Ok(Lifetime::Lifetime(inner.next().unwrap().try_into())),
+            Rule::lifetime => Ok(Lifetime::Lifetime(inner.next().unwrap().try_into()?)),
             Rule::unsafe_kw => Ok(Lifetime::Unsafe),
             _ => error::AstError::bug_unimplemented(pair),
         }

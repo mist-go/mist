@@ -1,7 +1,7 @@
 use crate::{
     Rule,
     ast::*,
-    error::{AstError, IntoErr, collect_recovered},
+    error::{AstError, collect_recovered},
     parser::consume_rule,
 };
 
@@ -16,23 +16,21 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ImplDecl {
             Rule::impl_for_decl => Ok(ImplDecl {
                 generics: consume_rule(&mut inner, Rule::generics_decl)
                     .map(GenericsDecl::try_from)
-                    .transpose()
-                    .get()?
+                    .transpose()?
                     .unwrap_or_default(),
-                trait_: Some(inner.next().unwrap().try_into().get()?),
-                target: inner.next().unwrap().try_into().get()?,
-                methods: collect_recovered(inner).get()?,
+                trait_: Some(inner.next().unwrap().try_into()?),
+                target: inner.next().unwrap().try_into()?,
+                methods: collect_recovered(inner)?,
             }),
 
             Rule::impl_decl => Ok(ImplDecl {
                 generics: consume_rule(&mut inner, Rule::generics_decl)
                     .map(GenericsDecl::try_from)
-                    .transpose()
-                    .get()?
+                    .transpose()?
                     .unwrap_or_default(),
                 trait_: None,
-                target: inner.next().unwrap().try_into().get()?,
-                methods: collect_recovered(inner).get()?,
+                target: inner.next().unwrap().try_into()?,
+                methods: collect_recovered(inner)?,
             }),
 
             _ => AstError::bug_unimplemented(pair),
