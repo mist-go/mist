@@ -3,7 +3,7 @@ use crate::{
     ast::*,
     ast_ensure,
     error::{self, AstError, AstResult},
-    parser::{consume_rule, listen_rule},
+    parser::{consume_rule, consume_rule_map, listen_rule},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
@@ -25,43 +25,19 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
                 .transpose()
                 .map(|v| v.unwrap_or_default())?;
 
-            let self_param = consume_rule(&mut inner, Rule::self_param).map(|param| {
+            let self_param = consume_rule_map(&mut inner, Rule::self_param, |param| {
                 let mut param_inner = param.into_inner();
+
                 let is_ref = listen_rule(&mut param_inner, Rule::ref_px);
                 let lifetime = consume_rule(&mut param_inner, Rule::lifetime);
                 let mutable = listen_rule(&mut param_inner, Rule::mutable);
-                let name = Pattern::Path(mutable && !is_ref, Path(vec![Identifier(String::from("self"))]));
-                let self_ty = TypeExpr::Path(Path(vec![Identifier(String::from("Self"))]), None);
 
-                VarDecl {
-                    name: name.clone(),
-                    type_: Some(if is_ref {
-                        TypeExpr::Ref {
-                            lifetime:
-                                lifetime.map(|v| Lifetime::try_from(v.into_inner().next().unwrap()))
-                                    .transpose()
-                                    .expect("Failed to get lifetime identifier"),
-                            mutable,
-                            ty: Box::new(self_ty)
-                        }
-                    } else {
-                        self_ty
-                    }),
-                }
-            });
+                Ok((is_ref, lifetime.map(|v| -> AstResult<Identifier> {
+                    Identifier::try_from(v.into_inner().next().unwrap())
+                }).transpose()?, mutable))
+            })?;
 
-            let params = consume_rule(&mut inner, Rule::param_list)
-                .map({
-                    let self_param = self_param.clone();
-                    |params_pair| -> AstResult<'a, ParamList> {
-                        let mut params = ParamList::try_from(params_pair)?;
-                        if let Some(x) = self_param {
-                            params.0.insert(0, x);
-                        }
-                        Ok(params)
-                    }
-                })
-                .unwrap_or_else(|| Ok(ParamList(self_param.into_iter().collect())))?;
+            let params = consume_rule(&mut inner, Rule::param_list).map(ParamList::try_from).transpose()?.unwrap_or_default();
 
             let is_override = consume_rule(&mut inner, Rule::override_kw).map(Override::try_from).transpose()?;
 
@@ -73,6 +49,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
                 return_type: return_type,
                 name: name,
                 generics: generics,
+                self_param: self_param,
                 params: params,
                 body: body,
             })

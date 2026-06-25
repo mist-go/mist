@@ -11,7 +11,7 @@ pub class Animal {
         "Unknown".to_string()
     }
 
-    pub void test_speak(&self) {
+    pub void test_speak<'a>(&'a self) {
         assert_eq!(self.speak(), "Woof!");
     }
 

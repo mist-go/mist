@@ -22,7 +22,7 @@ pub fn find_function_call<'a>(
 ) -> Option<&'a Spanned<FunctionDecl>> {
     items.iter().find_map(|v| {
         if let ClassItem::Method(m) = v {
-            if m.item.is_using_self() && &m.item.name == name {
+            if m.item.self_param.is_some() && &m.item.name == name {
                 Some(m)
             } else {
                 None

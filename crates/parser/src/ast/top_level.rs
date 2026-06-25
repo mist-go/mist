@@ -100,6 +100,7 @@ pub struct FunctionDecl {
     pub is_override: Option<Override>,
     pub name: Identifier,
     pub generics: GenericsDecl,
+    pub self_param: Option<(bool, Option<Identifier>, bool)>,
     pub params: ParamList,
     pub return_type: Option<TypeExpr>,
     pub body: Option<Block>,
@@ -124,19 +125,4 @@ pub struct FieldDecl {
 pub struct FieldDeclStmt {
     pub decl: FieldDecl,
     pub init: Option<Expression>,
-}
-
-impl FunctionDecl {
-    pub fn is_using_self(&self) -> bool {
-        match self.params.0.get(0) {
-            Some(VarDecl { name, .. }) => {
-                if let Pattern::Path(_, v) = name {
-                    v.0.len() == 1 && v.0[0].0 == "self"
-                } else {
-                    false
-                }
-            }
-            _ => false,
-        }
-    }
 }

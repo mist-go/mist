@@ -80,6 +80,22 @@ impl GenRust for FunctionDecl {
             self.generics.get_rust(),
         ));
 
+        if let Some((is_ref, lifetime, is_mut)) = &self.self_param {
+            if *is_ref {
+                cg.add("&");
+            }
+
+            if let Some(lifetime) = lifetime {
+                cg.add(&format!("'{} ", lifetime.0));
+            }
+
+            if *is_mut {
+                cg.add("mut ");
+            }
+
+            cg.add("self,");
+        }
+
         for (i, param) in self.params.0.iter().enumerate() {
             if i > 0 {
                 cg.add(", ");
