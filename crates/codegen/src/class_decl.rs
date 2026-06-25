@@ -51,7 +51,7 @@ impl ClassProcessedData {
             if matches!(method.item.visibility, Visibility::Public) {
                 match &method.item.is_override {
                     None => {
-                        if method.item.is_using_self() {
+                        if method.item.self_param.is_some() {
                             v_table.push(method.item.name.clone());
                         }
                     }
@@ -263,7 +263,7 @@ impl ClassProcessedData {
                         continue;
                     }
 
-                    if let TypeExpr::Ref { mutable, .. } = params.remove(0) {
+                    if let Some((_, _, mutable)) = &method.item.self_param {
                         method.gen_span(cg);
                         cg.add_indented(&format!("{}::__m_", target_rust_path));
                         cg.add(&method.item.name.get_rust());
@@ -273,7 +273,7 @@ impl ClassProcessedData {
                             0,
                             TypeExpr::Ref {
                                 lifetime: None,
-                                mutable,
+                                mutable: *mutable,
                                 ty: Box::new(get_type_from_path(&target_path)),
                             },
                         );
@@ -396,7 +396,7 @@ impl ClassProcessedData {
         for method in &self.methods {
             match method.item.visibility {
                 Visibility::Public => {
-                    if method.item.is_using_self() {
+                    if method.item.self_param.is_some() {
                         if method.item.is_override.is_none() {
                             gen_method_point(&method.item, ctx, cg);
                         }
@@ -500,12 +500,32 @@ fn construct_pattern(pat: &Pattern, idx: usize) -> Pattern {
 }
 
 pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustCodegen) {
-    cg.add_indented(&format!(
-        "{}fn {}{}(",
-        method.visibility.get_rust(),
-        method.name.get_rust(),
-        method.generics.get_rust(),
-    ));
+    let mutable_self = if let Some((is_ref, lifetime, is_mut)) = &method.self_param {
+        cg.add_indented(&format!(
+            "{}fn {}{}(",
+            method.visibility.get_rust(),
+            method.name.get_rust(),
+            method.generics.get_rust(),
+        ));
+
+        if *is_ref {
+            cg.add("&");
+        }
+
+        if let Some(lifetime) = lifetime {
+            cg.add(&format!("'{} ", lifetime.0));
+        }
+
+        if *is_mut {
+            cg.add("mut ");
+        }
+
+        cg.add("self,");
+
+        *is_mut
+    } else {
+        panic!();
+    };
 
     let params = method
         .params
@@ -553,14 +573,10 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
         .filter_map(|v| v.type_)
         .collect();
 
-    let TypeExpr::Ref { mutable, .. } = param_types.remove(0) else {
-        panic!("")
-    };
-
     param_types.insert(
         0,
         TypeExpr::UnsafePtr {
-            mutable,
+            mutable: mutable_self,
             ty: Box::new(TypeExpr::Path(
                 Path(vec![
                     Identifier(String::from("std")),
@@ -575,16 +591,13 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
     cg.add(&TypeExpr::StaticFn(param_types, method.return_type.clone().map(Box::new)).get_rust());
     cg.addln(" = std::mem::transmute(func_ptr);");
 
-    if mutable {
+    if mutable_self {
         cg.add_indented("func(self as *mut Self as *const std::ffi::c_void");
     } else {
         cg.add_indented("func(self as *const Self as *const std::ffi::c_void");
     }
 
-    for (i, param) in &params {
-        if *i == 0 {
-            continue; // self already fulfills it
-        }
+    for (_, param) in &params {
         cg.add(", ");
         ctx.expr_ensure_semicolon = false;
         param.name.gen_rust(ctx, cg);
