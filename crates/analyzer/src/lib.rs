@@ -16,14 +16,33 @@ use tower_lsp::lsp_types::{self, *};
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::rust_analyzer::RustAnalyzer;
-use crate::transpiler::{TranspileError, transpile_mist, transpile_mist_no_sem};
+use crate::transpiler::{TranspileError, format_mist, transpile_mist, transpile_mist_no_sem};
 
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 const KEYWORDS: [&'static str; 22] = [
-    "if", "else", "for", "while", "match", "return", "break", "continue ", "struct ", "enum ",
-    "class ", "trait ", "impl ", "pub ", "mut ", "let ", "dyn ", "loop", "unsafe",
-    "override", "module ", "void ",
+    "if",
+    "else",
+    "for",
+    "while",
+    "match",
+    "return",
+    "break",
+    "continue ",
+    "struct ",
+    "enum ",
+    "class ",
+    "trait ",
+    "impl ",
+    "pub ",
+    "mut ",
+    "let ",
+    "dyn ",
+    "loop",
+    "unsafe",
+    "override",
+    "module ",
+    "void ",
 ];
 
 fn keyword_completion_items() -> impl Iterator<Item = CompletionItem> {
@@ -666,6 +685,8 @@ impl LanguageServer for Backend {
             },
         ));
 
+        res.capabilities.document_formatting_provider = Some(OneOf::Left(true));
+
         res.capabilities.completion_provider = Some(CompletionOptions {
             resolve_provider: Some(false),
             trigger_characters: Some(vec![
@@ -1255,6 +1276,34 @@ impl LanguageServer for Backend {
                 Ok(None)
             }
         }
+    }
+
+    async fn formatting(
+        &self,
+        params: DocumentFormattingParams,
+    ) -> tower_lsp::jsonrpc::Result<Option<Vec<TextEdit>>> {
+        let mist_path = params
+            .text_document
+            .uri
+            .to_file_path()
+            .map_err(|_| tower_lsp::jsonrpc::Error::internal_error())?;
+
+        let docs = self.documents.lock().await;
+
+        let old_text = docs
+            .get(&mist_path)
+            .map_or_else(|| Err(tower_lsp::jsonrpc::Error::internal_error()), Ok)?;
+
+        let new_text = format_mist(&old_text.to_string())
+            .map_err(|_| tower_lsp::jsonrpc::Error::internal_error())?;
+
+        Ok(Some(vec![TextEdit {
+            new_text,
+            range: Range {
+                start: Position::new(0, 0),
+                end: Position::new(u32::MAX, u32::MAX),
+            },
+        }]))
     }
 }
 
