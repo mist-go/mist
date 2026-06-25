@@ -375,20 +375,6 @@ impl ClassProcessedData {
         cg.indent -= 1;
         cg.add_indentedln("}\n");
 
-        let mut constructor_params = vec![VarDecl {
-            name: Pattern::Path(false, Path(vec![Identifier(String::from("self"))])),
-            type_: Some(TypeExpr::Ref {
-                lifetime: None,
-                mutable: true,
-                ty: Box::new(TypeExpr::Path(
-                    Path(vec![Identifier(String::from("Self"))]),
-                    None,
-                )),
-            }),
-        }];
-
-        constructor_params.append(&mut constructor.item.params.0.clone());
-
         Spanned {
             line: constructor.line,
             column: constructor.column,
@@ -397,7 +383,8 @@ impl ClassProcessedData {
                 is_override: None,
                 name: Identifier(String::from("constructor")),
                 generics: constructor.item.generics.clone(),
-                params: ParamList(constructor_params),
+                params: constructor.item.params.clone(),
+                self_param: Some((true, None, true)),
                 return_type: Some(TypeExpr::Tuple(Vec::new())),
                 body: Some(constructor.item.body.clone()),
             },
