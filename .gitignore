@@ -29,3 +29,6 @@ target
 **/build
 
 .mist/
+
+analyzer.bat
+analyzer.sh

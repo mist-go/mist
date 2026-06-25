@@ -1004,6 +1004,17 @@ impl LanguageServer for Backend {
                     keyword_completion_items().filter(|item| !existing.contains(&item.label)),
                 );
 
+                if is_at_module_scope(&source, mist_pos.line, mist_pos.character) {
+                    cleaned.push(CompletionItem {
+                        label: "declaration".to_string(),
+                        kind: Some(CompletionItemKind::SNIPPET),
+                        insert_text: Some("$1 $2($3)\n{\n$4\n}".to_string()),
+                        insert_text_format: Some(InsertTextFormat::SNIPPET),
+                        sort_text: Some("1".to_string()),
+                        ..Default::default()
+                    });
+                }
+
                 for item in &mut cleaned {
                     if item.label.starts_with("__") {
                         item.sort_text = Some("zzzz".to_string());
@@ -1023,6 +1034,17 @@ impl LanguageServer for Backend {
                 cleaned.extend(
                     keyword_completion_items().filter(|item| !existing.contains(&item.label)),
                 );
+
+                if is_at_module_scope(&source, mist_pos.line, mist_pos.character) {
+                    cleaned.push(CompletionItem {
+                        label: "declaration".to_string(),
+                        kind: Some(CompletionItemKind::SNIPPET),
+                        insert_text: Some("$1 $2($3)\n{\n$4\n}".to_string()),
+                        insert_text_format: Some(InsertTextFormat::SNIPPET),
+                        sort_text: Some("1".to_string()),
+                        ..Default::default()
+                    });
+                }
 
                 for item in &mut cleaned {
                     if item.label.starts_with("__") {
@@ -1553,6 +1575,36 @@ fn ensure_implicit_packages_impl(docs: &mut HashMap<PathBuf, Rope>, src_root: &P
             docs.insert(pkg_path, Rope::from_str(&content));
         }
     }
+}
+
+/// Check if the cursor is at module scope (top-level, not inside a function
+/// body, class body, or any other brace-delimited block).
+fn is_at_module_scope(source: &str, line: u32, character: u32) -> bool {
+    let cursor_offset = match byte_offset_from_lsp(source, line, character) {
+        Some(offset) => offset,
+        None => return false,
+    };
+
+    let mut depth: i32 = 0;
+    let mut in_string = false;
+
+    for c in source[..cursor_offset].chars() {
+        if in_string {
+            if c == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match c {
+            '{' => depth += 1,
+            '}' if depth > 0 => depth -= 1,
+            '"' => in_string = true,
+            _ => {}
+        }
+    }
+
+    depth == 0
 }
 
 fn clean_completion_item(mut item: CompletionItem) -> CompletionItem {
