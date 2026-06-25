@@ -13,14 +13,14 @@ use crate::{
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevel {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.clone().into_inner();
 
         let attributes = collect_recovered(inner.next().unwrap().into_inner());
 
-        ast_expr!(TopLevel(
+        Ok(TopLevel(
             inner
                 .next()
                 .map(Spanned::try_from)
@@ -31,21 +31,21 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevel {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
         let mut inner = pair.clone().into_inner();
 
         match rule {
-            Rule::import => ast_expr!(TopLevelKind::Import(
+            Rule::import => Ok(TopLevelKind::Import(
                 Visibility::try_from(&mut inner),
                 Path::try_from(inner.next().unwrap()),
             )),
 
-            Rule::function_decl => ast_expr!(TopLevelKind::FunctionDecl(pair.try_into())),
+            Rule::function_decl => Ok(TopLevelKind::FunctionDecl(pair.try_into())),
 
-            Rule::struct_decl => ast_expr!(TopLevelKind::StructDecl {
+            Rule::struct_decl => Ok(TopLevelKind::StructDecl {
                 visibility: Visibility::try_from(&mut inner),
 
                 name: inner.next().unwrap().try_into(),
@@ -62,7 +62,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                     .map(|v| v.unwrap_or_default()),
             }),
 
-            Rule::class_decl => ast_expr!(TopLevelKind::ClassDecl {
+            Rule::class_decl => Ok(TopLevelKind::ClassDecl {
                 visibility: Visibility::try_from(&mut inner),
 
                 name: inner.next().unwrap().try_into(),
@@ -85,7 +85,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 items: collect_recovered(inner),
             }),
 
-            Rule::enum_decl => ast_expr!(TopLevelKind::EnumDecl {
+            Rule::enum_decl => Ok(TopLevelKind::EnumDecl {
                 visibility: Visibility::try_from(&mut inner),
 
                 name: inner.next().unwrap().try_into(),
@@ -98,16 +98,14 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 fields: collect_recovered(inner),
             }),
 
-            Rule::declare_module => ast_expr!(TopLevelKind::DeclareModule(
+            Rule::declare_module => Ok(TopLevelKind::DeclareModule(
                 Visibility::try_from(&mut inner),
                 inner.next().unwrap().try_into(),
             )),
 
-            Rule::impl_for_decl | Rule::impl_decl => {
-                ast_expr!(TopLevelKind::ImplDecl(pair.try_into()))
-            }
+            Rule::impl_for_decl | Rule::impl_decl => Ok(TopLevelKind::ImplDecl(pair.try_into())),
 
-            Rule::trait_decl => ast_expr!(TopLevelKind::TraitDecl {
+            Rule::trait_decl => Ok(TopLevelKind::TraitDecl {
                 visibility: Visibility::try_from(&mut inner),
 
                 name: inner.next().unwrap().try_into(),

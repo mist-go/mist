@@ -5,7 +5,7 @@ use crate::{
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Attribute {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {

@@ -6,13 +6,13 @@ pub mod types;
 use crate::{
     Rule,
     ast::*,
-    ast_ensure, ast_expr,
-    error::{AstError, AstResult, IntoErr, collect_recovered, collect_recovered_map},
+    ast_ensure,
+    error::{AstError, collect_recovered, collect_recovered_map},
     parser::{consume_rule, listen_rule},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Identifier {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         ast_ensure!(pair, Rule::identifier => {
@@ -22,18 +22,18 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Identifier {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Path {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
-            Rule::static_path => Ok(Path(collect_recovered(pair.into_inner()).get()?)),
+            Rule::static_path => Ok(Path(collect_recovered(pair.into_inner())?)),
             _ => AstError::bug_unimplemented(pair),
         }
     }
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Literal {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -46,53 +46,52 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Literal {
             Rule::float => Literal::Float(pair.as_str().parse::<f64>().unwrap()),
             Rule::boolean => Literal::Bool(pair.as_str().parse::<bool>().unwrap()),
             Rule::string_lit => Literal::String(inner.as_str().to_string()),
-            Rule::tuple => Literal::Tuple(collect_recovered(inner).get()?),
+            Rule::tuple => Literal::Tuple(collect_recovered(inner)?),
             _ => return AstError::bug_unimplemented(pair),
         })
     }
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
         let mut inner = pair.clone().into_inner();
 
         match rule {
-            Rule::tuple_pattern => ast_expr!(Pattern::Tuple(collect_recovered_map(inner, |v| {
+            Rule::tuple_pattern => Ok(Pattern::Tuple(collect_recovered_map(inner, |v| {
                 Self::try_from(v).map(Box::new)
-            }))),
+            })?)),
 
-            Rule::named_tuple_pattern => ast_expr!(Pattern::NamedTuple(
-                Path::try_from(inner.next().unwrap()),
-                collect_recovered_map(inner, |v| Self::try_from(v).map(Box::new)),
+            Rule::named_tuple_pattern => Ok(Pattern::NamedTuple(
+                Path::try_from(inner.next().unwrap())?,
+                collect_recovered_map(inner, |v| Self::try_from(v).map(Box::new))?,
             )),
 
-            Rule::struct_pattern => ast_expr!(Pattern::Struct(
-                Path::try_from(inner.next().unwrap()),
+            Rule::struct_pattern => Ok(Pattern::Struct(
+                Path::try_from(inner.next().unwrap())?,
                 collect_recovered_map(inner, |v| {
                     if v.as_rule() == Rule::etc_pattern {
                         return Ok(None);
                     }
 
                     let mut inner = v.into_inner();
-                    Some(ast_expr!((
-                        Identifier::try_from(inner.next().unwrap()),
+                    Ok(Some((
+                        Identifier::try_from(inner.next().unwrap())?,
                         inner
                             .next()
-                            .map(|v| Self::try_from(v).map(Box::new).get_map(Box::new))
-                            .transpose()
+                            .map(|v| Self::try_from(v).map(Box::new))
+                            .transpose()?,
                     )))
-                    .transpose()
-                }),
+                })?,
             )),
 
-            Rule::literal => ast_expr!(Pattern::Literal(pair.try_into())),
+            Rule::literal => Ok(Pattern::Literal(pair.try_into()?)),
 
-            Rule::path_pattern => ast_expr!(Pattern::Path(
-                Ok(listen_rule(&mut inner, Rule::mutable)) as AstResult<'_, bool>,
-                inner.next().unwrap().try_into()
+            Rule::path_pattern => Ok(Pattern::Path(
+                listen_rule(&mut inner, Rule::mutable),
+                inner.next().unwrap().try_into()?,
             )),
 
             Rule::etc_pattern => Ok(Pattern::Etc),
@@ -103,13 +102,13 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Pattern {
 }
 
 impl<'a> TryFrom<&mut pest::iterators::Pairs<'a, Rule>> for Visibility {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pairs: &mut pest::iterators::Pairs<'a, Rule>) -> Result<Self, Self::Error> {
         Ok(consume_rule(pairs, Rule::visibility)
-            .map(|pair| -> Result<Visibility, AstError<'a, Self>> {
+            .map(|pair| -> Result<Visibility, AstError<'a>> {
                 if let Some(path) = pair.into_inner().next() {
-                    ast_expr!(Visibility::PublicTarget(Path::try_from(path)))
+                    Ok(Visibility::PublicTarget(Path::try_from(path)?))
                 } else {
                     Ok(Visibility::Public)
                 }

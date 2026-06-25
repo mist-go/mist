@@ -6,7 +6,7 @@ use crate::{
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ClassConstructor {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.into_inner();
@@ -32,7 +32,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ClassConstructor {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ClassItem {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();

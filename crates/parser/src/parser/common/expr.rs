@@ -1,15 +1,15 @@
 use crate::{
     Rule,
     ast::*,
-    ast_ensure, ast_expr,
-    error::{AstError, AstResult, GetLength, IntoErr, collect_recovered, collect_recovered_map},
+    ast_ensure,
+    error::{AstError, collect_recovered, collect_recovered_map},
     parser::consume_rule,
 };
 use pest::pratt_parser::PrattParser;
 use std::sync::OnceLock;
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -27,10 +27,10 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                 pratt
                     .map_primary(|primary_pair| Expression::try_from(primary_pair))
                     .map_infix(|expr, op, rhs| {
-                        ast_expr!(Expression::Binary {
-                            lhs: expr.map(Box::new).get_map(Box::new),
-                            op: Ok(op.as_str().to_string()) as AstResult<'_, String>,
-                            rhs: rhs.map(Box::new).get_map(Box::new),
+                        Ok(Expression::Binary {
+                            lhs: expr.map(Box::new)?,
+                            op: op.as_str().to_string(),
+                            rhs: rhs.map(Box::new)?,
                         })
                     })
                     .parse(inner)
@@ -50,59 +50,51 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
                     }
                 }
 
-                let prefixes = collect_recovered::<Prefix, Prefix>(prefix_pairs.into_iter());
+                let prefixes = collect_recovered::<Prefix>(prefix_pairs.into_iter())?;
                 let exp = Expression::try_from(
                     primary_pair.expect("Term must contain a primary expression"),
-                );
-                let postfixes = collect_recovered::<Postfix, Postfix>(postfix_pairs.into_iter());
+                )?;
+                let postfixes = collect_recovered::<Postfix>(postfix_pairs.into_iter())?;
 
                 if postfixes.len() > 0 || prefixes.len() > 0 {
-                    ast_expr!(Expression::Fix {
-                        initial: exp.map(Box::new),
+                    Ok(Expression::Fix {
+                        initial: Box::new(exp),
                         prefixes: prefixes,
                         postfixes: postfixes,
                     })
                 } else {
-                    ast_expr!(use exp?, prefixes, postfixes)
+                    Ok(exp)
                 }
             }
 
-            Rule::tuple => {
-                ast_expr!(Expression::Literal(
-                    collect_recovered(pair.into_inner())
-                        .map(Literal::Tuple)
-                        .get_map(Literal::Tuple)
-                ))
-            }
+            Rule::tuple => Ok(Expression::Literal(Literal::Tuple(collect_recovered(
+                pair.into_inner(),
+            )?))),
 
-            Rule::closure => {
-                ast_expr!(Expression::Closure {
-                    return_type: consume_rule(&mut inner, Rule::type_expr)
-                        .map(TypeExpr::try_from)
-                        .transpose(),
-                    params: collect_recovered(inner.next().unwrap().into_inner()),
-                    body: Expression::try_from(inner.next().unwrap()).map(Box::new),
-                })
-            }
+            Rule::closure => Ok(Expression::Closure {
+                return_type: consume_rule(&mut inner, Rule::type_expr)
+                    .map(TypeExpr::try_from)
+                    .transpose()?,
+                params: collect_recovered(inner.next().unwrap().into_inner())?,
+                body: Box::new(Expression::try_from(inner.next().unwrap())?),
+            }),
 
-            Rule::array => {
-                ast_expr!(Expression::Array(collect_recovered(inner)))
-            }
+            Rule::array => Ok(Expression::Array(collect_recovered(inner)?)),
 
-            Rule::array_repeat => {
-                ast_expr!(Expression::ArrayRepeat(
-                    Expression::try_from(inner.next().unwrap()).map(Box::new),
-                    Expression::try_from(inner.next().unwrap()).map(Box::new)
-                ))
-            }
+            Rule::array_repeat => Ok(Expression::ArrayRepeat(
+                Box::new(Expression::try_from(inner.next().unwrap())?),
+                Box::new(Expression::try_from(inner.next().unwrap())?),
+            )),
 
             Rule::primary => pair.into_inner().next().unwrap().try_into(),
-            Rule::static_path => ast_expr!(Expression::Path(pair.try_into())),
-            Rule::literal => ast_expr!(Expression::Literal(pair.try_into())),
-            Rule::expr_path => ast_expr!(Expression::Path(pair.try_into())),
-            Rule::statement | Rule::basic_stmt | Rule::control_flow | Rule::block | Rule::unsafe_block => ast_expr!(
-                Expression::Statement(pair.try_into().get_map(Box::new).map(Box::new))
-            ),
+            Rule::static_path => Ok(Expression::Path(pair.try_into()?)),
+            Rule::literal => Ok(Expression::Literal(pair.try_into()?)),
+            Rule::expr_path => Ok(Expression::Path(pair.try_into()?)),
+            Rule::statement
+            | Rule::basic_stmt
+            | Rule::control_flow
+            | Rule::block
+            | Rule::unsafe_block => Ok(Expression::Statement(Box::new(pair.try_into()?))),
 
             _ => AstError::bug_unimplemented(pair),
         }
@@ -110,7 +102,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Prefix {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         Ok(match pair.as_rule() {
@@ -127,7 +119,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Prefix {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
@@ -136,34 +128,27 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
         match rule {
             Rule::postfix => Postfix::try_from(inner.next().unwrap()),
 
-            Rule::field_px => {
-                ast_expr!(Postfix::FieldAccess(
-                    inner.next().unwrap().try_into(),
-                    inner.next().map(Generics::try_from).transpose()
-                ))
-            }
+            Rule::field_px => Ok(Postfix::FieldAccess(
+                inner.next().unwrap().try_into()?,
+                inner.next().map(Generics::try_from).transpose()?,
+            )),
 
-            Rule::tuple_field_px => {
-                ast_expr!(Postfix::TupleFieldAccess(
-                    Ok(inner.next().unwrap().as_str().parse().unwrap_or(255_u8))
-                        as AstResult<'_, u8>,
-                    inner.next().map(Generics::try_from).transpose(),
-                ))
-            }
+            Rule::tuple_field_px => Ok(Postfix::TupleFieldAccess(
+                inner.next().unwrap().as_str().parse().unwrap_or(255_u8),
+                inner.next().map(Generics::try_from).transpose()?,
+            )),
 
-            Rule::call_px => ast_expr!(Postfix::Call(collect_recovered(inner))),
+            Rule::call_px => Ok(Postfix::Call(collect_recovered(inner)?)),
 
-            Rule::struct_px => ast_expr!(Postfix::StructCall(collect_recovered_map(inner, |p| {
+            Rule::struct_px => Ok(Postfix::StructCall(collect_recovered_map(inner, |p| {
                 let mut pi = p.into_inner();
                 Ok((
                     Identifier::try_from(pi.next().unwrap())?,
-                    pi.next().map(Expression::try_from).transpose().get()?,
+                    pi.next().map(Expression::try_from).transpose()?,
                 ))
-            }))),
+            })?)),
 
-            Rule::index_px => {
-                ast_expr!(Postfix::Index(Expression::try_from(inner.next().unwrap())))
-            }
+            Rule::index_px => Ok(Postfix::Index(Expression::try_from(inner.next().unwrap())?)),
 
             Rule::macro_call_paren => Ok(Postfix::MacroCall {
                 inner: inner.as_str().to_string(),
@@ -178,9 +163,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
                 delimiter: MacroDelimiter::Brace,
             }),
 
-            Rule::as_px => {
-                ast_expr!(Postfix::As(inner.next().unwrap().try_into()))
-            }
+            Rule::as_px => Ok(Postfix::As(inner.next().unwrap().try_into()?)),
 
             Rule::try_px => Ok(Postfix::Try),
 
@@ -193,25 +176,25 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Postfix {
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ExprPath {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         ast_ensure!(pair, Rule::expr_path => {
-            ast_expr!(ExprPath(collect_recovered(pair.into_inner())))
+            Ok(ExprPath(collect_recovered(pair.into_inner())?))
         })
     }
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for ExprPathSegment {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.clone().into_inner();
 
         ast_ensure!(pair, Rule::expr_path_segment => {
-            ast_expr!(ExprPathSegment {
-                ident: Identifier::try_from(inner.next().unwrap()),
-                generics: inner.next().map(Generics::try_from).transpose(),
+            Ok(ExprPathSegment {
+                ident: Identifier::try_from(inner.next().unwrap())?,
+                generics: inner.next().map(Generics::try_from).transpose()?,
             })
         })
     }
