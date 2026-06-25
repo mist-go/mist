@@ -186,7 +186,7 @@ std::io::Result<bool> is_source_newer(Path& source, Path& output) {
 }
 
 pub enum TranspileError<'a> {
-    Parse(error::ParseError<'a, Vec<mist_parser::ast::TopLevel>>),
+    Parse(error::ParseError<'a>),
     Semantic(Vec<mist_parser::semantics::SemanticError>)
 }
 
