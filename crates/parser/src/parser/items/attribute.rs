@@ -1,11 +1,11 @@
 use crate::{
     Rule,
     ast::*,
-    error::{AstError, IntoErr, collect_recovered},
+    error::{AstError, collect_recovered},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Attribute {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
@@ -18,7 +18,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Attribute {
                 let mut inner = pair.into_inner();
 
                 // first item is always the path
-                let path = inner.next().unwrap().try_into().get()?;
+                let path = inner.next().unwrap().try_into()?;
 
                 // check what comes next
                 match inner.next() {
@@ -32,7 +32,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Attribute {
                             // #[path = literal]
                             Ok(Attribute::NameValue {
                                 path,
-                                value: next.try_into().get()?,
+                                value: next.try_into()?,
                             })
                         }
 
@@ -40,7 +40,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Attribute {
                             // #[path(...)]
                             Ok(Attribute::List {
                                 path,
-                                items: collect_recovered(next.into_inner()).get()?,
+                                items: collect_recovered(next.into_inner())?,
                             })
                         }
 

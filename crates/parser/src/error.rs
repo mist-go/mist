@@ -4,20 +4,19 @@ use pest::iterators::Pair;
 
 use crate::Rule;
 
-pub type AstResult<'a, T, ET = T> = Result<T, AstError<'a, ET>>;
+pub type AstResult<'a, T> = Result<T, AstError<'a>>;
 
 #[derive(Debug, Clone)]
-pub enum ParseError<'a, T> {
+pub enum ParseError<'a> {
     PreAst(pest::error::Error<Rule>),
-    Ast(AstError<'a, T>),
+    Ast(AstError<'a>),
 }
 
 #[derive(Debug, Clone)]
-pub struct AstError<'a, T> {
+pub struct AstError<'a> {
     pub span: pest::Span<'a>,
     pub error_code: ErrorCode,
     pub error_message: String,
-    pub recovered: Option<T>,
 }
 
 #[derive(Debug, Clone)]
@@ -27,30 +26,21 @@ pub enum ErrorCode {
     Module,
 }
 
-impl<T> From<pest::error::Error<Rule>> for ParseError<'_, T> {
+impl From<pest::error::Error<Rule>> for ParseError<'_> {
     fn from(value: pest::error::Error<Rule>) -> Self {
         Self::PreAst(value)
     }
 }
 
-impl<'a, T> From<AstError<'a, T>> for ParseError<'a, T> {
-    fn from(value: AstError<'a, T>) -> Self {
+impl<'a> From<AstError<'a>> for ParseError<'a> {
+    fn from(value: AstError<'a>) -> Self {
         Self::Ast(value)
     }
 }
 
-impl<'a, F> AstError<'a, F> {
-    pub fn get<T>(self) -> AstError<'a, T> {
-        AstError {
-            span: self.span,
-            error_code: self.error_code,
-            error_message: self.error_message,
-            recovered: None,
-        }
-    }
-
+impl<'a> AstError<'a> {
     #[track_caller]
-    pub fn bug_unimplemented<T>(pair: Pair<'a, Rule>) -> AstResult<'a, T, F> {
+    pub fn bug_unimplemented<T>(pair: Pair<'a, Rule>) -> AstResult<'a, T> {
         let loc = std::panic::Location::caller();
 
         Err(Self {
@@ -62,7 +52,6 @@ impl<'a, F> AstError<'a, F> {
                 loc.file(),
                 loc.line(),
             ),
-            recovered: None,
         })
     }
 }
@@ -70,21 +59,6 @@ impl<'a, F> AstError<'a, F> {
 pub trait IntoErr<T, FA, FR> {
     fn get(self) -> T;
     fn get_map(self, m: impl Fn(FA) -> FR) -> T;
-}
-
-impl<'a, T, TE, TE2> IntoErr<AstResult<'a, T, TE2>, TE, TE2> for AstResult<'a, T, TE> {
-    fn get(self) -> AstResult<'a, T, TE2> {
-        self.map_err(AstError::get)
-    }
-
-    fn get_map(self, m: impl Fn(TE) -> TE2) -> AstResult<'a, T, TE2> {
-        self.map_err(|e| AstError {
-            span: e.span,
-            error_code: e.error_code,
-            error_message: e.error_message,
-            recovered: e.recovered.map(m),
-        })
-    }
 }
 
 pub trait GetLength {
@@ -97,24 +71,24 @@ impl<T, E> GetLength for Result<Vec<T>, E> {
     }
 }
 
-pub fn collect_recovered<'a, T: Debug, ET>(
+pub fn collect_recovered<'a, T: Debug>(
     pairs: impl Iterator<Item = pest::iterators::Pair<'a, Rule>>,
-) -> AstResult<'a, Vec<T>, Vec<T>>
+) -> AstResult<'a, Vec<T>>
 where
-    T: TryFrom<pest::iterators::Pair<'a, Rule>, Error = AstError<'a, ET>>,
+    T: TryFrom<pest::iterators::Pair<'a, Rule>, Error = AstError<'a>>,
 {
     collect_recovered_map(pairs, T::try_from)
 }
 
-pub fn collect_recovered_map<'a, T: Debug, F, ET>(
+pub fn collect_recovered_map<'a, T: Debug, F>(
     pairs: impl Iterator<Item = pest::iterators::Pair<'a, Rule>>,
     f: F,
-) -> AstResult<'a, Vec<T>, Vec<T>>
+) -> AstResult<'a, Vec<T>>
 where
-    F: Fn(pest::iterators::Pair<'a, Rule>) -> AstResult<'a, T, ET>,
+    F: Fn(pest::iterators::Pair<'a, Rule>) -> AstResult<'a, T>,
 {
     let mut items = Vec::new();
-    let mut last_error: Option<AstError<'a, ET>> = None;
+    let mut last_error: Option<AstError<'a>> = None;
 
     for pair in pairs {
         match f(pair) {
@@ -130,39 +104,7 @@ where
             span: ast_err.span,
             error_code: ast_err.error_code,
             error_message: ast_err.error_message,
-            recovered: Some(items),
         }),
         None => Ok(items),
-    }
-}
-
-pub struct AstErrorAnalyzer<'a, T>(pub Option<AstError<'a, T>>);
-
-impl<'a, T> AstErrorAnalyzer<'a, T> {
-    pub fn get<V: Clone, V2: Clone + Into<V>>(
-        &mut self,
-        r: AstResult<'a, V, V2>,
-    ) -> AstResult<'a, V, V2> {
-        if let Err(e) = r {
-            self.0 = Some(e.clone().get());
-
-            if let Some(recovered) = e.recovered {
-                Ok(recovered.into())
-            } else {
-                Err(e)
-            }
-        } else {
-            r
-        }
-    }
-
-    pub fn build(self, v: T) -> AstResult<'a, T> {
-        if let Some(mut e) = self.0 {
-            e.recovered = Some(v);
-
-            Err(e)
-        } else {
-            Ok(v)
-        }
     }
 }

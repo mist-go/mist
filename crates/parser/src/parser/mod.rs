@@ -40,10 +40,10 @@ impl<T> Spanned<T> {
     }
 }
 
-impl<'a, T: TryFrom<pest::iterators::Pair<'a, Rule>, Error = AstError<'a, T>>>
+impl<'a, T: TryFrom<pest::iterators::Pair<'a, Rule>, Error = AstError<'a>>>
     TryFrom<pest::iterators::Pair<'a, Rule>> for Spanned<T>
 {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let span = pair.as_span().start_pos().line_col();
@@ -51,16 +51,7 @@ impl<'a, T: TryFrom<pest::iterators::Pair<'a, Rule>, Error = AstError<'a, T>>>
         Ok(Self {
             line: span.0,
             column: span.1,
-            item: pair.try_into().map_err(|err: AstError<'_, T>| AstError {
-                span: err.span,
-                error_code: err.error_code,
-                error_message: err.error_message,
-                recovered: err.recovered.map(|v| Spanned {
-                    line: span.0,
-                    column: span.1,
-                    item: v,
-                }),
-            })?,
+            item: pair.try_into()?,
         })
     }
 }

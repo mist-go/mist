@@ -7,122 +7,119 @@ pub mod impl_decl;
 use crate::{
     Rule,
     ast::*,
-    ast_expr,
-    error::{AstError, IntoErr, collect_recovered},
+    error::{AstError, collect_recovered},
     parser::consume_rule,
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevel {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let mut inner = pair.clone().into_inner();
 
-        let attributes = collect_recovered(inner.next().unwrap().into_inner());
+        let attributes = collect_recovered(inner.next().unwrap().into_inner())?;
 
-        ast_expr!(TopLevel(
+        Ok(TopLevel(
             inner
                 .next()
                 .map(Spanned::try_from)
-                .unwrap_or_else(move || Ok(Spanned::new_pair(pair, TopLevelKind::ModAttribute))),
+                .unwrap_or_else(move || Ok(Spanned::new_pair(pair, TopLevelKind::ModAttribute)))?,
             attributes,
         ))
     }
 }
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
-    type Error = AstError<'a, Self>;
+    type Error = AstError<'a>;
 
     fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
         let rule = pair.as_rule();
         let mut inner = pair.clone().into_inner();
 
         match rule {
-            Rule::import => ast_expr!(TopLevelKind::Import(
-                Visibility::try_from(&mut inner),
-                Path::try_from(inner.next().unwrap()),
+            Rule::import => Ok(TopLevelKind::Import(
+                Visibility::try_from(&mut inner)?,
+                Path::try_from(inner.next().unwrap())?,
             )),
 
-            Rule::function_decl => ast_expr!(TopLevelKind::FunctionDecl(pair.try_into())),
+            Rule::function_decl => Ok(TopLevelKind::FunctionDecl(pair.try_into()?)),
 
-            Rule::struct_decl => ast_expr!(TopLevelKind::StructDecl {
-                visibility: Visibility::try_from(&mut inner),
+            Rule::struct_decl => Ok(TopLevelKind::StructDecl {
+                visibility: Visibility::try_from(&mut inner)?,
 
-                name: inner.next().unwrap().try_into(),
+                name: inner.next().unwrap().try_into()?,
 
                 generics: consume_rule(&mut inner, Rule::generics_decl)
                     .map(GenericsDecl::try_from)
                     .transpose()
-                    .map(|v| v.unwrap_or_default()),
+                    .map(|v| v.unwrap_or_default())?,
 
                 fields: inner
                     .next()
                     .map(|pair| collect_recovered(pair.into_inner()))
                     .transpose()
-                    .map(|v| v.unwrap_or_default()),
+                    .map(|v| v.unwrap_or_default())?,
             }),
 
-            Rule::class_decl => ast_expr!(TopLevelKind::ClassDecl {
-                visibility: Visibility::try_from(&mut inner),
+            Rule::class_decl => Ok(TopLevelKind::ClassDecl {
+                visibility: Visibility::try_from(&mut inner)?,
 
-                name: inner.next().unwrap().try_into(),
+                name: inner.next().unwrap().try_into()?,
 
                 generics: consume_rule(&mut inner, Rule::generics_decl)
                     .map(GenericsDecl::try_from)
                     .transpose()
-                    .map(|v| v.unwrap_or_default()),
+                    .map(|v| v.unwrap_or_default())?,
 
                 inherits: consume_rule(&mut inner, Rule::expr_path)
                     .map(ExprPath::try_from)
-                    .transpose(),
+                    .transpose()?,
 
-                fields: collect_recovered(inner.next().unwrap().into_inner()),
+                fields: collect_recovered(inner.next().unwrap().into_inner())?,
 
                 constructor: consume_rule(&mut inner, Rule::class_constructor)
                     .map(Spanned::try_from)
-                    .transpose(),
+                    .transpose()?,
 
-                items: collect_recovered(inner),
+                items: collect_recovered(inner)?,
             }),
 
-            Rule::enum_decl => ast_expr!(TopLevelKind::EnumDecl {
-                visibility: Visibility::try_from(&mut inner),
+            Rule::enum_decl => Ok(TopLevelKind::EnumDecl {
+                visibility: Visibility::try_from(&mut inner)?,
 
-                name: inner.next().unwrap().try_into(),
+                name: inner.next().unwrap().try_into()?,
 
                 generics: consume_rule(&mut inner, Rule::generics_decl)
                     .map(GenericsDecl::try_from)
                     .transpose()
-                    .map(|v| v.unwrap_or_default()),
+                    .map(|v| v.unwrap_or_default())?,
 
-                fields: collect_recovered(inner),
+                fields: collect_recovered(inner)?,
             }),
 
-            Rule::declare_module => ast_expr!(TopLevelKind::DeclareModule(
-                Visibility::try_from(&mut inner),
-                inner.next().unwrap().try_into(),
+            Rule::declare_module => Ok(TopLevelKind::DeclareModule(
+                Visibility::try_from(&mut inner)?,
+                inner.next().unwrap().try_into()?,
             )),
 
-            Rule::impl_for_decl | Rule::impl_decl => {
-                ast_expr!(TopLevelKind::ImplDecl(pair.try_into()))
-            }
+            Rule::impl_for_decl | Rule::impl_decl => Ok(TopLevelKind::ImplDecl(pair.try_into()?)),
 
-            Rule::trait_decl => ast_expr!(TopLevelKind::TraitDecl {
-                visibility: Visibility::try_from(&mut inner),
+            Rule::trait_decl => Ok(TopLevelKind::TraitDecl {
+                visibility: Visibility::try_from(&mut inner)?,
 
-                name: inner.next().unwrap().try_into(),
+                name: inner.next().unwrap().try_into()?,
 
                 generics: consume_rule(&mut inner, Rule::generics_decl)
                     .map(GenericsDecl::try_from)
                     .transpose()
-                    .map(|v| v.unwrap_or_default()),
+                    .map(|v| v.unwrap_or_default())?,
 
                 requirements: consume_rule(&mut inner, Rule::trait_requirements)
                     .map(|pair| collect_recovered(pair.into_inner()))
                     .transpose()
-                    .map(|v| v.unwrap_or_default()),
+                    .map(|v| v.unwrap_or_default())?,
 
-                items: collect_recovered(&mut inner),
+                items: collect_recovered(&mut inner)?,
             }),
 
             _ => AstError::bug_unimplemented(pair),

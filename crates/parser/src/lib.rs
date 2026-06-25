@@ -9,7 +9,7 @@ pub mod semantics;
 
 use ast::*;
 
-use crate::error::{IntoErr, ParseError};
+use crate::error::ParseError;
 
 #[derive(Parser)]
 #[grammar = "./src/grammar.pest"]
@@ -20,45 +20,30 @@ pub struct Program {
     pub items: Vec<TopLevel>,
 }
 
-pub fn parse<'a>(source: &'a str) -> Result<Program, ParseError<'a, Vec<TopLevel>>> {
+pub fn parse<'a>(source: &'a str) -> Result<Program, ParseError<'a>> {
     let mut pairs = MistParser::parse(Rule::program, source)?;
 
     let mut statements = vec![];
 
-    let mut analyzer = error::AstErrorAnalyzer(None);
-
     for pair in pairs.next().unwrap().into_inner() {
         if pair.as_rule() != Rule::EOI {
-            statements.push(analyzer.get(TopLevel::try_from(pair)).get()?);
+            statements.push(TopLevel::try_from(pair)?);
         }
     }
 
-    match analyzer.build(statements) {
-        Ok(v) => {
-            let (mod_attributes, items): (Vec<_>, Vec<_>) = v
-                .into_iter()
-                .partition(|item| matches!(item.0.item, TopLevelKind::ModAttribute));
+    let (mod_attributes, items): (Vec<_>, Vec<_>) = statements
+        .into_iter()
+        .partition(|item| matches!(item.0.item, TopLevelKind::ModAttribute));
 
-            Ok(Program {
-                items,
-                mod_attributes,
-            })
-        }
-        Err(e) => {
-            let rec = e.recovered.clone();
-
-            let mut e2 = e.get();
-
-            e2.recovered = rec;
-
-            Err(ParseError::Ast(e2))
-        }
-    }
+    Ok(Program {
+        items,
+        mod_attributes,
+    })
 }
 
 pub fn parse_module<'a>(
     source: &'a str,
-) -> Result<Option<(Visibility, Identifier)>, ParseError<'a, Option<(Visibility, Identifier)>>> {
+) -> Result<Option<(Visibility, Identifier)>, ParseError<'a>> {
     let mut pairs = MistParser::parse(Rule::module_program, source)?;
 
     if let Some(v) = pairs
@@ -67,8 +52,7 @@ pub fn parse_module<'a>(
         .into_inner()
         .next()
         .map(TopLevel::try_from)
-        .transpose()
-        .get()?
+        .transpose()?
     {
         if let TopLevelKind::DeclareModule(vis, name) = &v.0.item {
             Ok(Some((vis.clone(), name.clone())))
@@ -90,49 +74,7 @@ macro_rules! ast_ensure {
                 span: $pair.as_span(),
                 error_code: crate::error::ErrorCode::AstGenBug,
                 error_message: format!("Possible bug: expected {:?}, got {:?}", $rule, $pair.as_rule()),
-                recovered: None,
             })
         }
-    };
-}
-
-#[macro_export]
-macro_rules! ast_expr {
-    (use $r:expr, $($v:expr),* $(,)?) => {{
-        let mut analyzer = $crate::error::AstErrorAnalyzer(None);
-
-        $(
-            analyzer.get($v).get()?;
-        )*
-
-        analyzer.build($r)
-    }};
-
-    ($($item:ident)::+ { $($k:ident: $v:expr),* $(,)? }) => {{
-        let mut analyzer = $crate::error::AstErrorAnalyzer(None);
-
-        let v = $($item)::+ { $($k: analyzer.get($v).get()?),* };
-
-        analyzer.build(v)
-    }};
-
-    ($($item:ident)::+ ( $($v:expr),* $(,)? )) => {{
-        let mut analyzer = $crate::error::AstErrorAnalyzer(None);
-
-        let v = $($item)::+ ( $(analyzer.get($v).get()?),* );
-
-        analyzer.build(v)
-    }};
-
-    (( $($v:expr),* $(,)? )) => {{
-        let mut analyzer = $crate::error::AstErrorAnalyzer(None);
-
-        let v = ( $(analyzer.get($v).get()?),* );
-
-        analyzer.build(v)
-    }};
-
-    ($($item:ident)::+) => {
-        $($item)::+
     };
 }

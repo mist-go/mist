@@ -13,7 +13,7 @@ pub struct TranspiledFile {
 
 #[derive(Debug)]
 pub enum TranspileError<'a> {
-    Parse(mist_parser::error::ParseError<'a, Vec<mist_parser::ast::TopLevel>>),
+    Parse(mist_parser::error::ParseError<'a>),
     Semantic(Vec<mist_parser::semantics::SemanticError>),
 }
 
