@@ -20,10 +20,10 @@ use crate::transpiler::{TranspileError, transpile_mist, transpile_mist_no_sem};
 
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-const KEYWORDS: [&'static str; 24] = [
-    "if", "else", "for", "while", "match", "return", "break", "continue", "struct", "enum",
-    "class", "trait", "impl", "pub", "mut", "let", "true", "false", "dyn", "loop", "unsafe",
-    "override", "module", "void ",
+const KEYWORDS: [&'static str; 22] = [
+    "if", "else", "for", "while", "match", "return", "break", "continue ", "struct ", "enum ",
+    "class ", "trait ", "impl ", "pub ", "mut ", "let ", "dyn ", "loop", "unsafe",
+    "override", "module ", "void ",
 ];
 
 fn keyword_completion_items() -> impl Iterator<Item = CompletionItem> {
