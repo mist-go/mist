@@ -993,72 +993,14 @@ impl LanguageServer for Backend {
         }
 
         match completion_result {
-            Ok(Some(CompletionResponse::Array(items))) => {
-                let mut cleaned: Vec<CompletionItem> =
-                    items.into_iter().map(clean_completion_item).collect();
+            Ok(Some(CompletionResponse::Array(mut items))) => {
+                mist_ify_completions(&source, &mist_pos, &mut items);
 
-                let existing: HashSet<String> =
-                    cleaned.iter().map(|item| item.label.clone()).collect();
-
-                cleaned.extend(
-                    keyword_completion_items().filter(|item| !existing.contains(&item.label)),
-                );
-
-                if matches!(
-                    current_scope(&source, mist_pos.line, mist_pos.character),
-                    Scope::Module
-                ) {
-                    cleaned.push(CompletionItem {
-                        label: "function".to_string(),
-                        kind: Some(CompletionItemKind::SNIPPET),
-                        insert_text: Some("$1 $2($3)\n{\n$4\n}".to_string()),
-                        insert_text_format: Some(InsertTextFormat::SNIPPET),
-                        sort_text: Some("1".to_string()),
-                        ..Default::default()
-                    });
-                }
-
-                for item in &mut cleaned {
-                    if item.label.starts_with("__") {
-                        item.sort_text = Some("zzzz".to_string());
-                    }
-                }
-
-                Ok(Some(CompletionResponse::Array(cleaned)))
+                Ok(Some(CompletionResponse::Array(items)))
             }
 
             Ok(Some(CompletionResponse::List(mut list))) => {
-                let mut cleaned: Vec<CompletionItem> =
-                    list.items.into_iter().map(clean_completion_item).collect();
-
-                let existing: HashSet<String> =
-                    cleaned.iter().map(|item| item.label.clone()).collect();
-
-                cleaned.extend(
-                    keyword_completion_items().filter(|item| !existing.contains(&item.label)),
-                );
-
-                if matches!(
-                    current_scope(&source, mist_pos.line, mist_pos.character),
-                    Scope::Module
-                ) {
-                    cleaned.push(CompletionItem {
-                        label: "function".to_string(),
-                        kind: Some(CompletionItemKind::SNIPPET),
-                        insert_text: Some("$1 $2($3)\n{\n$4\n}".to_string()),
-                        insert_text_format: Some(InsertTextFormat::SNIPPET),
-                        sort_text: Some("1".to_string()),
-                        ..Default::default()
-                    });
-                }
-
-                for item in &mut cleaned {
-                    if item.label.starts_with("__") {
-                        item.sort_text = Some("zzzz".to_string());
-                    }
-                }
-
-                list.items = cleaned;
+                mist_ify_completions(&source, &mist_pos, &mut list.items);
 
                 Ok(Some(CompletionResponse::List(list)))
             }
@@ -1312,6 +1254,36 @@ impl LanguageServer for Backend {
                 Ok(None)
             }
         }
+    }
+}
+
+fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<CompletionItem>) {
+    let existing: HashSet<String> = items.iter().map(|item| item.label.clone()).collect();
+
+    items.extend(keyword_completion_items().filter(|item| !existing.contains(&item.label)));
+
+    for item in items.iter_mut() {
+        item.text_edit = None;
+        item.additional_text_edits = None;
+        item.command = None;
+
+        if item.label.starts_with("__") {
+            item.sort_text = Some("zzzz".to_string());
+        }
+    }
+
+    if matches!(
+        current_scope(&source, pos.line, pos.character),
+        Scope::Module | Scope::Class | Scope::Impl | Scope::Trait
+    ) {
+        items.push(CompletionItem {
+            label: "function".to_string(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$1 $2($3)\n{\n$4\n}".to_string()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("1".to_string()),
+            ..Default::default()
+        });
     }
 }
 
@@ -1596,16 +1568,34 @@ enum Scope {
 }
 
 fn scope_for_line(line: &str) -> Scope {
-    for token in line.split_whitespace() {
-        match token {
-            "struct" => return Scope::Struct,
-            "enum" => return Scope::Enum,
-            "class" => return Scope::Class,
-            "trait" => return Scope::Trait,
-            "impl" => return Scope::Impl,
-            _ => {}
+    let mut rest = line.trim_start();
+
+    loop {
+        for (kw, scope) in [
+            ("struct", Scope::Struct),
+            ("enum", Scope::Enum),
+            ("class", Scope::Class),
+            ("trait", Scope::Trait),
+            ("impl", Scope::Impl),
+        ] {
+            if let Some(after) = rest.strip_prefix(kw) {
+                if after.is_empty() || !after.starts_with(|c: char| c.is_alphanumeric() || c == '_')
+                {
+                    return scope;
+                }
+            }
+        }
+
+        let Some(idx) = rest.find(char::is_whitespace) else {
+            break;
+        };
+
+        rest = rest[idx..].trim_start();
+        if rest.is_empty() {
+            break;
         }
     }
+
     Scope::Block
 }
 
@@ -1658,13 +1648,6 @@ fn current_scope(source: &str, line: u32, character: u32) -> Scope {
         .unwrap_or(0);
 
     scope_for_line(&before_trimmed[line_start..])
-}
-
-fn clean_completion_item(mut item: CompletionItem) -> CompletionItem {
-    item.text_edit = None;
-    item.additional_text_edits = None;
-    item.command = None;
-    item
 }
 
 fn collect_mist_files(dir: &PathBuf, out: &mut Vec<PathBuf>) {
