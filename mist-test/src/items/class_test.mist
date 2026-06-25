@@ -1,36 +1,52 @@
 pub module class_test;
 
 pub class Animal {
+
     pub String name;
+
     constructor() {
         self.name = "Rex".to_string();
     }
+
     pub String speak(&self) {
         "Unknown".to_string()
-    }    pub void test_speak<'a>(&'a self) {
+    }
+
+    pub void test_speak<'a>(&'a self) {
         assert_eq!(self.speak(), "Woof!");
-    }    pub void static_method() {
-    }}
+    }
+
+    pub void static_method() {
+    }
+}
 
 pub class Mammal : Animal {
+
     constructor() {
         super = Super::new();
     }
+
     pub void args_test(&self, i32 x, str& y) {
         assert_eq!(x, 10);
         assert_eq!(y, "hello");
-    }}
+    }
+}
 
 pub class Dog : Mammal {
+
     constructor() {
         super = Super::new();
     }
+
     pub String speak(&self) override(Animal) {
         "Woof!".to_string()
-    }    implstd::fmt::Display {
+    }
+
+    impl std::fmt::Display {
         Result<(), std::fmt::Error> fmt(&self, std::fmt::Formatter<'_>& mut f) {
             write!(f, "🐾 {}", self.name)
-        }    }
+        }
+    }
 }
 
 pub void run_tests() {

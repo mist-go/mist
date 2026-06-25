@@ -46,8 +46,11 @@ pub void test_nested_fn_calls() {
 }
 
 i32 factorial(i32 n) {
-    if n <= 1 { 1 }
-    else { n * factorial(n - 1) }
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
 }
 
 pub void test_recursive_fn() {

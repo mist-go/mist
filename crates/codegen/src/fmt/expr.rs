@@ -141,16 +141,18 @@ impl GenMist for Postfix {
                 cg.add(close);
             }
             Postfix::StructCall(fields) => {
-                cg.add("{");
+                cg.addln(" {");
+                cg.indent += 1;
                 for (name, expr) in fields {
-                    cg.add(&name.get_mist());
+                    cg.add_indented(&name.get_mist());
                     if let Some(expr) = expr {
                         cg.add(": ");
                         expr.gen_mist(ctx, cg);
                     }
-                    cg.add(", ");
+                    cg.addln(",");
                 }
-                cg.add("}");
+                cg.indent -= 1;
+                cg.add_indented("}");
             }
             Postfix::Index(idx) => {
                 cg.add("[");
@@ -168,8 +170,8 @@ impl GenMist for Postfix {
                 cg.add(" ");
                 expr.gen_mist(ctx, cg);
             }
-            Postfix::Increment => cg.add(" += 1"),
-            Postfix::Decrement => cg.add(" -= 1"),
+            Postfix::Increment => cg.add("++"),
+            Postfix::Decrement => cg.add("--"),
         }
     }
 }

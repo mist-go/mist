@@ -6,7 +6,9 @@ pub struct Debuggable {
 }
 
 pub void test_derive_attribute() {
-    let d = Debuggable { value: 42 };
+    let d = Debuggable {
+        value: 42,
+    };
     assert_eq!(d.value, 42);
 }
 

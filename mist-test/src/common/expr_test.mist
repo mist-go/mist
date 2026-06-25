@@ -101,15 +101,22 @@ pub void test_block_expr() {
 }
 
 pub void test_if_expr() {
-    let x = if true { 1 } else { 2 };
+    let x = if true {
+        1
+    } else {
+        2
+    };
     assert_eq!(x, 1);
-
-    let y = if false { 1 } else { 2 };
+    let y = if false {
+        1
+    } else {
+        2
+    };
     assert_eq!(y, 2);
 }
 
 pub void test_range_expr() {
-    let r = 0..5;
+    let r = 0 .. 5;
     let mut count = 0;
     for i in r {
         count++;

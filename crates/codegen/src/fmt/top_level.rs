@@ -4,17 +4,19 @@ use crate::fmt::{Context, GenMist, GetMist, MistCodegen};
 
 impl GenMist for ImplDecl {
     fn gen_mist(&self, ctx: &mut Context, cg: &mut MistCodegen) {
-        cg.add_indented("impl");
+        cg.add_indented("impl ");
         let generics = self.generics.get_mist();
         if !generics.is_empty() {
             cg.add(&generics);
             cg.add(" ");
         }
-        cg.add(&self.target.get_mist());
         if let Some(trait_) = &self.trait_ {
-            cg.add(" for ");
             cg.add(&trait_.get_mist());
+            cg.add(" for ");
         }
+
+        cg.add(&self.target.get_mist());
+
         cg.addln(" {");
         cg.indent += 1;
 
@@ -79,6 +81,7 @@ impl GenMist for FunctionDecl {
         if let Some(body) = &self.body {
             cg.add(" ");
             body.gen_mist(ctx, cg);
+            cg.addln("");
         } else {
             cg.addln(";");
         }
@@ -125,7 +128,7 @@ impl GetMist for EnumItem {
                 "{} {{{}}}",
                 id.get_mist(),
                 s.iter()
-                    .map(|field| format!("{}: {}", field.name.get_mist(), field.type_.get_mist()))
+                    .map(FieldDecl::get_mist)
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
@@ -237,7 +240,7 @@ impl GenMist for TopLevelKind {
                     generics.get_mist()
                 ));
                 if !requirements.is_empty() {
-                    cg.add(": ");
+                    cg.add(" : ");
                     cg.add(
                         &requirements
                             .iter()
@@ -273,7 +276,7 @@ impl GenMist for TopLevelKind {
                     cg.add(" : ");
                     cg.add(&inherits.get_mist());
                 }
-                cg.addln(" {");
+                cg.addln(" {\n");
                 cg.indent += 1;
 
                 for field in fields {
@@ -286,6 +289,10 @@ impl GenMist for TopLevelKind {
                 }
 
                 if let Some(constructor) = constructor {
+                    if fields.len() > 0 {
+                        cg.addln("");
+                    }
+
                     cg.add_indented(&constructor.item.visibility.get_mist());
                     cg.add("constructor");
                     cg.add(&constructor.item.generics.get_mist());
@@ -299,9 +306,17 @@ impl GenMist for TopLevelKind {
                     cg.add(") ");
                     constructor.item.body.gen_mist(ctx, cg);
                     cg.addln("");
+
+                    if items.len() > 0 {
+                        cg.addln("");
+                    }
                 }
 
-                for item in items {
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        cg.addln("");
+                    }
+
                     match item {
                         ClassItem::Method(method) => method.gen_mist(ctx, cg),
                         ClassItem::ImplDecl(impl_) => impl_.gen_mist(ctx, cg),

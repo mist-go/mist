@@ -8,13 +8,10 @@ pub void test_let_basic() {
 pub void test_let_typed() {
     i32 x = 42;
     assert_eq!(x, 42);
-
     str& s = "hello";
     assert_eq!(s, "hello");
-
     bool b = true;
     assert_eq!(b, true);
-
     f64 f = 3.14;
     assert_eq!(f, 3.14);
 }

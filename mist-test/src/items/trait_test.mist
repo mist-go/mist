@@ -25,12 +25,16 @@ impl Greet for Dog {
 }
 
 pub void test_trait_impl() {
-    let d = Dog { name: "Rex".to_string() };
+    let d = Dog {
+        name: "Rex".to_string(),
+    };
     assert_eq!(d.speak(), "woof");
 }
 
 pub void test_trait_with_requirement() {
-    let d = Dog { name: "Buddy".to_string() };
+    let d = Dog {
+        name: "Buddy".to_string(),
+    };
     assert_eq!(d.speak(), "woof");
     assert_eq!(d.greet(), "hello");
 }
