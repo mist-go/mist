@@ -20,10 +20,10 @@ use crate::transpiler::{TranspileError, transpile_mist, transpile_mist_no_sem};
 
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-const KEYWORDS: [&'static str; 25] = [
-    "if", "else", "for", "while", "match", "return", "break", "continue", "struct", "enum",
-    "class", "trait", "impl", "pub", "mut", "let", "true", "false", "dyn", "loop", "fn", "unsafe",
-    "override", "module", "void",
+const KEYWORDS: [&'static str; 22] = [
+    "if", "else", "for", "while", "match", "return", "break", "continue ", "struct ", "enum ",
+    "class ", "trait ", "impl ", "pub ", "mut ", "let ", "dyn ", "loop", "unsafe",
+    "override", "module ", "void ",
 ];
 
 fn keyword_completion_items() -> impl Iterator<Item = CompletionItem> {
@@ -31,6 +31,7 @@ fn keyword_completion_items() -> impl Iterator<Item = CompletionItem> {
         label: kw.to_string(),
         kind: Some(CompletionItemKind::KEYWORD),
         insert_text: Some(kw.to_string()),
+        sort_text: Some("2".to_string() + kw),
         ..Default::default()
     })
 }
@@ -993,44 +994,14 @@ impl LanguageServer for Backend {
         }
 
         match completion_result {
-            Ok(Some(CompletionResponse::Array(items))) => {
-                let mut cleaned: Vec<CompletionItem> =
-                    items.into_iter().map(clean_completion_item).collect();
+            Ok(Some(CompletionResponse::Array(mut items))) => {
+                mist_ify_completions(&source, &mist_pos, &mut items);
 
-                let existing: HashSet<String> =
-                    cleaned.iter().map(|item| item.label.clone()).collect();
-
-                cleaned.extend(
-                    keyword_completion_items().filter(|item| !existing.contains(&item.label)),
-                );
-
-                for item in &mut cleaned {
-                    if item.label.starts_with("__") {
-                        item.sort_text = Some("zzzz".to_string());
-                    }
-                }
-
-                Ok(Some(CompletionResponse::Array(cleaned)))
+                Ok(Some(CompletionResponse::Array(items)))
             }
 
             Ok(Some(CompletionResponse::List(mut list))) => {
-                let mut cleaned: Vec<CompletionItem> =
-                    list.items.into_iter().map(clean_completion_item).collect();
-
-                let existing: HashSet<String> =
-                    cleaned.iter().map(|item| item.label.clone()).collect();
-
-                cleaned.extend(
-                    keyword_completion_items().filter(|item| !existing.contains(&item.label)),
-                );
-
-                for item in &mut cleaned {
-                    if item.label.starts_with("__") {
-                        item.sort_text = Some("zzzz".to_string());
-                    }
-                }
-
-                list.items = cleaned;
+                mist_ify_completions(&source, &mist_pos, &mut list.items);
 
                 Ok(Some(CompletionResponse::List(list)))
             }
@@ -1283,6 +1254,319 @@ impl LanguageServer for Backend {
                 eprintln!("hover error: {e}");
                 Ok(None)
             }
+        }
+    }
+}
+
+fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<CompletionItem>) {
+    let existing: HashSet<String> = items.iter().map(|item| item.label.clone()).collect();
+
+    items.extend(keyword_completion_items().filter(|item| !existing.contains(&item.label)));
+
+    for item in items.iter_mut() {
+        item.text_edit = None;
+        item.additional_text_edits = None;
+        item.command = None;
+
+        if item.label.starts_with("__") {
+            item.sort_text = Some("zzzz".to_string());
+        }
+    }
+
+    let curr_scope = current_scope(&source, pos.line, pos.character);
+
+    // =========================
+    // Module/Class/Impl/Trait
+    // =========================
+
+    if matches!(
+        curr_scope,
+        Scope::Module | Scope::Class | Scope::Impl | Scope::Trait
+    ) {
+        items.push(CompletionItem {
+            label: "function".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$1 $2($3)\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "const".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("const $1 $2 = $0;".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    if matches!(curr_scope, Scope::Module) {
+        items.push(CompletionItem {
+            label: "struct".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("struct $1\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "enum".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("enum $1\n{\n\t$2\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "class".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("class $1\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "trait".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("trait $1\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "impl".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("impl $1\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "module".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("module $1\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "pub module".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("pub module $1\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "use".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("use $0;".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "test".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("#[test]\nvoid $1()\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    // =========================
+    // Struct/Class
+    // =========================
+
+    if matches!(curr_scope, Scope::Struct) {
+        items.push(CompletionItem {
+            label: "field".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$1 $2,".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "pub field".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("pub $1 $2,".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    if matches!(curr_scope, Scope::Class) {
+        items.push(CompletionItem {
+            label: "field".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$1 $2;".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "pub field".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("pub $1 $2;".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    // =========================
+    // Enum
+    // =========================
+
+    if matches!(curr_scope, Scope::Enum) {
+        items.push(CompletionItem {
+            label: "variant".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$1,".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "tuple variant".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$1($2),".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "struct variant".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$1\n{\n\t$0\n},".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    // =========================
+    // Trait
+    // =========================
+
+    if matches!(curr_scope, Scope::Trait) {
+        items.push(CompletionItem {
+            label: "associated type".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("type $1;".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "associated const".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("const $1 $2;".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    // =========================
+    // Impl/Class
+    // =========================
+
+    if matches!(curr_scope, Scope::Impl | Scope::Class) {
+        items.push(CompletionItem {
+            label: "constructor".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("constructor($1)\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "getter".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$2 $1()\n{\n\tself.$1\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "setter".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("void set_$1($2 value)\n{\n\tself.$1 = value;\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    // =========================
+    // Block
+    // =========================
+
+    if matches!(curr_scope, Scope::Block) {
+        for (label, snippet) in [
+            ("if", "if ($1)\n{\n\t$0\n}"),
+            ("if let", "if let $1 = $2\n{\n\t$0\n}"),
+            ("while", "while ($1)\n{\n\t$0\n}"),
+            ("for", "for $1 in $2\n{\n\t$0\n}"),
+            ("match", "match $1\n{\n\t$0\n}"),
+            ("loop", "loop\n{\n\t$0\n}"),
+            ("let", "let $1 = $0;"),
+            ("let mut", "let mut $1 = $0;"),
+            ("return", "return $0;"),
+        ] {
+            items.push(CompletionItem {
+                label: label.into(),
+                kind: Some(CompletionItemKind::SNIPPET),
+                insert_text: Some(snippet.into()),
+                insert_text_format: Some(InsertTextFormat::SNIPPET),
+                sort_text: Some("0000".into()),
+                preselect: Some(true),
+                ..Default::default()
+            });
         }
     }
 }
@@ -1555,11 +1839,99 @@ fn ensure_implicit_packages_impl(docs: &mut HashMap<PathBuf, Rope>, src_root: &P
     }
 }
 
-fn clean_completion_item(mut item: CompletionItem) -> CompletionItem {
-    item.text_edit = None;
-    item.additional_text_edits = None;
-    item.command = None;
-    item
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Scope {
+    Module,
+    Struct,
+    Enum,
+    Class,
+    Trait,
+    Impl,
+    Block,
+    Unknown,
+}
+
+fn scope_for_line(line: &str) -> Scope {
+    let mut rest = line.trim_start();
+
+    loop {
+        for (kw, scope) in [
+            ("struct", Scope::Struct),
+            ("enum", Scope::Enum),
+            ("class", Scope::Class),
+            ("trait", Scope::Trait),
+            ("impl", Scope::Impl),
+        ] {
+            if let Some(after) = rest.strip_prefix(kw) {
+                if after.is_empty() || !after.starts_with(|c: char| c.is_alphanumeric() || c == '_')
+                {
+                    return scope;
+                }
+            }
+        }
+
+        let Some(idx) = rest.find(char::is_whitespace) else {
+            break;
+        };
+
+        rest = rest[idx..].trim_start();
+        if rest.is_empty() {
+            break;
+        }
+    }
+
+    Scope::Block
+}
+
+fn current_scope(source: &str, line: u32, character: u32) -> Scope {
+    let cursor_offset = match byte_offset_from_lsp(source, line, character) {
+        Some(offset) => offset,
+        None => return Scope::Unknown,
+    };
+
+    let mut depth: i32 = 0;
+    let mut in_string = false;
+    let mut brace_starts: Vec<usize> = Vec::new();
+
+    for (i, c) in source[..cursor_offset].char_indices() {
+        if in_string {
+            if c == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match c {
+            '{' => {
+                depth += 1;
+                brace_starts.push(i);
+            }
+            '}' if depth > 0 => {
+                depth -= 1;
+                brace_starts.pop();
+            }
+            '"' => in_string = true,
+            _ => {}
+        }
+    }
+
+    if depth == 0 {
+        return Scope::Module;
+    }
+
+    let Some(&brace_pos) = brace_starts.last() else {
+        return Scope::Block;
+    };
+
+    let before = &source[..brace_pos];
+    let before_trimmed = before.trim_end();
+
+    let line_start = before_trimmed[..before_trimmed.len()]
+        .rfind('\n')
+        .map(|pos| pos + 1)
+        .unwrap_or(0);
+
+    scope_for_line(&before_trimmed[line_start..])
 }
 
 fn collect_mist_files(dir: &PathBuf, out: &mut Vec<PathBuf>) {
