@@ -20,9 +20,9 @@ use crate::transpiler::{TranspileError, transpile_mist, transpile_mist_no_sem};
 
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-const KEYWORDS: [&'static str; 25] = [
+const KEYWORDS: [&'static str; 24] = [
     "if", "else", "for", "while", "match", "return", "break", "continue", "struct", "enum",
-    "class", "trait", "impl", "pub", "mut", "let", "true", "false", "dyn", "loop", "fn", "unsafe",
+    "class", "trait", "impl", "pub", "mut", "let", "true", "false", "dyn", "loop", "unsafe",
     "override", "module", "void",
 ];
 
