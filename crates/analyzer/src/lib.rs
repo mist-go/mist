@@ -31,7 +31,7 @@ fn keyword_completion_items() -> impl Iterator<Item = CompletionItem> {
         label: kw.to_string(),
         kind: Some(CompletionItemKind::KEYWORD),
         insert_text: Some(kw.to_string()),
-        sort_text: Some("2".to_string()+kw),
+        sort_text: Some("2".to_string() + kw),
         ..Default::default()
     })
 }
@@ -1356,9 +1356,19 @@ fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<Completion
         });
 
         items.push(CompletionItem {
-            label: "mod".into(),
+            label: "module".into(),
             kind: Some(CompletionItemKind::SNIPPET),
-            insert_text: Some("mod $1\n{\n\t$0\n}".into()),
+            insert_text: Some("module $1\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "pub module".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("pub module $1\n{\n\t$0\n}".into()),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             sort_text: Some("0000".into()),
             preselect: Some(true),
@@ -1378,7 +1388,7 @@ fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<Completion
         items.push(CompletionItem {
             label: "test".into(),
             kind: Some(CompletionItemKind::SNIPPET),
-            insert_text: Some("#[test]\nfn $1()\n{\n\t$0\n}".into()),
+            insert_text: Some("#[test]\nvoid $1()\n{\n\t$0\n}".into()),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             sort_text: Some("0000".into()),
             preselect: Some(true),
