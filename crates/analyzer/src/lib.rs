@@ -23,7 +23,7 @@ static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
 const KEYWORDS: [&'static str; 24] = [
     "if", "else", "for", "while", "match", "return", "break", "continue", "struct", "enum",
     "class", "trait", "impl", "pub", "mut", "let", "true", "false", "dyn", "loop", "unsafe",
-    "override", "module", "void",
+    "override", "module", "void ",
 ];
 
 fn keyword_completion_items() -> impl Iterator<Item = CompletionItem> {
@@ -1004,9 +1004,12 @@ impl LanguageServer for Backend {
                     keyword_completion_items().filter(|item| !existing.contains(&item.label)),
                 );
 
-                if is_at_module_scope(&source, mist_pos.line, mist_pos.character) {
+                if matches!(
+                    current_scope(&source, mist_pos.line, mist_pos.character),
+                    Scope::Module
+                ) {
                     cleaned.push(CompletionItem {
-                        label: "declaration".to_string(),
+                        label: "function".to_string(),
                         kind: Some(CompletionItemKind::SNIPPET),
                         insert_text: Some("$1 $2($3)\n{\n$4\n}".to_string()),
                         insert_text_format: Some(InsertTextFormat::SNIPPET),
@@ -1035,9 +1038,12 @@ impl LanguageServer for Backend {
                     keyword_completion_items().filter(|item| !existing.contains(&item.label)),
                 );
 
-                if is_at_module_scope(&source, mist_pos.line, mist_pos.character) {
+                if matches!(
+                    current_scope(&source, mist_pos.line, mist_pos.character),
+                    Scope::Module
+                ) {
                     cleaned.push(CompletionItem {
-                        label: "declaration".to_string(),
+                        label: "function".to_string(),
                         kind: Some(CompletionItemKind::SNIPPET),
                         insert_text: Some("$1 $2($3)\n{\n$4\n}".to_string()),
                         insert_text_format: Some(InsertTextFormat::SNIPPET),
@@ -1577,18 +1583,43 @@ fn ensure_implicit_packages_impl(docs: &mut HashMap<PathBuf, Rope>, src_root: &P
     }
 }
 
-/// Check if the cursor is at module scope (top-level, not inside a function
-/// body, class body, or any other brace-delimited block).
-fn is_at_module_scope(source: &str, line: u32, character: u32) -> bool {
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Scope {
+    Module,
+    Struct,
+    Enum,
+    Class,
+    Trait,
+    Impl,
+    Block,
+    Unknown,
+}
+
+fn scope_for_line(line: &str) -> Scope {
+    for token in line.split_whitespace() {
+        match token {
+            "struct" => return Scope::Struct,
+            "enum" => return Scope::Enum,
+            "class" => return Scope::Class,
+            "trait" => return Scope::Trait,
+            "impl" => return Scope::Impl,
+            _ => {}
+        }
+    }
+    Scope::Block
+}
+
+fn current_scope(source: &str, line: u32, character: u32) -> Scope {
     let cursor_offset = match byte_offset_from_lsp(source, line, character) {
         Some(offset) => offset,
-        None => return false,
+        None => return Scope::Unknown,
     };
 
     let mut depth: i32 = 0;
     let mut in_string = false;
+    let mut brace_starts: Vec<usize> = Vec::new();
 
-    for c in source[..cursor_offset].chars() {
+    for (i, c) in source[..cursor_offset].char_indices() {
         if in_string {
             if c == '"' {
                 in_string = false;
@@ -1597,14 +1628,36 @@ fn is_at_module_scope(source: &str, line: u32, character: u32) -> bool {
         }
 
         match c {
-            '{' => depth += 1,
-            '}' if depth > 0 => depth -= 1,
+            '{' => {
+                depth += 1;
+                brace_starts.push(i);
+            }
+            '}' if depth > 0 => {
+                depth -= 1;
+                brace_starts.pop();
+            }
             '"' => in_string = true,
             _ => {}
         }
     }
 
-    depth == 0
+    if depth == 0 {
+        return Scope::Module;
+    }
+
+    let Some(&brace_pos) = brace_starts.last() else {
+        return Scope::Block;
+    };
+
+    let before = &source[..brace_pos];
+    let before_trimmed = before.trim_end();
+
+    let line_start = before_trimmed[..before_trimmed.len()]
+        .rfind('\n')
+        .map(|pos| pos + 1)
+        .unwrap_or(0);
+
+    scope_for_line(&before_trimmed[line_start..])
 }
 
 fn clean_completion_item(mut item: CompletionItem) -> CompletionItem {
