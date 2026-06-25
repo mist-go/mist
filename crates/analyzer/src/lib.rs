@@ -31,6 +31,7 @@ fn keyword_completion_items() -> impl Iterator<Item = CompletionItem> {
         label: kw.to_string(),
         kind: Some(CompletionItemKind::KEYWORD),
         insert_text: Some(kw.to_string()),
+        sort_text: Some("2".to_string()+kw),
         ..Default::default()
     })
 }
@@ -1272,18 +1273,291 @@ fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<Completion
         }
     }
 
+    let curr_scope = current_scope(&source, pos.line, pos.character);
+
+    // =========================
+    // Module/Class/Impl/Trait
+    // =========================
+
     if matches!(
-        current_scope(&source, pos.line, pos.character),
+        curr_scope,
         Scope::Module | Scope::Class | Scope::Impl | Scope::Trait
     ) {
         items.push(CompletionItem {
-            label: "function".to_string(),
+            label: "function".into(),
             kind: Some(CompletionItemKind::SNIPPET),
-            insert_text: Some("$1 $2($3)\n{\n$4\n}".to_string()),
+            insert_text: Some("$1 $2($3)\n{\n\t$0\n}".into()),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
-            sort_text: Some("1".to_string()),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
             ..Default::default()
         });
+
+        items.push(CompletionItem {
+            label: "const".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("const $1 $2 = $0;".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    if matches!(curr_scope, Scope::Module) {
+        items.push(CompletionItem {
+            label: "struct".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("struct $1\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "enum".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("enum $1\n{\n\t$2\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "class".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("class $1\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "trait".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("trait $1\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "impl".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("impl $1\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "mod".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("mod $1\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "use".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("use $0;".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "test".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("#[test]\nfn $1()\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    // =========================
+    // Struct/Class
+    // =========================
+
+    if matches!(curr_scope, Scope::Struct) {
+        items.push(CompletionItem {
+            label: "field".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$1 $2,".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "pub field".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("pub $1 $2,".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    if matches!(curr_scope, Scope::Class) {
+        items.push(CompletionItem {
+            label: "field".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$1 $2;".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "pub field".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("pub $1 $2;".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    // =========================
+    // Enum
+    // =========================
+
+    if matches!(curr_scope, Scope::Enum) {
+        items.push(CompletionItem {
+            label: "variant".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$1,".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "tuple variant".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$1($2),".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "struct variant".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$1\n{\n\t$0\n},".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    // =========================
+    // Trait
+    // =========================
+
+    if matches!(curr_scope, Scope::Trait) {
+        items.push(CompletionItem {
+            label: "associated type".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("type $1;".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "associated const".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("const $1 $2;".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    // =========================
+    // Impl/Class
+    // =========================
+
+    if matches!(curr_scope, Scope::Impl | Scope::Class) {
+        items.push(CompletionItem {
+            label: "constructor".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("constructor($1)\n{\n\t$0\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "getter".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("$2 $1()\n{\n\tself.$1\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "setter".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("void set_$1($2 value)\n{\n\tself.$1 = value;\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+    }
+
+    // =========================
+    // Block
+    // =========================
+
+    if matches!(curr_scope, Scope::Block) {
+        for (label, snippet) in [
+            ("if", "if ($1)\n{\n\t$0\n}"),
+            ("if let", "if let $1 = $2\n{\n\t$0\n}"),
+            ("while", "while ($1)\n{\n\t$0\n}"),
+            ("for", "for $1 in $2\n{\n\t$0\n}"),
+            ("match", "match $1\n{\n\t$0\n}"),
+            ("loop", "loop\n{\n\t$0\n}"),
+            ("let", "let $1 = $0;"),
+            ("let mut", "let mut $1 = $0;"),
+            ("return", "return $0;"),
+        ] {
+            items.push(CompletionItem {
+                label: label.into(),
+                kind: Some(CompletionItemKind::SNIPPET),
+                insert_text: Some(snippet.into()),
+                insert_text_format: Some(InsertTextFormat::SNIPPET),
+                sort_text: Some("0000".into()),
+                preselect: Some(true),
+                ..Default::default()
+            });
+        }
     }
 }
 
