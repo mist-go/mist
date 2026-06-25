@@ -1,11 +1,13 @@
 pub module struct_test;
 
-struct Point {
+struct Point
+{
     i32 x,
     i32 y,
 }
 
-pub void test_struct_create_access() {
+pub void test_struct_create_access()
+{
     let p = Point {
         x: 10,
         y: 20,
@@ -14,7 +16,8 @@ pub void test_struct_create_access() {
     assert_eq!(p.y, 20);
 }
 
-pub void test_struct_mut_field() {
+pub void test_struct_mut_field()
+{
     let mut p = Point {
         x: 1,
         y: 2,
@@ -23,7 +26,8 @@ pub void test_struct_mut_field() {
     assert_eq!(p.x, 100);
 }
 
-pub void test_struct_destructure() {
+pub void test_struct_destructure()
+{
     let p = Point {
         x: 3,
         y: 4,
@@ -33,12 +37,14 @@ pub void test_struct_destructure() {
     assert_eq!(y, 4);
 }
 
-struct Line {
+struct Line
+{
     Point start,
     Point end,
 }
 
-pub void test_struct_nested() {
+pub void test_struct_nested()
+{
     let l = Line {
         start: Point {
             x: 0,
@@ -53,7 +59,8 @@ pub void test_struct_nested() {
     assert_eq!(l.end.y, 10);
 }
 
-pub void run_tests() {
+pub void run_tests()
+{
     test_struct_create_access();
     test_struct_mut_field();
     test_struct_destructure();

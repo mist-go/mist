@@ -1,17 +1,21 @@
 pub module impl_test;
 
-struct Vector2 {
+struct Vector2
+{
     i32 x,
     i32 y,
 }
 
-impl Vector2 {
-    pub i32 magnitude(&self) {
+impl Vector2
+{
+    pub i32 magnitude(&self)
+    {
         self.x * self.x + self.y * self.y
     }
 }
 
-pub void test_inherent_impl() {
+pub void test_inherent_impl()
+{
     let v = Vector2 {
         x: 3,
         y: 4,
@@ -19,17 +23,21 @@ pub void test_inherent_impl() {
     assert_eq!(v.magnitude(), 25);
 }
 
-trait Display {
+trait Display
+{
     String display(&self);
 }
 
-impl Display for Vector2 {
-    String display(&self) {
+impl Display for Vector2
+{
+    String display(&self)
+    {
         format!("({}, {})", self.x, self.y)
     }
 }
 
-pub void test_trait_impl_block() {
+pub void test_trait_impl_block()
+{
     let v = Vector2 {
         x: 1,
         y: 2,
@@ -38,8 +46,10 @@ pub void test_trait_impl_block() {
     assert_eq!(s.len() > 0, true);
 }
 
-impl Vector2 {
-    pub Vector2 add(&self, Vector2 other) {
+impl Vector2
+{
+    pub Vector2 add(&self, Vector2 other)
+    {
         Vector2 {
             x: self.x + other.x,
             y: self.y + other.y,
@@ -47,7 +57,8 @@ impl Vector2 {
     }
 }
 
-pub void test_multiple_impls() {
+pub void test_multiple_impls()
+{
     let a = Vector2 {
         x: 1,
         y: 2,
@@ -61,7 +72,8 @@ pub void test_multiple_impls() {
     assert_eq!(c.y, 6);
 }
 
-pub void run_tests() {
+pub void run_tests()
+{
     test_inherent_impl();
     test_trait_impl_block();
     test_multiple_impls();

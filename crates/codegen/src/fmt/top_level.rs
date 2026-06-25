@@ -17,8 +17,7 @@ impl GenMist for ImplDecl {
 
         cg.add(&self.target.get_mist());
 
-        cg.addln(" {");
-        cg.indent += 1;
+        cg.start_bracket();
 
         for method in &self.methods {
             method.gen_mist(ctx, cg);
@@ -79,7 +78,8 @@ impl GenMist for FunctionDecl {
         }
 
         if let Some(body) = &self.body {
-            cg.add(" ");
+            cg.addln("");
+            cg.add_indented("");
             body.gen_mist(ctx, cg);
             cg.addln("");
         } else {
@@ -183,22 +183,25 @@ impl GenMist for TopLevelKind {
                 fields,
             } => {
                 cg.add(&format!(
-                    "{}struct {}{} {{",
+                    "{}struct {}{}",
                     visibility.get_mist(),
                     name.get_mist(),
                     generics.get_mist()
                 ));
-                if !fields.is_empty() {
-                    cg.addln("");
-                    cg.indent += 1;
+
+                if fields.is_empty() {
+                    cg.add(" {}");
+                } else {
+                    cg.start_bracket();
+
                     for field in fields {
                         cg.add_indentedln(&format!("{},", field.item.get_mist()));
                     }
+
                     cg.indent -= 1;
                     cg.add_indented("}");
-                } else {
-                    cg.add("}");
                 }
+
                 cg.addln("");
             }
             Self::EnumDecl {
@@ -208,22 +211,25 @@ impl GenMist for TopLevelKind {
                 fields,
             } => {
                 cg.add(&format!(
-                    "{}enum {}{} {{",
+                    "{}enum {}{}",
                     visibility.get_mist(),
                     name.get_mist(),
                     generics.get_mist()
                 ));
-                if !fields.is_empty() {
-                    cg.addln("");
-                    cg.indent += 1;
+
+                if fields.is_empty() {
+                    cg.add(" {}");
+                } else {
+                    cg.start_bracket();
+
                     for field in fields {
                         cg.add_indentedln(&format!("{},", field.item.get_mist()));
                     }
+
                     cg.indent -= 1;
                     cg.add_indented("}");
-                } else {
-                    cg.add("}");
                 }
+
                 cg.addln("");
             }
             Self::TraitDecl {
@@ -249,8 +255,7 @@ impl GenMist for TopLevelKind {
                             .join(" + "),
                     );
                 }
-                cg.addln(" {");
-                cg.indent += 1;
+                cg.start_bracket();
                 for item in items {
                     item.gen_mist(ctx, cg);
                 }
@@ -276,8 +281,8 @@ impl GenMist for TopLevelKind {
                     cg.add(" : ");
                     cg.add(&inherits.get_mist());
                 }
-                cg.addln(" {\n");
-                cg.indent += 1;
+
+                cg.start_bracket();
 
                 for field in fields {
                     cg.add_indented(&field.item.decl.get_mist());
@@ -303,7 +308,8 @@ impl GenMist for TopLevelKind {
                         }
                         param.gen_mist(ctx, cg);
                     }
-                    cg.add(") ");
+                    cg.addln(") ");
+                    cg.add_indented("");
                     constructor.item.body.gen_mist(ctx, cg);
                     cg.addln("");
 

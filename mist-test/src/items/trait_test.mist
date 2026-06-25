@@ -1,37 +1,46 @@
 pub module trait_test;
 
-trait Speak {
+trait Speak
+{
     String speak(&self);
 }
 
-trait Greet : Speak {
+trait Greet : Speak
+{
     String greet(&self);
 }
 
-struct Dog {
+struct Dog
+{
     String name,
 }
 
-impl Speak for Dog {
-    String speak(&self) {
+impl Speak for Dog
+{
+    String speak(&self)
+    {
         "woof".to_string()
     }
 }
 
-impl Greet for Dog {
-    String greet(&self) {
+impl Greet for Dog
+{
+    String greet(&self)
+    {
         "hello".to_string()
     }
 }
 
-pub void test_trait_impl() {
+pub void test_trait_impl()
+{
     let d = Dog {
         name: "Rex".to_string(),
     };
     assert_eq!(d.speak(), "woof");
 }
 
-pub void test_trait_with_requirement() {
+pub void test_trait_with_requirement()
+{
     let d = Dog {
         name: "Buddy".to_string(),
     };
@@ -39,7 +48,8 @@ pub void test_trait_with_requirement() {
     assert_eq!(d.greet(), "hello");
 }
 
-pub void run_tests() {
+pub void run_tests()
+{
     test_trait_impl();
     test_trait_with_requirement();
 }
