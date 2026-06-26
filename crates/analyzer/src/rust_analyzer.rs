@@ -103,7 +103,8 @@ impl RustAnalyzer {
     pub fn new(
         notification_tx: tokio::sync::mpsc::UnboundedSender<Value>,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        let mut child = tokio::process::Command::new("rust-analyzer")
+        let mut child = tokio::process::Command::new("rustup")
+            .args(["run", "stable", "rust-analyzer"])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -129,7 +130,10 @@ impl RustAnalyzer {
                 match stderr.read(&mut buf).await {
                     Ok(0) => break,
                     Ok(n) => {
-                        eprintln!("[ra-stderr] {}", String::from_utf8_lossy(&buf[..n]).trim_end());
+                        eprintln!(
+                            "[ra-stderr] {}",
+                            String::from_utf8_lossy(&buf[..n]).trim_end()
+                        );
                     }
                     Err(e) => {
                         eprintln!("[ra-stderr] read error: {e}");
@@ -323,11 +327,8 @@ impl RustAnalyzer {
     }
 
     pub async fn initialized(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.notify(
-            <Initialized as Notification>::METHOD,
-            InitializedParams {},
-        )
-        .await?;
+        self.notify(<Initialized as Notification>::METHOD, InitializedParams {})
+            .await?;
         Ok(())
     }
 }
