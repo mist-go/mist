@@ -13,7 +13,6 @@ pub void test_float_type() {
 pub void test_bool_type() {
     bool x = true;
     assert_eq!(x, true);
-
     bool y = false;
     assert_eq!(y, false);
 }
@@ -42,7 +41,8 @@ pub void test_mut_ref_type() {
     assert_eq!(x, 100);
 }
 
-pub void test_void_type() {}
+pub void test_void_type() {
+}
 
 i32 add(i32 a, i32 b) {
     a + b

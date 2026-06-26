@@ -1,6 +1,7 @@
 pub module expr_test;
 
-pub void test_literals() {
+pub void test_literals()
+{
     assert_eq!(42, 42);
     assert_eq!(3.14, 3.14);
     assert_eq!(true, true);
@@ -8,28 +9,32 @@ pub void test_literals() {
     assert_eq!("hello", "hello");
 }
 
-pub void test_tuples() {
+pub void test_tuples()
+{
     let t = (1, true, "three");
     assert_eq!(t.0, 1);
     assert_eq!(t.1, true);
     assert_eq!(t.2, "three");
 }
 
-pub void test_arrays() {
+pub void test_arrays()
+{
     let arr = [1, 2, 3];
     assert_eq!(arr[0], 1);
     assert_eq!(arr[1], 2);
     assert_eq!(arr[2], 3);
 }
 
-pub void test_array_repeat() {
+pub void test_array_repeat()
+{
     let arr = [0; 5];
     assert_eq!(arr[0], 0);
     assert_eq!(arr[4], 0);
     assert_eq!(arr.len(), 5);
 }
 
-pub void test_binary_arith() {
+pub void test_binary_arith()
+{
     assert_eq!(10 + 5, 15);
     assert_eq!(10 - 5, 5);
     assert_eq!(10 * 5, 50);
@@ -37,7 +42,8 @@ pub void test_binary_arith() {
     assert_eq!(10 % 3, 1);
 }
 
-pub void test_binary_cmp() {
+pub void test_binary_cmp()
+{
     assert_eq!(5 < 10, true);
     assert_eq!(10 <= 10, true);
     assert_eq!(10 > 5, true);
@@ -46,14 +52,16 @@ pub void test_binary_cmp() {
     assert_eq!(5 != 10, true);
 }
 
-pub void test_binary_logic() {
+pub void test_binary_logic()
+{
     assert_eq!(true && true, true);
     assert_eq!(true && false, false);
     assert_eq!(true || false, true);
     assert_eq!(false || false, false);
 }
 
-pub void test_binary_bit() {
+pub void test_binary_bit()
+{
     assert_eq!(5 & 3, 1);
     assert_eq!(5 | 3, 7);
     assert_eq!(5 ^ 3, 6);
@@ -61,20 +69,23 @@ pub void test_binary_bit() {
     assert_eq!(4 >> 1, 2);
 }
 
-pub void test_prefix() {
+pub void test_prefix()
+{
     let x = 42;
     assert_eq!(-x, -42);
     assert_eq!(!true, false);
     assert_eq!(!false, true);
 }
 
-pub void test_ref_deref() {
+pub void test_ref_deref()
+{
     let x = 42;
     let r = &x;
     assert_eq!(*r, 42);
 }
 
-pub void test_postfix_inc_dec() {
+pub void test_postfix_inc_dec()
+{
     let mut x = 5;
     x++;
     assert_eq!(x, 6);
@@ -82,17 +93,20 @@ pub void test_postfix_inc_dec() {
     assert_eq!(x, 5);
 }
 
-pub void test_as_cast() {
+pub void test_as_cast()
+{
     let x = 42;
     assert_eq!(x as f64, 42.0);
 }
 
-pub void test_closure() {
+pub void test_closure()
+{
     let add = (a, b) => a + b;
     assert_eq!(add(2, 3), 5);
 }
 
-pub void test_block_expr() {
+pub void test_block_expr()
+{
     let x = {
         let y = 10;
         y + 5
@@ -100,16 +114,25 @@ pub void test_block_expr() {
     assert_eq!(x, 15);
 }
 
-pub void test_if_expr() {
-    let x = if true { 1 } else { 2 };
+pub void test_if_expr()
+{
+    let x = if true {
+        1
+    } else {
+        2
+    };
     assert_eq!(x, 1);
-
-    let y = if false { 1 } else { 2 };
+    let y = if false {
+        1
+    } else {
+        2
+    };
     assert_eq!(y, 2);
 }
 
-pub void test_range_expr() {
-    let r = 0..5;
+pub void test_range_expr()
+{
+    let r = 0 .. 5;
     let mut count = 0;
     for i in r {
         count++;
@@ -117,7 +140,8 @@ pub void test_range_expr() {
     assert_eq!(count, 5);
 }
 
-pub void test_binary_assign() {
+pub void test_binary_assign()
+{
     let mut x = 10;
     x += 5;
     assert_eq!(x, 15);
@@ -131,7 +155,8 @@ pub void test_binary_assign() {
     assert_eq!(x, 2);
 }
 
-pub void run_tests() {
+pub void run_tests()
+{
     test_literals();
     test_tuples();
     test_arrays();

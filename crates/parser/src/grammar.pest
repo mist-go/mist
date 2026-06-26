@@ -450,7 +450,7 @@ loop_stmt = {
 pattern_list = { pattern ~ ("|" ~ pattern)* }
 
 match_item = {
-    pattern_list ~ "=>" ~ (statement | (expr ~ ","))
+    pattern_list ~ "=>" ~ (block | (expr ~ ","))
 }
 
 match_stmt = {

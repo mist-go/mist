@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use mist_codegen::fmt::MistCodegen;
 use mist_codegen::RustCodegen;
 use mist_parser::parse;
 use mist_parser::rev_mapper::Mapping;
@@ -82,4 +83,14 @@ pub fn transpile_mist_no_sem(
         rust_content: output,
         mapping: codegen.mapping,
     })
+}
+
+pub fn format_mist(source: &str) -> Result<String, String> {
+    let parsed = parse(source).map_err(|e| format!("parse error: {e:?}"))?;
+
+    let mut codegen = MistCodegen::new();
+    codegen.generate(parsed.mod_attributes);
+    let output = codegen.generate(parsed.items);
+
+    Ok(output)
 }
