@@ -188,18 +188,18 @@ impl GetMist for TypeExpr {
                     match lifetime {
                         Lifetime::Lifetime(v) => {
                             format!(
-                                "{} &'{} {}",
+                                "{} {} '{}&",
                                 base,
-                                v.get_mist(),
-                                if *mutable { "mut" } else { "" }
+                                if *mutable { "mut" } else { "" },
+                                v.get_mist()
                             )
                         }
                         Lifetime::Unsafe => {
-                            format!("{} *{}", base, if *mutable { "mut" } else { "const" })
+                            format!("{} {} unsafe&", base, if *mutable { "mut" } else { "const" })
                         }
                     }
                 } else if *mutable {
-                    format!("{} &mut", base)
+                    format!("{} mut&", base)
                 } else {
                     format!("{}&", base)
                 }

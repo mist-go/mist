@@ -36,7 +36,7 @@ pub void test_ref_type() {
 
 pub void test_mut_ref_type() {
     let mut x = 42;
-    i32 &mut r = &mut x;
+    i32 mut& r = &mut x;
     *r = 100;
     assert_eq!(x, 100);
 }

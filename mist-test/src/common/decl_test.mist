@@ -1,11 +1,13 @@
 pub module decl_test;
 
-pub void test_let_basic() {
+pub void test_let_basic()
+{
     let x = 42;
     assert_eq!(x, 42);
 }
 
-pub void test_let_typed() {
+pub void test_let_typed()
+{
     i32 x = 42;
     assert_eq!(x, 42);
     str& s = "hello";
@@ -16,26 +18,30 @@ pub void test_let_typed() {
     assert_eq!(f, 3.14);
 }
 
-pub void test_let_mut() {
+pub void test_let_mut()
+{
     let mut _x = 42;
     _x = 100;
     assert_eq!(_x, 100);
 }
 
-pub void test_let_tuple_destructure() {
+pub void test_let_tuple_destructure()
+{
     let (a, b) = (10, "hello");
     assert_eq!(a, 10);
     assert_eq!(b, "hello");
 }
 
-pub void test_let_nested_tuple() {
+pub void test_let_nested_tuple()
+{
     let (a, (b, c)) = (1, (2, 3));
     assert_eq!(a, 1);
     assert_eq!(b, 2);
     assert_eq!(c, 3);
 }
 
-pub void test_let_pattern_irrefutable() {
+pub void test_let_pattern_irrefutable()
+{
     let x = 5;
     let (y, z) = (1, 2);
     assert_eq!(x, 5);
@@ -43,30 +49,35 @@ pub void test_let_pattern_irrefutable() {
     assert_eq!(z, 2);
 }
 
-pub void test_multiple_decls() {
+pub void test_multiple_decls()
+{
     let a = 1;
     let b = 2;
     let c = 3;
     assert_eq!(a + b + c, 6);
 }
 
-pub void test_let_with_type_and_init() {
+pub void test_let_with_type_and_init()
+{
     f64 x = 10.0;
     assert_eq!(x, 10.0);
 }
 
-pub void test_string_literal() {
+pub void test_string_literal()
+{
     let s = "hello, world!";
     assert_eq!(s.len(), 13);
 }
 
-pub void test_let_bool() {
+pub void test_let_bool()
+{
     let t = true;
     let f = false;
     assert_eq!(t, !f);
 }
 
-pub void run_tests() {
+pub void run_tests()
+{
     test_let_basic();
     test_let_typed();
     test_let_mut();

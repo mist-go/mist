@@ -52,7 +52,7 @@ pub class Dog : Mammal
 
     impl std::fmt::Display
     {
-        Result<(), std::fmt::Error> fmt(&self, std::fmt::Formatter<'_>& mut f)
+        Result<(), std::fmt::Error> fmt(&self, std::fmt::Formatter<'_> mut& f)
         {
             write!(f, "🐾 {}", self.name)
         }

@@ -69,6 +69,7 @@ impl GenMist for Statement {
                             body.gen_mist(ctx, cg);
                             cg.addln("");
                         } else {
+                            ctx.expr_ensure_semicolon = false;
                             body.gen_mist(ctx, cg);
                             cg.addln(",");
                         }
