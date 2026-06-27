@@ -6,6 +6,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use heck::ToSnakeCase;
 use mist_parser::error::ParseError;
 use mist_parser::rev_mapper::{Mapping, MistMap, RustMap};
 use ropey::Rope;
@@ -864,10 +865,72 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "server initialized!")
             .await;
+
+        let registration = Registration {
+            id: "watch-mist-files".to_string(),
+            method: "workspace/didChangeWatchedFiles".to_string(),
+            register_options: Some(
+                serde_json::to_value(DidChangeWatchedFilesRegistrationOptions {
+                    watchers: vec![FileSystemWatcher {
+                        glob_pattern: GlobPattern::String("**/*.mist".to_string()),
+                        kind: Some(WatchKind::Create),
+                    }],
+                })
+                .unwrap(),
+            ),
+        };
+
+        let _ = self.client.register_capability(vec![registration]).await;
     }
 
     async fn shutdown(&self) -> tower_lsp::jsonrpc::Result<()> {
         Ok(())
+    }
+
+    async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
+        for change in params.changes {
+            if change.typ == FileChangeType::CREATED {
+                if let Ok(path) = change.uri.to_file_path() {
+                    if let Some(file_stem) =
+                        path.file_stem().map(|v| v.to_string_lossy().to_string())
+                    {
+                        let snake_module_name = file_stem.to_snake_case();
+                        let insert_text = format!("pub module {};\n", snake_module_name);
+
+                        let text_edit = TextEdit {
+                            range: Range {
+                                start: Position {
+                                    line: 0,
+                                    character: 0,
+                                },
+                                end: Position {
+                                    line: 0,
+                                    character: 0,
+                                },
+                            },
+                            new_text: insert_text,
+                        };
+
+                        let mut changes = std::collections::HashMap::new();
+                        changes.insert(change.uri.clone(), vec![text_edit]);
+
+                        let workspace_edit = WorkspaceEdit {
+                            changes: Some(changes),
+                            ..Default::default()
+                        };
+
+                        if let Err(e) = self.client.apply_edit(workspace_edit).await {
+                            self.client
+                                .log_message(
+                                    MessageType::ERROR,
+                                    format!("Failed to auto-insert module: {}", e),
+                                )
+                                .await;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
