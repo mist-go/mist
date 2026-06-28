@@ -43,7 +43,11 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
                         }
 
                         Rule::fn_type => {
-                            
+                            ty = TypeExpr::Fn {
+                                return_type: Box::new(ty),
+                                kind: ref_inner.next().unwrap().try_into()?,
+                                params: collect_recovered(ref_inner)?,
+                            };
                         }
 
                         _ => AstError::bug_unimplemented(ref_pair)?,
@@ -54,7 +58,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
             }
             Rule::lifetime => Ok(TypeExpr::Lifetime(inner.next().unwrap().try_into()?)),
 
-            Rule::void_type => Ok(TypeExpr::Tuple(Vec::new())),
+            Rule::void_type => Ok(TypeExpr::Void),
             Rule::tuple_type => Ok(TypeExpr::Tuple(collect_recovered(inner)?)),
 
             Rule::path_type => Ok(TypeExpr::Path(
@@ -65,6 +69,22 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
             Rule::dyn_type => Ok(TypeExpr::Dyn(
                 TypeExpr::try_from(inner.next().unwrap()).map(Box::new)?,
             )),
+
+            _ => AstError::bug_unimplemented(pair),
+        }
+    }
+}
+
+impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FnKind {
+    type Error = AstError<'a>;
+
+    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
+        match pair.as_rule() {
+            Rule::fn_kind_fn => Ok(FnKind::Fn),
+            Rule::fn_kind_unsafe => Ok(FnKind::UnsafeFn),
+            Rule::fn_kind_closure => Ok(FnKind::FnClosure),
+            Rule::fn_kind_once => Ok(FnKind::FnOnce),
+            Rule::fn_kind_mut => Ok(FnKind::FnMut),
 
             _ => AstError::bug_unimplemented(pair),
         }
