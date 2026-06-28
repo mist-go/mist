@@ -2,21 +2,23 @@ pub mod expr;
 pub mod statement;
 pub mod top_level;
 
-use mist_parser::ast::*;
+use mist_parser::{MistFmtConfig, ast::*};
 
 pub struct Context {
     pub expr_ensure_semicolon: bool,
 }
 
 pub struct MistCodegen {
+    config: MistFmtConfig,
     indent_amount: u8,
     output: String,
     indent: usize,
 }
 
 impl MistCodegen {
-    pub fn new() -> Self {
+    pub fn new(config: MistFmtConfig) -> Self {
         Self {
+            config,
             output: String::new(),
             indent: 0,
             indent_amount: 4,
@@ -46,9 +48,22 @@ impl MistCodegen {
         self.add(&line);
     }
 
+    pub fn start_indent(&mut self) {
+        if self.config.allman_bracket_style {
+            self.addln("");
+            self.add_indented("");
+        } else {
+            self.add(" ");
+        }
+    }
+
     pub fn start_bracket(&mut self) {
-        self.addln("");
-        self.add_indentedln("{");
+        if self.config.allman_bracket_style {
+            self.addln("");
+            self.add_indentedln("{");
+        } else {
+            self.addln(" {");
+        }
 
         self.indent += 1;
     }

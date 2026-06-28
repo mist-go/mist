@@ -78,8 +78,7 @@ impl GenMist for FunctionDecl {
         }
 
         if let Some(body) = &self.body {
-            cg.addln("");
-            cg.add_indented("");
+            cg.start_indent();
             body.gen_mist(ctx, cg);
             cg.addln("");
         } else {
@@ -308,8 +307,8 @@ impl GenMist for TopLevelKind {
                         }
                         param.gen_mist(ctx, cg);
                     }
-                    cg.addln(") ");
-                    cg.add_indented("");
+                    cg.add(") ");
+                    cg.start_indent();
                     constructor.item.body.gen_mist(ctx, cg);
                     cg.addln("");
 
