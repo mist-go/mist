@@ -200,7 +200,36 @@ impl GetMist for TypeExpr {
             Self::Dyn(ty) => {
                 format!("dyn {}", ty.get_mist())
             }
+            Self::Fn {
+                kind,
+                return_type,
+                params,
+            } => {
+                format!(
+                    "{} {}({})",
+                    return_type.get_mist(),
+                    kind.get_mist(),
+                    params
+                        .iter()
+                        .map(TypeExpr::get_mist)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
         }
+    }
+}
+
+impl GetMist for FnKind {
+    fn get_mist(&self) -> String {
+        match self {
+            Self::Fn => "fn",
+            Self::UnsafeFn => "unsafe fn",
+            Self::FnClosure => "Fn",
+            Self::FnMut => "FnMut",
+            Self::FnOnce => "FnOnce",
+        }
+        .to_string()
     }
 }
 

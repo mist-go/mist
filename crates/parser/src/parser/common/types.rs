@@ -42,6 +42,10 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
                             };
                         }
 
+                        Rule::fn_type => {
+                            
+                        }
+
                         _ => AstError::bug_unimplemented(ref_pair)?,
                     }
                 }
@@ -50,7 +54,9 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
             }
             Rule::lifetime => Ok(TypeExpr::Lifetime(inner.next().unwrap().try_into()?)),
 
+            Rule::void_type => Ok(TypeExpr::Tuple(Vec::new())),
             Rule::tuple_type => Ok(TypeExpr::Tuple(collect_recovered(inner)?)),
+
             Rule::path_type => Ok(TypeExpr::Path(
                 Path::try_from(inner.next().unwrap())?,
                 inner.next().map(Generics::try_from).transpose()?,

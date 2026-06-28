@@ -15,4 +15,6 @@ void main()
     items::impl_test::run_tests();
     items::attribute_test::run_tests();
     println!("\x1b[32m\nAll tests passed!\x1b[0m");
+
+    void fn() hello = () => {};
 }

@@ -18,6 +18,15 @@ pub struct Identifier(pub String);
 pub struct ParamList(pub Vec<VarDecl>);
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
+pub enum FnKind {
+    Fn,
+    UnsafeFn,
+    FnClosure,
+    FnOnce,
+    FnMut,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub enum TypeExpr {
     Ref {
         lifetime: Option<Identifier>,
@@ -33,6 +42,11 @@ pub enum TypeExpr {
     StaticFn(Vec<TypeExpr>, Option<Box<TypeExpr>>),
     Tuple(Vec<TypeExpr>),
     Lifetime(Identifier),
+    Fn {
+        kind: FnKind,
+        return_type: Box<TypeExpr>,
+        params: Vec<TypeExpr>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]

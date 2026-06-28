@@ -239,7 +239,6 @@ impl GetRust for TypeExpr {
             Self::UnsafePtr { mutable, ty } => {
                 let mutable = if *mutable { "mut " } else { "const " };
                 format!("*{mutable}{}", ty.get_rust())
-                
             }
 
             Self::Ref {
@@ -262,7 +261,37 @@ impl GetRust for TypeExpr {
             Self::Dyn(ty) => {
                 format!("dyn {}", ty.get_rust())
             }
+
+            Self::Fn {
+                kind,
+                return_type,
+                params,
+            } => {
+                format!(
+                    "{} -> {}({})",
+                    kind.get_rust(),
+                    return_type.get_rust(),
+                    params
+                        .iter()
+                        .map(TypeExpr::get_rust)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
         }
+    }
+}
+
+impl GetRust for FnKind {
+    fn get_rust(&self) -> String {
+        match self {
+            Self::Fn => "fn",
+            Self::UnsafeFn => "unsafe fn",
+            Self::FnClosure => "Fn",
+            Self::FnMut => "FnMut",
+            Self::FnOnce => "FnOnce",
+        }
+        .to_string()
     }
 }
 
