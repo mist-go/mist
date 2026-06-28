@@ -81,7 +81,6 @@ module_program = {
 
 visibility = { "pub" ~ ("(" ~ static_path ~ ")")? }
 mutable    = { "mut" }
-unsafe_kw  = { "unsafe" }
 
 // ======================================================
 // GENERICS
@@ -104,10 +103,12 @@ path_type = {
     static_path ~ generics?
 }
 
-ref_lifetime = { lifetime | unsafe_kw }
+unsafe_ref_type = {
+    mutable? ~ "unsafe" ~ "*"
+}
 
 ref_type = {
-    mutable? ~ ref_lifetime? ~ "&"
+    mutable? ~ lifetime? ~ "&"
 }
 
 dyn_type = {
@@ -115,7 +116,7 @@ dyn_type = {
 }
 
 type_expr = {
-    (path_type | tuple_type | dyn_type) ~ ref_type*
+    (path_type | tuple_type | dyn_type) ~ (unsafe_ref_type | ref_type)*
 }
 
 lifetime = {
@@ -467,7 +468,7 @@ match_stmt = {
 
 closure = {
     ("(" ~ param_list ~ ")" ~ "=>" ~ expr)
-    | (type_expr ~ "(" ~ param_list ~ ")" ~ "=>" ~ expr)
+  | (type_expr ~ "(" ~ param_list ~ ")" ~ "=>" ~ expr)
 }
 
 // ------------------------------------------------------

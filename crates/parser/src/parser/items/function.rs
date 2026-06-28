@@ -2,7 +2,7 @@ use crate::{
     Rule,
     ast::*,
     ast_ensure,
-    error::{self, AstError, AstResult},
+    error::{AstError, AstResult},
     parser::{consume_rule, consume_rule_map, listen_rule},
 };
 
@@ -64,20 +64,5 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Override {
         ast_ensure!(pair, Rule::override_kw => {
             Ok(Override(pair.into_inner().next().map(ExprPath::try_from).transpose()?))
         })
-    }
-}
-
-impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Lifetime {
-    type Error = AstError<'a>;
-
-    fn try_from(pair: pest::iterators::Pair<'a, Rule>) -> Result<Self, Self::Error> {
-        let mut inner = pair.clone().into_inner();
-
-        match pair.as_rule() {
-            Rule::ref_lifetime => inner.next().unwrap().try_into(),
-            Rule::lifetime => Ok(Lifetime::Lifetime(inner.next().unwrap().try_into()?)),
-            Rule::unsafe_kw => Ok(Lifetime::Unsafe),
-            _ => error::AstError::bug_unimplemented(pair),
-        }
     }
 }

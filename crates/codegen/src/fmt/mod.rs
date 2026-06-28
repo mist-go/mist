@@ -176,7 +176,7 @@ impl GetMist for TypeExpr {
             }
             Self::UnsafePtr { mutable, ty } => {
                 let mutable = if *mutable { "mut " } else { "const " };
-                format!("*{mutable}{}", ty.get_mist())
+                format!("{} {mutable} unsafe&", ty.get_mist())
             }
             Self::Ref {
                 lifetime,
@@ -185,19 +185,12 @@ impl GetMist for TypeExpr {
             } => {
                 let base = ty.get_mist();
                 if let Some(lifetime) = lifetime {
-                    match lifetime {
-                        Lifetime::Lifetime(v) => {
-                            format!(
-                                "{} {} '{}&",
-                                base,
-                                if *mutable { "mut" } else { "" },
-                                v.get_mist()
-                            )
-                        }
-                        Lifetime::Unsafe => {
-                            format!("{} {} unsafe&", base, if *mutable { "mut" } else { "const" })
-                        }
-                    }
+                    format!(
+                        "{} {} '{}&",
+                        base,
+                        if *mutable { "mut" } else { "" },
+                        lifetime.get_mist()
+                    )
                 } else if *mutable {
                     format!("{} mut&", base)
                 } else {

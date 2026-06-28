@@ -18,15 +18,9 @@ pub struct Identifier(pub String);
 pub struct ParamList(pub Vec<VarDecl>);
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
-pub enum Lifetime {
-    Lifetime(Identifier),
-    Unsafe,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
 pub enum TypeExpr {
     Ref {
-        lifetime: Option<Lifetime>,
+        lifetime: Option<Identifier>,
         mutable: bool,
         ty: Box<TypeExpr>,
     },

@@ -21,16 +21,29 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
                 let mut ty = TypeExpr::try_from(inner.next().unwrap())?;
 
                 for ref_pair in inner {
-                    let mut ref_inner = ref_pair.into_inner();
+                    let mut ref_inner = ref_pair.clone().into_inner();
 
-                    ty = TypeExpr::Ref {
-                        lifetime: consume_rule(&mut ref_inner, Rule::ref_lifetime)
-                            .map(|v| v.into_inner().next().map(Lifetime::try_from))
-                            .unwrap_or_default()
-                            .transpose()?,
-                        mutable: listen_rule(&mut ref_inner, Rule::mutable),
-                        ty: Box::new(ty),
-                    };
+                    match ref_pair.as_rule() {
+                        Rule::ref_type => {
+                            ty = TypeExpr::Ref {
+                                mutable: listen_rule(&mut ref_inner, Rule::mutable),
+                                lifetime: consume_rule(&mut ref_inner, Rule::lifetime)
+                                    .map(|v| v.into_inner().next().map(Identifier::try_from))
+                                    .unwrap_or_default()
+                                    .transpose()?,
+                                ty: Box::new(ty),
+                            };
+                        }
+
+                        Rule::unsafe_ref_type => {
+                            ty = TypeExpr::UnsafePtr {
+                                mutable: listen_rule(&mut ref_inner, Rule::mutable),
+                                ty: Box::new(ty),
+                            };
+                        }
+
+                        _ => AstError::bug_unimplemented(ref_pair)?,
+                    }
                 }
 
                 Ok(ty)

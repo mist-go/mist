@@ -239,6 +239,7 @@ impl GetRust for TypeExpr {
             Self::UnsafePtr { mutable, ty } => {
                 let mutable = if *mutable { "mut " } else { "const " };
                 format!("*{mutable}{}", ty.get_rust())
+                
             }
 
             Self::Ref {
@@ -247,23 +248,12 @@ impl GetRust for TypeExpr {
                 ty,
             } => {
                 if let Some(lifetime) = lifetime {
-                    match lifetime {
-                        Lifetime::Lifetime(v) => {
-                            format!(
-                                "&'{} {}{}",
-                                v.get_rust(),
-                                if *mutable { "mut " } else { "" },
-                                ty.get_rust()
-                            )
-                        }
-                        Lifetime::Unsafe => {
-                            format!(
-                                "*{} {}",
-                                if *mutable { "mut" } else { "const" },
-                                ty.get_rust()
-                            )
-                        }
-                    }
+                    format!(
+                        "&'{} {}{}",
+                        lifetime.get_rust(),
+                        if *mutable { "mut " } else { "" },
+                        ty.get_rust()
+                    )
                 } else {
                     format!("&{}{}", if *mutable { "mut " } else { "" }, ty.get_rust())
                 }
