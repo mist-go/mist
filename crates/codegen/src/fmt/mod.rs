@@ -46,6 +46,11 @@ impl MistCodegen {
         self.add(&line);
     }
 
+    pub fn start_indent(&mut self) {
+        self.addln("");
+        self.add_indented("");
+    }
+
     pub fn start_bracket(&mut self) {
         self.addln("");
         self.add_indentedln("{");
