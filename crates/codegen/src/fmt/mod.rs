@@ -62,7 +62,7 @@ impl MistCodegen {
             self.addln("");
             self.add_indentedln("{");
         } else {
-            self.add(" {");
+            self.addln(" {");
         }
 
         self.indent += 1;

@@ -307,8 +307,8 @@ impl GenMist for TopLevelKind {
                         }
                         param.gen_mist(ctx, cg);
                     }
-                    cg.addln(") ");
-                    cg.add_indented("");
+                    cg.add(") ");
+                    cg.start_indent();
                     constructor.item.body.gen_mist(ctx, cg);
                     cg.addln("");
 
