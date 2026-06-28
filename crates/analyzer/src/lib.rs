@@ -7,10 +7,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use heck::ToSnakeCase;
+use mist_parser::MistFmtConfig;
 use mist_parser::error::ParseError;
 use mist_parser::rev_mapper::{Mapping, MistMap, RustMap};
 use ropey::Rope;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{self, *};
@@ -1357,8 +1358,18 @@ impl LanguageServer for Backend {
             .get(&mist_path)
             .map_or_else(|| Err(tower_lsp::jsonrpc::Error::internal_error()), Ok)?;
 
-        let new_text = format_mist(&old_text.to_string())
-            .map_err(|_| tower_lsp::jsonrpc::Error::internal_error())?;
+        let ws = match &*self.workspace_folder.lock().await {
+            Some(p) => p.clone(),
+            None => return Ok(None),
+        };
+
+        let new_text = format_mist(
+            &old_text.to_string(),
+            read_mist_fmt(&ws).unwrap_or_else(|| MistFmtConfig {
+                allman_bracket_style: true,
+            }),
+        )
+        .map_err(|_| tower_lsp::jsonrpc::Error::internal_error())?;
 
         Ok(Some(vec![TextEdit {
             new_text,
@@ -1820,24 +1831,38 @@ fn read_mist_package(workspace_root: &Path) -> String {
     let toml_path = workspace_root.join("Mist.toml");
     let content = match std::fs::read_to_string(&toml_path) {
         Ok(c) => c,
-        Err(_) => return "main.mist".to_string(),
-    };
-    for line in content.lines() {
-        let line = line.trim();
-        if let Some(rest) = line.strip_prefix("package") {
-            if let Some(eq_pos) = rest.find('=') {
-                let val = rest[eq_pos + 1..]
-                    .trim()
-                    .trim_matches('"')
-                    .trim()
-                    .to_string();
-                if !val.is_empty() {
-                    return val;
-                }
-            }
+        Err(_) => {
+            return "main.mist".to_string();
         }
-    }
-    "main.mist".to_string()
+    };
+
+    toml::from_str::<MistConfig>(&content)
+        .ok()
+        .and_then(|v| v.package.to_str().map(String::from))
+        .unwrap_or_else(|| "main.mist".to_string())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MistConfig {
+    pub package: PathBuf,
+    pub packages: Vec<PathBuf>,
+    pub fmt: Option<MistFmtConfig>,
+}
+
+fn read_mist_fmt(workspace_root: &Path) -> Option<MistFmtConfig> {
+    let toml_path = workspace_root.join("Mist.toml");
+    let content = match std::fs::read_to_string(&toml_path) {
+        Ok(c) => c,
+        Err(_) => {
+            return Some(MistFmtConfig {
+                allman_bracket_style: true,
+            });
+        }
+    };
+
+    toml::from_str::<MistConfig>(&content)
+        .ok()
+        .and_then(|v| v.fmt)
 }
 
 fn compute_mod_decls(

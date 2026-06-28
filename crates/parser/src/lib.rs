@@ -20,6 +20,11 @@ pub struct Program {
     pub items: Vec<TopLevel>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MistFmtConfig {
+    pub allman_bracket_style: bool,
+}
+
 pub fn parse<'a>(source: &'a str) -> Result<Program, ParseError<'a>> {
     let mut pairs = MistParser::parse(Rule::program, source)?;
 

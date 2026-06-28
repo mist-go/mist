@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use mist_codegen::fmt::MistCodegen;
 use mist_codegen::RustCodegen;
-use mist_parser::parse;
+use mist_codegen::fmt::MistCodegen;
 use mist_parser::rev_mapper::Mapping;
+use mist_parser::{MistFmtConfig, parse};
 
 pub struct TranspiledFile {
     pub mist_path: PathBuf,
@@ -85,10 +85,10 @@ pub fn transpile_mist_no_sem(
     })
 }
 
-pub fn format_mist(source: &str) -> Result<String, String> {
+pub fn format_mist(source: &str, config: MistFmtConfig) -> Result<String, String> {
     let parsed = parse(source).map_err(|e| format!("parse error: {e:?}"))?;
 
-    let mut codegen = MistCodegen::new();
+    let mut codegen = MistCodegen::new(config);
     codegen.generate(parsed.mod_attributes);
     let output = codegen.generate(parsed.items);
 
