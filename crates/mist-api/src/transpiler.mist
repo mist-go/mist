@@ -1,43 +1,54 @@
 pub module transpiler;
 
 use std::fs;
+
 use std::path::Path;
+
 use std::path::PathBuf;
+
 use std::process;
+
 use std::time;
+
 use std::env;
 
 use mist_parser::error;
+
 use crate::modules;
+
 use mist_codegen::GetRust;
 
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 #[serde(default)]
-pub struct MistConfig {
+pub struct MistConfig
+{
     pub PathBuf package,
     pub Vec<PathBuf> packages,
-    pub String main_mods
+    pub String main_mods,
 }
 
-impl MistConfig {
-    pub bool should_ignore(&self, Path& path) {
+impl MistConfig
+{
+    pub bool should_ignore(&self, Path& path)
+    {
         if path == self.package {
             return true;
         }
-
         for pkg in &self.packages {
             if path.ends_with(pkg) {
                 return true;
             }
         }
-
         false
     }
 }
-impl Default for MistConfig {
- Self default() {
+
+impl Default for MistConfig
+{
+    Self default()
+    {
         Self {
             package: PathBuf::from("main.mist"),
             packages: Vec::new(),
@@ -46,125 +57,85 @@ impl Default for MistConfig {
     }
 }
 
-pub PathBuf transpile() {
+pub PathBuf transpile()
+{
     let start = time::Instant::now();
-
     let root = env::current_dir().expect("Unable to find project root");
-
     let toml_path = root.join("Mist.toml");
     let src = root.join("src");
     let out = root.join(".mist/src");
-
-    let toml_content = fs::read_to_string(&toml_path)
-        .unwrap_or_else((_) => panic!("Could not read file at {:?}", toml_path));
-
-    MistConfig mut config = toml::from_str(&toml_content)
-        .unwrap_or_else((_) => panic!("Failed to parse Mist.toml from {:?}", toml_path));
-    
+    let toml_content = fs::read_to_string(&toml_path).unwrap_or_else((_) => panic!("Could not read file at {:?}", toml_path));
+    MistConfig mut config = toml::from_str(&toml_content).unwrap_or_else((_) => panic!("Failed to parse Mist.toml from {:?}", toml_path));
     for pkg in &mut config.packages {
         *pkg = src.join(&*pkg);
     }
-
     config.package = src.join(&*config.package);
-
-    let master = modules::Module::new(
-        config.package.clone(),
-        &config
-    );
-
+    let master = modules::Module::new(config.package.clone(), &config);
     master.transpile(&out, &mut config);
-
     let elapsed = start.elapsed();
-
-    println!(
-        "\x1b[32m\nTranspile successful\x1b[0m in \x1b[34m{:.2?}\x1b[0m",
-        elapsed
-    );
-
+    println!("\x1b[32m\nTranspile successful\x1b[0m in \x1b[34m{:.2?}\x1b[0m",
+        elapsed);
     root
 }
 
-impl modules::Module {
-    (bool, String) transpile(&self, PathBuf& parent_dir, MistConfig mut& config) {
+impl modules::Module
+{
+    (bool, String) transpile(&self, PathBuf& parent_dir, MistConfig mut& config)
+    {
         if !self.path.is_dir() && self.path.extension().and_then((v) => v.to_str()) != Some("mist") {
-            let file_name = self.path.file_name()
-                .and_then((s) => s.to_str())
-                .expect("Failed to get file name");
-
+            let file_name = self.path.file_name().and_then((s) => s.to_str()).expect("Failed to get file name");
             fs::copy(&self.path, parent_dir.join(&file_name)).expect("Failed to copy SideFile");
-
             return (true, String::new());
         }
-
         let dir = self.output_dir(parent_dir);
-
         let _ = fs::create_dir_all(&dir);
-
         let mut output = String::new();
-
         let mut child_changed = false;
-
         for child in &self.children {
             if !config.should_ignore(&child.path) {
                 let out = child.transpile(&dir, config);
                 if out.0 {
                     child_changed = true;
                 }
-
                 output.push_str(&out.1);
             }
         }
-
         if self.path == config.package {
             config.main_mods = output.clone();
         } else if config.should_ignore(&self.path) {
             output.push_str(&config.main_mods)
         }
-
         self.write_transpile(output, parent_dir, child_changed)
     }
-
-    (bool, String) write_transpile(&self, String output, PathBuf& parent_dir, bool child_changed) {
+    (bool, String) write_transpile(&self, String output, PathBuf& parent_dir, bool child_changed)
+    {
         if self.path.is_dir() {
             let output_file = self.output_path(parent_dir, &None);
-
             if output.len() == 0 {
                 return (true, String::new());
             }
-
             let res = fs::write(&output_file, output);
-
             if res.is_err() {
-                eprintln!(
-                    "error: failed to write output {}\n  {}",
+                eprintln!("error: failed to write output {}\n  {}",
                     output_file.display(),
-                    res.unwrap_err(),
-                );
-
+                    res.unwrap_err(),);
                 process::exit(1);
             }
-
             (false, format!("pub mod {};\n", self.name))
         } else {
             let source = match fs::read_to_string(&self.path) {
-                Ok(s) => s;
+                Ok(s) => s,
                 Err(e) => {
                     eprintln!("error: failed to read file {}\n  {}", self.path.display(), e);
-
                     process::exit(1);
                 }
             };
-
             let curr_mod_decl = mist_parser::parse_module(&source).expect("Failed parsing module");
-
             let output_file = self.output_path(parent_dir, &curr_mod_decl);
-
             let should_change = is_source_newer(&self.path, &output_file).expect("Failed to cache");
-
             if should_change || child_changed {
                 transpile_file(&self.path, &source, output_file, &output, &curr_mod_decl);
             }
-
             (should_change, if let Some((vis, name)) = &curr_mod_decl {
                 format!("{}mod {};\n", vis.get_rust(), name.get_rust())
             } else {
@@ -174,141 +145,101 @@ impl modules::Module {
     }
 }
 
-std::io::Result<bool> is_source_newer(Path& source, Path& output) {
+std::io::Result<bool> is_source_newer(Path& source, Path& output)
+{
     if !output.exists() {
         return Ok(true);
     }
-
     let source_time = fs::metadata(source)?.modified()?;
     let output_time = fs::metadata(output)?.modified()?;
-
     Ok(source_time > output_time)
 }
 
-pub enum TranspileError<'a> {
+pub enum TranspileError<'a>
+{
     Parse(error::ParseError<'a>),
-    Semantic(Vec<mist_parser::semantics::SemanticError>)
+    Semantic(Vec<mist_parser::semantics::SemanticError>),
 }
 
-pub Result<(PathBuf, mist_codegen::RustCodegen, String), TranspileError<'a>>
-    transpile_code<'a>(
-            PathBuf& path,
-            str 'a& source,
-            PathBuf mut output_file,
-            str& mod_decl,
-            Option<(mist_parser::ast::Visibility, mist_parser::ast::Identifier)>& curr_mod_decl
-    ) {
-
+pub Result<(PathBuf, mist_codegen::RustCodegen, String), TranspileError<'a>> transpile_code<'a>(PathBuf& path, str  'a& source, PathBuf mut output_file, str& mod_decl, Option<(mist_parser::ast::Visibility, mist_parser::ast::Identifier)>& curr_mod_decl)
+{
     if let Some((_, name)) = &curr_mod_decl {
         if output_file.file_name().map((v) => v.to_str()).unwrap_or_default() != Some("mod.rs") {
             if let Some(ext) = output_file.extension().map((e) => e.to_owned()) {
                 let mut new_name = std::ffi::OsString::from(&name.0);
-
                 new_name.push(".");
                 new_name.push(ext);
-
                 output_file.set_file_name(new_name);
             } else {
                 output_file.set_file_name(&name.0);
             }
         }
     }
-
     let mut gc = mist_codegen::RustCodegen::new(path.clone());
-
     let parsed = mist_parser::parse(source).map_err(TranspileError::Parse)?;
-
     for i in &parsed.items {
         let _ = mist_parser::semantics::check_class_semantics(i).map_err(TranspileError::Semantic)?;
     }
-
     gc.generate(parsed.mod_attributes);
-
     gc.add(mod_decl);
-
     let output = gc.generate(parsed.items);
-
     Ok((output_file, gc, output))
 }
 
-pub void transpile_file(
-        PathBuf& path,
-        str& source,
-        PathBuf output_file,
-        str& mod_decl,
-        Option<(mist_parser::ast::Visibility, mist_parser::ast::Identifier)>& curr_mod_decl
-    ) {
-
+pub void transpile_file(PathBuf& path, str& source, PathBuf output_file, str& mod_decl, Option<(mist_parser::ast::Visibility, mist_parser::ast::Identifier)>& curr_mod_decl)
+{
     let (output_file, gc, output) = match transpile_code(path, source, output_file, mod_decl, curr_mod_decl) {
-        Ok(output) => output;
+        Ok(output) => output,
         Err(e) => {
             decode_err(&e, path);
             process::exit(1);
         }
     };
-
     let res = fs::write(&output_file, output);
-
     let output_file_map = output_file.with_extension("map.json");
-
     let res_map = fs::write(&output_file_map, serde_json::to_string(&gc.mapping).unwrap());
-
     if res_map.is_err() {
-        eprintln!(
-            "error: failed to write mapping output {}\n  {}",
+        eprintln!("error: failed to write mapping output {}\n  {}",
             output_file_map.display(),
-            res.as_ref().unwrap_err(),
-        );
+            res.as_ref().unwrap_err(),);
     }
-
     if res.is_err() {
-        eprintln!(
-            "error: failed to write output {}\n  {}",
+        eprintln!("error: failed to write output {}\n  {}",
             output_file.display(),
-            res.as_ref().unwrap_err(),
-        );
+            res.as_ref().unwrap_err(),);
     }
-
     if res_map.is_err() || res.is_err() {
         process::exit(1);
     }
 }
 
-pub void decode_err<'a>(TranspileError<'a>& err, PathBuf& path) {
+pub void decode_err<'a>(TranspileError<'a>& err, PathBuf& path)
+{
     let curr_dir = std::env::current_dir().unwrap();
-
     match err {
         TranspileError::Semantic(e_list) => {
             for e in e_list {
-                eprintln!(
-                    "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}",
+                eprintln!("\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}",
                     path.strip_prefix(&curr_dir).unwrap_or_else(|_| path).as_os_str().display(),
                     e.line,
                     e.column,
-                    e.error_message,
-                );
+                    e.error_message,);
             }
         }
-
         TranspileError::Parse(e) => {
             match e {
                 error::ParseError::Ast(e) => {
                     let start_pos = e.span.start_pos().line_col();
-
                     let span = e.span.as_str();
-
-                    eprintln!(
-                        "\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}{}\t{}",
+                    eprintln!("\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}{}\t{}",
                         path.strip_prefix(curr_dir).unwrap_or_else(|_| path).as_os_str().display(),
                         start_pos.0,
                         start_pos.1,
                         e.error_message,
                         span,
                         if span.ends_with("\n") { "" } else { "\n" },
-                        "^".repeat(span.trim().len()),
-                    );
+                        "^".repeat(span.trim().len()),);
                 }
-
                 error::ParseError::PreAst(e) => {
                     eprintln!("error: parse failed in {}\n{}", path.strip_prefix(curr_dir).unwrap_or_else(|_| path).display(), e);
                 }

@@ -1,75 +1,72 @@
 pub module modules;
 
 use std::path::Path;
+
 use std::path::PathBuf;
+
 use std::fs;
+
 use std::process;
 
 use crate::transpiler::MistConfig;
 
 #[derive(Debug)]
-pub class Module {
+pub class Module
+{
     pub String name;
     pub PathBuf path;
     pub Vec<Module> children;
 
-    pub constructor(PathBuf mist_path, MistConfig& config) {
+    pub constructor(PathBuf mist_path, MistConfig& config) 
+    {
         self.children = Vec::new();
-        self.name = mist_path.file_stem()
-            .and_then((s) => s.to_str())
-            .expect("Failed to get module name")
-            .to_string();
+        self.name = mist_path.file_stem().and_then((s) => s.to_str()).expect("Failed to get module name").to_string();
         self.path = mist_path;
-
         if self.path.is_dir() {
             let dir = self.path.clone();
-
             let pkg_gate = self.path.join("package.mist");
             if pkg_gate.exists() {
                 self.path = pkg_gate;
             }
-
             self.scan_directory(&dir, config);
         } else if config.should_ignore(&self.path) {
             let dir = self.path.parent().expect("Failed to get parent directory to scan").to_path_buf();
-
             self.scan_directory(&dir, config);
         }
     }
 
-    void scan_directory(&mut self, Path& search_dir, MistConfig& config) {
+    void scan_directory(&mut self, Path& search_dir, MistConfig& config)
+    {
         let entries = match fs::read_dir(search_dir) {
-            Ok(entries) => entries;
+            Ok(entries) => entries,
             Err(e) => {
                 eprintln!("error: failed to read directory {}\n  {}", search_dir.display(), e);
                 process::exit(1);
             }
         };
-
         for entry in entries {
             let entry = match entry {
-                Ok(entry) => entry;
+                Ok(entry) => entry,
                 Err(e) => {
                     eprintln!("error: failed to read directory entry\n  {}", e);
                     process::exit(1);
                 }
             };
-
             let child_path = entry.path();
-
             if child_path == self.path || child_path == config.package {
                 continue;
             }
-
             self.children.push(Module::new(child_path, config));
         }
     }
 
-    pub bool is_package(&self) {
+    pub bool is_package(&self)
+    {
         self.path.file_name().map((v) => v.to_str()).unwrap_or_default() == Some("package.mist")
     }
 
-    pub PathBuf output_dir(&self, PathBuf& parent_dir) {
+    pub PathBuf output_dir(&self, PathBuf& parent_dir)
+    {
         if self.path.is_dir() || self.is_package() {
             parent_dir.join(&self.name)
         } else {
@@ -77,19 +74,13 @@ pub class Module {
         }
     }
 
-    pub PathBuf output_path(&self,
-            PathBuf& parent_dir,
-            Option<(
-                mist_parser::ast::Visibility, 
-                mist_parser::ast::Identifier
-            )>& curr_mod_decl
-        ) {
+    pub PathBuf output_path(&self, PathBuf& parent_dir, Option<(mist_parser::ast::Visibility, mist_parser::ast::Identifier)>& curr_mod_decl)
+    {
         let name = if let Some((_, name)) = curr_mod_decl {
             &name.0
         } else {
             &self.name
         };
-
         if self.path.is_dir() || self.is_package() {
             parent_dir.join(name).join("mod.rs")
         } else {
