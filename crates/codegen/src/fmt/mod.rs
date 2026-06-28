@@ -266,7 +266,7 @@ impl GetMist for ExprPathSegment {
             self.ident.get_mist(),
             self.generics
                 .as_ref()
-                .map(|v| format!("::{}", v.get_mist()))
+                .map(|v| format!("{}", v.get_mist()))
                 .unwrap_or_default()
         )
     }

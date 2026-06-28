@@ -106,7 +106,7 @@ impl GenMist for Postfix {
                     field,
                     generics
                         .iter()
-                        .map(|v| format!("::{}", v.get_mist()))
+                        .map(|v| format!("{}", v.get_mist()))
                         .collect::<String>()
                 ));
             }
@@ -116,7 +116,7 @@ impl GenMist for Postfix {
                     field.get_mist(),
                     generics
                         .iter()
-                        .map(|v| format!("::{}", v.get_mist()))
+                        .map(|v| format!("{}", v.get_mist()))
                         .collect::<String>()
                 ));
             }
