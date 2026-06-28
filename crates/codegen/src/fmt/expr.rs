@@ -164,12 +164,6 @@ impl GenMist for Postfix {
                 cg.add(&ty.get_mist());
             }
             Postfix::Try => cg.add("?"),
-            Postfix::Assign(cmp, expr) => {
-                cg.add(" ");
-                cg.add(cmp);
-                cg.add(" ");
-                expr.gen_mist(ctx, cg);
-            }
             Postfix::Increment => cg.add("++"),
             Postfix::Decrement => cg.add("--"),
         }

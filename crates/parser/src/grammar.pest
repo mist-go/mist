@@ -12,6 +12,7 @@ COMMENT    = _{ "//" ~ (!"\n" ~ ANY)* }
 keyword = {
     "if"
   | "else"
+  | "fn"
   | "for"
   | "while"
   | "match"
@@ -163,7 +164,7 @@ literal = {
 etc_pattern = { ".." }
 
 multi_pat_template = _{
-    ((pattern | etc_pattern) ~ ("," ~ (pattern | etc_pattern))*)?
+    ((pattern | etc_pattern) ~ ("," ~ (pattern | etc_pattern))* ~ ","?)?
 }
 
 tuple_pattern = {
@@ -290,7 +291,7 @@ enum_fields = _{
 }
 
 enum_decl = {
-    visibility? ~ "enum" ~ identifier ~ generics_decl? ~ "{" ~ enum_fields ~ "}"
+    visibility? ~ "enum" ~ identifier ~ generics_decl? ~ "{" ~ enum_fields? ~ "}"
 }
 
 // ======================================================

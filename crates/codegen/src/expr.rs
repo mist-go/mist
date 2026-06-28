@@ -256,11 +256,6 @@ impl GenRust for Postfix {
 
             Postfix::Try => cg.add("?"),
 
-            Postfix::Assign(cmp, expr) => {
-                cg.add(" ");
-                cg.add(cmp);
-                expr.gen_rust(ctx, cg);
-            }
             Postfix::Increment => cg.add("+=1"),
             Postfix::Decrement => cg.add("-=1"),
         }
