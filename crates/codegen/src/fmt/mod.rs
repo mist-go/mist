@@ -176,7 +176,7 @@ impl GetMist for TypeExpr {
             }
             Self::UnsafePtr { mutable, ty } => {
                 let mutable = if *mutable { "mut " } else { "const " };
-                format!("*{mutable}{}", ty.get_mist())
+                format!("{} {mutable} unsafe&", ty.get_mist())
             }
             Self::Ref {
                 lifetime,
@@ -185,19 +185,12 @@ impl GetMist for TypeExpr {
             } => {
                 let base = ty.get_mist();
                 if let Some(lifetime) = lifetime {
-                    match lifetime {
-                        Lifetime::Lifetime(v) => {
-                            format!(
-                                "{} {} '{}&",
-                                base,
-                                if *mutable { "mut" } else { "" },
-                                v.get_mist()
-                            )
-                        }
-                        Lifetime::Unsafe => {
-                            format!("{} {} unsafe&", base, if *mutable { "mut" } else { "const" })
-                        }
-                    }
+                    format!(
+                        "{} {} '{}&",
+                        base,
+                        if *mutable { "mut" } else { "" },
+                        lifetime.get_mist()
+                    )
                 } else if *mutable {
                     format!("{} mut&", base)
                 } else {
@@ -207,7 +200,37 @@ impl GetMist for TypeExpr {
             Self::Dyn(ty) => {
                 format!("dyn {}", ty.get_mist())
             }
+            Self::Void => "void".to_string(),
+            Self::Fn {
+                kind,
+                return_type,
+                params,
+            } => {
+                format!(
+                    "{} {}({})",
+                    return_type.get_mist(),
+                    kind.get_mist(),
+                    params
+                        .iter()
+                        .map(TypeExpr::get_mist)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
         }
+    }
+}
+
+impl GetMist for FnKind {
+    fn get_mist(&self) -> String {
+        match self {
+            Self::Fn => "fn",
+            Self::UnsafeFn => "unsafe fn",
+            Self::FnClosure => "Fn",
+            Self::FnMut => "FnMut",
+            Self::FnOnce => "FnOnce",
+        }
+        .to_string()
     }
 }
 

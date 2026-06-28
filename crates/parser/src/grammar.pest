@@ -81,7 +81,6 @@ module_program = {
 
 visibility = { "pub" ~ ("(" ~ static_path ~ ")")? }
 mutable    = { "mut" }
-unsafe_kw  = { "unsafe" }
 
 // ======================================================
 // GENERICS
@@ -104,18 +103,42 @@ path_type = {
     static_path ~ generics?
 }
 
-ref_lifetime = { lifetime | unsafe_kw }
+unsafe_ref_type = {
+    mutable? ~ "unsafe" ~ "*"
+}
 
 ref_type = {
-    mutable? ~ ref_lifetime? ~ "&"
+    mutable? ~ lifetime? ~ "&"
+}
+
+fn_kind_fn      = { "fn" }
+fn_kind_unsafe  = { "unsafe" ~ "fn" }
+fn_kind_closure = { "Fn" }
+fn_kind_once    = { "FnOnce" }
+fn_kind_mut     = { "FnMut" }
+
+fn_kind = _{
+    fn_kind_fn
+  | fn_kind_unsafe
+  | fn_kind_closure
+  | fn_kind_once
+  | fn_kind_mut
+}
+
+fn_type = {
+    fn_kind ~ "(" ~ (type_expr ~ ("," ~ type_expr)*)? ~ ")"
 }
 
 dyn_type = {
     "dyn" ~ type_expr
 }
 
+void_type = {
+    "void"
+}
+
 type_expr = {
-    (path_type | tuple_type | dyn_type) ~ ref_type*
+    (void_type | path_type | tuple_type | dyn_type) ~ (unsafe_ref_type | ref_type | fn_type)*
 }
 
 lifetime = {
@@ -467,7 +490,7 @@ match_stmt = {
 
 closure = {
     ("(" ~ param_list ~ ")" ~ "=>" ~ expr)
-    | (type_expr ~ "(" ~ param_list ~ ")" ~ "=>" ~ expr)
+  | (type_expr ~ "(" ~ param_list ~ ")" ~ "=>" ~ expr)
 }
 
 // ------------------------------------------------------

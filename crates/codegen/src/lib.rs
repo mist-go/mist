@@ -247,23 +247,12 @@ impl GetRust for TypeExpr {
                 ty,
             } => {
                 if let Some(lifetime) = lifetime {
-                    match lifetime {
-                        Lifetime::Lifetime(v) => {
-                            format!(
-                                "&'{} {}{}",
-                                v.get_rust(),
-                                if *mutable { "mut " } else { "" },
-                                ty.get_rust()
-                            )
-                        }
-                        Lifetime::Unsafe => {
-                            format!(
-                                "*{} {}",
-                                if *mutable { "mut" } else { "const" },
-                                ty.get_rust()
-                            )
-                        }
-                    }
+                    format!(
+                        "&'{} {}{}",
+                        lifetime.get_rust(),
+                        if *mutable { "mut " } else { "" },
+                        ty.get_rust()
+                    )
                 } else {
                     format!("&{}{}", if *mutable { "mut " } else { "" }, ty.get_rust())
                 }
@@ -272,7 +261,37 @@ impl GetRust for TypeExpr {
             Self::Dyn(ty) => {
                 format!("dyn {}", ty.get_rust())
             }
+            Self::Void => "()".to_string(),
+            Self::Fn {
+                kind,
+                return_type,
+                params,
+            } => {
+                format!(
+                    "{}({}) -> {}",
+                    kind.get_rust(),
+                    params
+                        .iter()
+                        .map(TypeExpr::get_rust)
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    return_type.get_rust(),
+                )
+            }
         }
+    }
+}
+
+impl GetRust for FnKind {
+    fn get_rust(&self) -> String {
+        match self {
+            Self::Fn => "fn",
+            Self::UnsafeFn => "unsafe fn",
+            Self::FnClosure => "Fn",
+            Self::FnMut => "FnMut",
+            Self::FnOnce => "FnOnce",
+        }
+        .to_string()
     }
 }
 
