@@ -317,12 +317,6 @@ impl GetMutability for Expression {
                 // Recurse into all postfix sub-expressions
                 for postfix in postfixes {
                     match postfix {
-                        Postfix::Assign(_, rhs) => {
-                            if let Some(self_ref) = get_self_ref(initial, postfixes) {
-                                result.push(self_ref);
-                            }
-                            result.append(&mut rhs.get_mutability());
-                        }
                         Postfix::Call(args) => {
                             for arg in args {
                                 result.append(&mut arg.get_mutability());
