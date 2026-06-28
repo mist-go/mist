@@ -268,14 +268,14 @@ impl GetRust for TypeExpr {
                 params,
             } => {
                 format!(
-                    "{} -> {}({})",
+                    "{}({}) -> {}",
                     kind.get_rust(),
-                    return_type.get_rust(),
                     params
                         .iter()
                         .map(TypeExpr::get_rust)
                         .collect::<Vec<_>>()
-                        .join(", ")
+                        .join(", "),
+                    return_type.get_rust(),
                 )
             }
         }
