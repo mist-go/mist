@@ -42,6 +42,7 @@ pub enum TypeExpr {
     StaticFn(Vec<TypeExpr>, Option<Box<TypeExpr>>),
     Tuple(Vec<TypeExpr>),
     Lifetime(Identifier),
+    Void,
     Fn {
         kind: FnKind,
         return_type: Box<TypeExpr>,

@@ -261,7 +261,7 @@ impl GetRust for TypeExpr {
             Self::Dyn(ty) => {
                 format!("dyn {}", ty.get_rust())
             }
-
+            Self::Void => "()".to_string(),
             Self::Fn {
                 kind,
                 return_type,

@@ -200,6 +200,7 @@ impl GetMist for TypeExpr {
             Self::Dyn(ty) => {
                 format!("dyn {}", ty.get_mist())
             }
+            Self::Void => "void".to_string(),
             Self::Fn {
                 kind,
                 return_type,
