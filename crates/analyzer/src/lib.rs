@@ -18,7 +18,9 @@ use tower_lsp::lsp_types::{self, *};
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::rust_analyzer::RustAnalyzer;
-use crate::transpiler::{TranspileError, format_mist, transpile_mist, transpile_mist_no_sem};
+use crate::transpiler::{
+    TranspileError, TranspiledFile, format_mist, transpile_mist, transpile_mist_no_sem,
+};
 
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -547,7 +549,7 @@ impl Backend {
         mist_path: &Path,
         source: &str,
         extra_mod_decl: &str,
-    ) {
+    ) -> Option<TranspiledFile> {
         let transpiled = match transpile_mist(mist_path, source, extra_mod_decl) {
             Ok(t) => t,
             Err(e) => {
@@ -556,7 +558,7 @@ impl Backend {
                 if let Some(uri) = clean_lsp_url(mist_path) {
                     self.publish_diagnostics(uri, diag).await;
                 }
-                return;
+                return None;
             }
         };
 
@@ -577,20 +579,22 @@ impl Backend {
                 let _ = ra.did_open(rust_uri, &transpiled.rust_content).await;
             }
 
-            map.insert(transpiled.rust_path, transpiled.mapping);
+            map.insert(transpiled.rust_path.clone(), transpiled.mapping.clone());
             self.last_rust_contents
                 .lock()
                 .await
-                .insert(mist_path.to_path_buf(), transpiled.rust_content);
+                .insert(mist_path.to_path_buf(), transpiled.rust_content.clone());
         }
 
         // Clear any previous diagnostics — transpile succeeded.
         if let Some(mist_uri) = clean_lsp_url(mist_path) {
             self.publish_diagnostics(mist_uri, vec![]).await;
         }
+
+        Some(transpiled)
     }
 
-    async fn rebuild_module_tree(&self) {
+    async fn rebuild_module_tree(&self, persist: bool) {
         let ws = match &*self.workspace_folder.lock().await {
             Some(p) => p.clone(),
             None => return,
@@ -615,8 +619,14 @@ impl Backend {
         };
 
         for (mist_path, source, decl) in sources {
-            self.handle_transpile_and_notify(&mist_path, &source, &decl)
-                .await;
+            if let Some(transpiled) = self
+                .handle_transpile_and_notify(&mist_path, &source, &decl)
+                .await
+            {
+                if persist {
+                    Self::write_transpiled_to_disk(&transpiled);
+                }
+            }
         }
     }
 
@@ -625,6 +635,30 @@ impl Backend {
     async fn ensure_implicit_packages(&self, src_root: &Path) {
         let mut docs = self.documents.lock().await;
         ensure_implicit_packages_impl(&mut *docs, src_root);
+    }
+
+    /// Write a transpiled file's `.rs` content and `.map.json` mapping to disk.
+    /// The output directory is created if it doesn't exist.
+    fn write_transpiled_to_disk(transpiled: &TranspiledFile) {
+        if let Some(parent) = transpiled.rust_path.parent() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                eprintln!("Failed to create output directory {:?}: {e}", parent);
+                return;
+            }
+        }
+        if let Err(e) = std::fs::write(&transpiled.rust_path, &transpiled.rust_content) {
+            eprintln!(
+                "Failed to write transpiled file {:?}: {e}",
+                transpiled.rust_path
+            );
+            return;
+        }
+        let map_path = transpiled.rust_path.with_extension("map.json");
+        if let Ok(map_json) = serde_json::to_string(&transpiled.mapping) {
+            if let Err(e) = std::fs::write(&map_path, &map_json) {
+                eprintln!("Failed to write mapping file {:?}: {e}", map_path);
+            }
+        }
     }
 
     async fn publish_diagnostics(&self, uri: Url, diagnostics: Vec<Diagnostic>) {
@@ -951,7 +985,7 @@ impl LanguageServer for Backend {
 
         self.handle_transpile_and_notify(&mist_path, &source, "")
             .await;
-        self.rebuild_module_tree().await;
+        self.rebuild_module_tree(false).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -973,7 +1007,7 @@ impl LanguageServer for Backend {
 
             self.handle_transpile_and_notify(&mist_path, &source, "")
                 .await;
-            self.rebuild_module_tree().await;
+            self.rebuild_module_tree(false).await;
         }
     }
 
@@ -986,16 +1020,24 @@ impl LanguageServer for Backend {
             }
         };
 
-        if let Some(text) = params.text {
-            self.documents
-                .lock()
-                .await
-                .insert(mist_path.clone(), Rope::from_str(&text));
+        let text = if let Some(text) = &params.text {
+            text.clone()
+        } else {
+            tokio::fs::read_to_string(&mist_path).await.expect("Failed to read file")
+        };
 
-            self.handle_transpile_and_notify(&mist_path, &text, "")
-                .await;
-            self.rebuild_module_tree().await;
+        self.documents
+            .lock()
+            .await
+            .insert(mist_path.clone(), Rope::from_str(&text));
+
+        if let Some(transpiled) = self
+            .handle_transpile_and_notify(&mist_path, &text, "")
+            .await
+        {
+            Self::write_transpiled_to_disk(&transpiled);
         }
+        self.rebuild_module_tree(true).await;
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
