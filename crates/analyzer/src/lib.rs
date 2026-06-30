@@ -1023,7 +1023,9 @@ impl LanguageServer for Backend {
         let text = if let Some(text) = &params.text {
             text.clone()
         } else {
-            tokio::fs::read_to_string(&mist_path).await.expect("Failed to read file")
+            tokio::fs::read_to_string(&mist_path)
+                .await
+                .expect("Failed to read file")
         };
 
         self.documents
@@ -1036,6 +1038,14 @@ impl LanguageServer for Backend {
             .await
         {
             Self::write_transpiled_to_disk(&transpiled);
+            if let Some(rust_uri) = clean_lsp_url(&transpiled.rust_path) {
+                let _ = self
+                    .rust_analyzer
+                    .lock()
+                    .await
+                    .did_save(rust_uri, &transpiled.rust_content)
+                    .await;
+            }
         }
         self.rebuild_module_tree(true).await;
     }
@@ -1817,17 +1827,13 @@ async fn handle_ra_notifications(
                     };
 
                     if let Some(mist_uri) = mist_uri.or(Some(rust_uri.clone())) {
-                        let prev = previous_diagnostics.lock().await.get(&mist_uri).cloned();
-
-                        if prev.as_ref() != Some(&mapped_diagnostics) {
-                            previous_diagnostics
-                                .lock()
-                                .await
-                                .insert(mist_uri.clone(), mapped_diagnostics.clone());
-                            client
-                                .publish_diagnostics(mist_uri, mapped_diagnostics, None)
-                                .await;
-                        }
+                        previous_diagnostics
+                            .lock()
+                            .await
+                            .insert(mist_uri.clone(), mapped_diagnostics.clone());
+                        client
+                            .publish_diagnostics(mist_uri, mapped_diagnostics, None)
+                            .await;
                     }
                 }
             }

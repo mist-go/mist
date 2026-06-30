@@ -374,6 +374,23 @@ impl RustAnalyzer {
         .await
     }
 
+    pub async fn did_save(
+        &mut self,
+        uri: Url,
+        text: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.notify(
+            "textDocument/didSave",
+            json!({
+                "textDocument": {
+                    "uri": uri,
+                },
+                "text": text,
+            }),
+        )
+        .await
+    }
+
     pub async fn did_close(
         &mut self,
         uri: Url,
