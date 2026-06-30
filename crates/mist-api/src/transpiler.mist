@@ -26,7 +26,7 @@ pub struct MistConfig
 {
     pub PathBuf package,
     pub Vec<PathBuf> packages,
-    pub String main_mods,
+    pub mist_parser::MistFmtConfig fmt,
 }
 
 impl MistConfig
@@ -52,7 +52,9 @@ impl Default for MistConfig
         Self {
             package: PathBuf::from("main.mist"),
             packages: Vec::new(),
-            main_mods: String::new(),
+            fmt: mist_parser::MistFmtConfig {
+                allman_bracket_style: true,
+            },
         }
     }
 }
@@ -71,7 +73,7 @@ pub PathBuf transpile()
     }
     config.package = src.join(&*config.package);
     let master = modules::Module::new(config.package.clone(), &config);
-    master.transpile(&out, &mut config);
+    master.transpile(&out, &mut config, &mut String::new());
     let elapsed = start.elapsed();
     println!("\x1b[32m\nTranspile successful\x1b[0m in \x1b[34m{:.2?}\x1b[0m",
         elapsed);
@@ -80,7 +82,7 @@ pub PathBuf transpile()
 
 impl modules::Module
 {
-    (bool, String) transpile(&self, PathBuf& parent_dir, MistConfig mut& config)
+    (bool, String) transpile(&self, PathBuf& parent_dir, MistConfig mut& config, String mut& main_mods)
     {
         if !self.path.is_dir() && self.path.extension().and_then((v) => v.to_str()) != Some("mist") {
             let file_name = self.path.file_name().and_then((s) => s.to_str()).expect("Failed to get file name");
@@ -93,7 +95,7 @@ impl modules::Module
         let mut child_changed = false;
         for child in &self.children {
             if !config.should_ignore(&child.path) {
-                let out = child.transpile(&dir, config);
+                let out = child.transpile(&dir, config, main_mods);
                 if out.0 {
                     child_changed = true;
                 }
@@ -101,9 +103,9 @@ impl modules::Module
             }
         }
         if self.path == config.package {
-            config.main_mods = output.clone();
+            *main_mods = output.clone();
         } else if config.should_ignore(&self.path) {
-            output.push_str(&config.main_mods)
+            output.push_str(main_mods)
         }
         self.write_transpile(output, parent_dir, child_changed)
     }
