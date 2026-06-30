@@ -1119,13 +1119,10 @@ impl LanguageServer for Backend {
         self.documents.lock().await.remove(&mist_path);
 
         let rust_path = mist_to_rust_path(&mist_path);
-        self.mapping.lock().await.remove(&rust_path);
 
         if let Some(rust_uri) = clean_lsp_url(&rust_path) {
             let _ = self.rust_analyzer.lock().await.did_close(rust_uri).await;
         }
-
-        self.publish_diagnostics(uri, Vec::new()).await;
     }
 
     async fn completion(
