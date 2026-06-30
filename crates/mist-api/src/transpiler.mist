@@ -26,6 +26,7 @@ pub struct MistConfig
 {
     pub PathBuf package,
     pub Vec<PathBuf> packages,
+    pub Vec<PathBuf> include,
     pub mist_parser::MistFmtConfig fmt,
 }
 
@@ -52,6 +53,7 @@ impl Default for MistConfig
         Self {
             package: PathBuf::from("main.mist"),
             packages: Vec::new(),
+            include: Vec::new(),
             fmt: mist_parser::MistFmtConfig {
                 allman_bracket_style: true,
             },
@@ -59,10 +61,9 @@ impl Default for MistConfig
     }
 }
 
-pub PathBuf transpile()
+pub void transpile(Path& root)
 {
     let start = time::Instant::now();
-    let root = env::current_dir().expect("Unable to find project root");
     let toml_path = root.join("Mist.toml");
     let src = root.join("src");
     let out = root.join(".mist/src");
@@ -77,7 +78,30 @@ pub PathBuf transpile()
     let elapsed = start.elapsed();
     println!("\x1b[32m\nTranspile successful\x1b[0m in \x1b[34m{:.2?}\x1b[0m",
         elapsed);
-    root
+    for incl in &config.include {
+        if ends_with_star(&incl) {
+            let sub_crates = incl.parent().expect("Failed to get parent");
+            let entries = match fs::read_dir(sub_crates) {
+                Ok(entries) => entries,
+                Err(e) => {
+                    eprintln!("error: failed to read directory {}\n  {}", sub_crates.display(), e);
+                    process::exit(1);
+                }
+            };
+            for sub_crate in entries {
+                if let Ok(sub_crate) = sub_crate {
+                    transpile(&sub_crate.path());
+                }
+            }
+        } else {
+            transpile(incl);
+        }
+    }
+}
+
+bool ends_with_star(Path& path)
+{
+    path.file_name().and_then((name) => name.to_str()).is_some_and((name) => name.ends_with("*"))
 }
 
 impl modules::Module

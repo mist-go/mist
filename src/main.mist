@@ -17,7 +17,8 @@ void main()
     }
     match args[1].as_str() {
         "run" | "build" | "check" | "r" | "b" | "c" => {
-            let root = transpiler::transpile();
+            let root = env::current_dir().expect("Unable to find project root");
+            transpiler::transpile(&root);
             println!("");
             if builder::build(args, root) {
                 println!("\x1b[32m\nBuild successful\x1b[0m");
@@ -26,7 +27,8 @@ void main()
             }
         }
         "transpile" | "t" => {
-            transpiler::transpile();
+            let root = env::current_dir().expect("Unable to find project root");
+            transpiler::transpile(&root);
         }
         "init" => {
             init_project(args);
