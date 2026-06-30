@@ -10,8 +10,6 @@ use std::process;
 
 use std::time;
 
-use std::env;
-
 use mist_parser::error;
 
 use crate::modules;
