@@ -9,6 +9,7 @@ keywords = ["language-server", "language", "mist"]
 categories = ["compilers"]
 
 [dependencies]
+mist-api = { workspace = true }
 mist-parser = { workspace = true }
 mist-codegen = { workspace = true }
 pest = "2.8.6"

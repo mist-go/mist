@@ -7,11 +7,12 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use heck::ToSnakeCase;
+use mist_api::transpiler::MistConfig;
 use mist_parser::MistFmtConfig;
 use mist_parser::error::ParseError;
 use mist_parser::rev_mapper::{Mapping, MistMap, RustMap};
 use ropey::Rope;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::Mutex;
 use tower_lsp::lsp_types::{self, *};
@@ -1890,13 +1891,6 @@ fn read_mist_package(workspace_root: &Path) -> String {
         .unwrap_or_else(|| "main.mist".to_string())
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MistConfig {
-    pub package: PathBuf,
-    pub packages: Vec<PathBuf>,
-    pub fmt: Option<MistFmtConfig>,
-}
-
 fn read_mist_fmt(workspace_root: &Path) -> Option<MistFmtConfig> {
     let toml_path = workspace_root.join("Mist.toml");
     let content = match std::fs::read_to_string(&toml_path) {
@@ -1908,9 +1902,7 @@ fn read_mist_fmt(workspace_root: &Path) -> Option<MistFmtConfig> {
         }
     };
 
-    toml::from_str::<MistConfig>(&content)
-        .ok()
-        .and_then(|v| v.fmt)
+    toml::from_str::<MistConfig>(&content).ok().map(|v| v.fmt)
 }
 
 fn compute_mod_decls(
