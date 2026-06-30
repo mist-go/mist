@@ -10,6 +10,7 @@ use heck::ToSnakeCase;
 use mist_api::transpiler::MistConfig;
 use mist_parser::MistFmtConfig;
 use mist_parser::error::ParseError;
+use mist_parser::parse_module;
 use mist_parser::rev_mapper::{Mapping, MistMap, RustMap};
 use ropey::Rope;
 use serde::Deserialize;
@@ -2006,20 +2007,30 @@ fn compute_mod_decls(
         let mut sorted = files.clone();
         sorted.sort();
         for file in &sorted {
-            let stem = match file.file_stem().and_then(|s| s.to_str()) {
-                Some(s) => s,
-                None => continue,
-            };
             // Skip the root package entry file (e.g. main.mist)
             if *file == package_path {
                 continue;
             }
             // Skip any subdirectory package.mist — it's the directory's own
             // entry file, not a sibling submodule.
-            if stem == "package" {
+            if file.file_name().and_then(|s| s.to_str()) == Some("package.mist") {
                 continue;
             }
-            mod_decl.push_str(&format!("pub mod {};\n", stem));
+            // Use the module declaration from the file if present,
+            // otherwise fall back to file stem.
+            let mod_name = documents
+                .get(file)
+                .and_then(|rope| {
+                    let source = rope.to_string();
+                    parse_module(&source).ok().flatten().map(|(_, name)| name.0)
+                })
+                .or_else(|| {
+                    file.file_stem()
+                        .and_then(|s| s.to_str().map(String::from))
+                });
+            if let Some(name) = mod_name {
+                mod_decl.push_str(&format!("pub mod {};\n", name));
+            }
         }
 
         if dir == src_root {
