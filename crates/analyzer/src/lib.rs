@@ -522,8 +522,9 @@ impl Backend {
             Some(p) => p.clone(),
             None => return String::new(),
         };
-        let src_root = ws.join("src");
-        let package_mist = read_mist_package(&ws);
+        let crate_root = find_crate_root(mist_path).unwrap_or(ws);
+        let src_root = crate_root.join("src");
+        let package_mist = read_mist_package(&crate_root);
         let docs = self.documents.lock().await;
         let mod_decls = compute_mod_decls(&docs, &src_root, &package_mist);
         mod_decls.get(mist_path).cloned().unwrap_or_default()
@@ -600,10 +601,8 @@ impl Backend {
             Some(p) => p.clone(),
             None => return,
         };
-        let src_root = ws.join("src");
-        let package_mist = read_mist_package(&ws);
 
-        self.ensure_implicit_packages(&src_root).await;
+        self.ensure_implicit_packages().await;
 
         // Collect sources first to avoid holding locks during transpile
         let sources: Vec<(PathBuf, String, String)> = {
@@ -611,12 +610,21 @@ impl Backend {
             if docs.is_empty() {
                 return;
             }
-            let mod_decls = compute_mod_decls(&docs, &src_root, &package_mist);
-            mod_decls
-                .into_iter()
-                .filter(|(_, decl)| !decl.is_empty())
-                .filter_map(|(path, decl)| docs.get(&path).map(|r| (path, r.to_string(), decl)))
-                .collect()
+            let crate_roots = collect_crate_roots(&docs, &ws);
+            let mut result = Vec::new();
+            for crate_root in &crate_roots {
+                let src_root = crate_root.join("src");
+                let package_mist = read_mist_package(crate_root);
+                let mod_decls = compute_mod_decls(&docs, &src_root, &package_mist);
+                for (path, decl) in mod_decls {
+                    if !decl.is_empty() {
+                        if let Some(source) = docs.get(&path) {
+                            result.push((path.clone(), source.to_string(), decl));
+                        }
+                    }
+                }
+            }
+            result
         };
 
         for (mist_path, source, decl) in sources {
@@ -633,9 +641,17 @@ impl Backend {
 
     /// Create synthetic `package.mist` documents for subdirectories that contain
     /// .mist files but no real package.mist (implicit packages).
-    async fn ensure_implicit_packages(&self, src_root: &Path) {
+    async fn ensure_implicit_packages(&self) {
+        let ws = match &*self.workspace_folder.lock().await {
+            Some(p) => p.clone(),
+            None => return,
+        };
         let mut docs = self.documents.lock().await;
-        ensure_implicit_packages_impl(&mut *docs, src_root);
+        let crate_roots = collect_crate_roots(&docs, &ws);
+        for crate_root in &crate_roots {
+            let src_root = crate_root.join("src");
+            ensure_implicit_packages_impl(&mut *docs, &src_root);
+        }
     }
 
     /// Write a transpiled file's `.rs` content and `.map.json` mapping to disk.
@@ -765,8 +781,6 @@ impl LanguageServer for Backend {
 
         tokio::spawn(async move {
             if let Some(root) = &*ws.lock().await {
-                let src_root = root.join("src");
-
                 // Hold the lock across both initialize + initialized so the
                 // editor's didOpen cannot race in-between and send notifications
                 // to rust-analyzer before it has received Initialized.
@@ -783,7 +797,21 @@ impl LanguageServer for Backend {
                 }
 
                 let mut files = Vec::new();
-                collect_mist_files(&src_root, &mut files);
+                collect_mist_files(&root.join("src"), &mut files);
+
+                // Discover subcrates by scanning for Mist.toml in immediate
+                // subdirectories of the workspace root.
+                let mut subcrate_roots = Vec::new();
+                if let Ok(entries) = std::fs::read_dir(root) {
+                    for entry in entries.flatten() {
+                        let entry_path = entry.path();
+                        if entry_path.is_dir() && entry_path.join("Mist.toml").is_file() {
+                            let sub_src = entry_path.join("src");
+                            collect_mist_files(&sub_src, &mut files);
+                            subcrate_roots.push(entry_path);
+                        }
+                    }
+                }
 
                 for file in &files {
                     if let Ok(text) = std::fs::read_to_string(file) {
@@ -796,15 +824,32 @@ impl LanguageServer for Backend {
 
                 eprintln!("Loaded {} mist files", files.len());
 
-                ensure_implicit_packages_impl(&mut *documents.lock().await, &src_root);
+                // Create implicit packages per crate root
+                {
+                    let mut docs = documents.lock().await;
+                    let all_crate_roots: Vec<PathBuf> = std::iter::once(root.clone())
+                        .chain(subcrate_roots.iter().cloned())
+                        .collect();
+                    for crate_root in &all_crate_roots {
+                        ensure_implicit_packages_impl(&mut *docs, &crate_root.join("src"));
+                    }
+                }
 
-                // Compute mod_decls before any transpile so the root file gets its
-                // child module declarations from the very first didOpen.
-                let package_mist = read_mist_package(root);
-                let src_root = root.join("src");
+                // Compute mod_decls per crate root before any transpile so each
+                // crate's root file gets its child module declarations.
+                let all_crate_roots: Vec<PathBuf> = std::iter::once(root.clone())
+                    .chain(subcrate_roots.iter().cloned())
+                    .collect();
                 let mod_decls = {
                     let docs = documents.lock().await;
-                    compute_mod_decls(&docs, &src_root, &package_mist)
+                    let mut merged = HashMap::new();
+                    for crate_root in &all_crate_roots {
+                        let cr_src = crate_root.join("src");
+                        let pkg = read_mist_package(crate_root);
+                        let decls = compute_mod_decls(&docs, &cr_src, &pkg);
+                        merged.extend(decls);
+                    }
+                    merged
                 };
 
                 for file in &files {
@@ -854,14 +899,22 @@ impl LanguageServer for Backend {
                     .cloned()
                     .collect();
                 for syn_path in &synthetic_paths {
-                    let decl = mod_decls.get(syn_path).map(String::as_str).unwrap_or("");
+                    // Find the crate root for this synthetic file
+                    let syn_crate_root = find_crate_root(syn_path).unwrap_or_else(|| root.clone());
+                    let pkg = read_mist_package(&syn_crate_root);
+                    let cr_src = syn_crate_root.join("src");
+                    let decl = {
+                        let docs = documents.lock().await;
+                        let crate_decls = compute_mod_decls(&docs, &cr_src, &pkg);
+                        crate_decls.get(syn_path).cloned().unwrap_or_default()
+                    };
                     let source = documents
                         .lock()
                         .await
                         .get(syn_path)
                         .map(|r| r.to_string())
                         .unwrap_or_default();
-                    if let Ok(transpiled) = transpile_mist(syn_path, &source, decl) {
+                    if let Ok(transpiled) = transpile_mist(syn_path, &source, &decl) {
                         if let Some(rust_uri) = clean_lsp_url(&transpiled.rust_path) {
                             let _ = ra
                                 .lock()
@@ -984,7 +1037,8 @@ impl LanguageServer for Backend {
             .await
             .insert(mist_path.clone(), Rope::from_str(&source));
 
-        self.handle_transpile_and_notify(&mist_path, &source, "")
+        let extra_decl = self.compute_mod_decl_for_file(&mist_path).await;
+        self.handle_transpile_and_notify(&mist_path, &source, &extra_decl)
             .await;
         self.rebuild_module_tree(false).await;
     }
@@ -1006,7 +1060,8 @@ impl LanguageServer for Backend {
                 .await
                 .insert(mist_path.clone(), Rope::from_str(&source));
 
-            self.handle_transpile_and_notify(&mist_path, &source, "")
+            let extra_decl = self.compute_mod_decl_for_file(&mist_path).await;
+            self.handle_transpile_and_notify(&mist_path, &source, &extra_decl)
                 .await;
             self.rebuild_module_tree(false).await;
         }
@@ -1034,8 +1089,9 @@ impl LanguageServer for Backend {
             .await
             .insert(mist_path.clone(), Rope::from_str(&text));
 
+        let extra_decl = self.compute_mod_decl_for_file(&mist_path).await;
         if let Some(transpiled) = self
-            .handle_transpile_and_notify(&mist_path, &text, "")
+            .handle_transpile_and_notify(&mist_path, &text, &extra_decl)
             .await
         {
             Self::write_transpiled_to_disk(&transpiled);
@@ -1903,6 +1959,30 @@ fn read_mist_fmt(workspace_root: &Path) -> Option<MistFmtConfig> {
     };
 
     toml::from_str::<MistConfig>(&content).ok().map(|v| v.fmt)
+}
+
+fn find_crate_root(file_path: &Path) -> Option<PathBuf> {
+    let mut dir = file_path.parent()?;
+    loop {
+        if dir.join("Mist.toml").is_file() {
+            return Some(dir.to_path_buf());
+        }
+        dir = match dir.parent() {
+            Some(p) => p,
+            None => return None,
+        };
+    }
+}
+
+fn collect_crate_roots(docs: &HashMap<PathBuf, Rope>, workspace_root: &Path) -> HashSet<PathBuf> {
+    let mut roots = HashSet::new();
+    roots.insert(workspace_root.to_path_buf());
+    for path in docs.keys() {
+        if let Some(crate_root) = find_crate_root(path) {
+            roots.insert(crate_root);
+        }
+    }
+    roots
 }
 
 fn compute_mod_decls(
