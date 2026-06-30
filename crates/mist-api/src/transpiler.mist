@@ -26,7 +26,8 @@ pub struct MistConfig
 {
     pub PathBuf package,
     pub Vec<PathBuf> packages,
-    pub String main_mods,
+    pub Vec<PathBuf> include,
+    pub mist_parser::MistFmtConfig fmt,
 }
 
 impl MistConfig
@@ -52,15 +53,18 @@ impl Default for MistConfig
         Self {
             package: PathBuf::from("main.mist"),
             packages: Vec::new(),
-            main_mods: String::new(),
+            include: Vec::new(),
+            fmt: mist_parser::MistFmtConfig {
+                allman_bracket_style: true,
+            },
         }
     }
 }
 
-pub PathBuf transpile()
+pub void transpile(Path& root)
 {
+    println!("\x1b[32m\nTranspiling\x1b[0m \x1b[94m{:?}\x1b[0m", root.file_name().unwrap_or_default());
     let start = time::Instant::now();
-    let root = env::current_dir().expect("Unable to find project root");
     let toml_path = root.join("Mist.toml");
     let src = root.join("src");
     let out = root.join(".mist/src");
@@ -71,16 +75,41 @@ pub PathBuf transpile()
     }
     config.package = src.join(&*config.package);
     let master = modules::Module::new(config.package.clone(), &config);
-    master.transpile(&out, &mut config);
+    master.transpile(&out, &mut config, &mut String::new());
     let elapsed = start.elapsed();
-    println!("\x1b[32m\nTranspile successful\x1b[0m in \x1b[34m{:.2?}\x1b[0m",
-        elapsed);
-    root
+    println!("\x1b[32m\nTranspile successful\x1b[0m in \x1b[34m{:.2?}\x1b[0m", elapsed);
+    for incl in &config.include {
+        if ends_with_star(&incl) {
+            let sub_crates = incl.parent().expect("Failed to get parent");
+            let entries = match fs::read_dir(sub_crates) {
+                Ok(entries) => entries,
+                Err(e) => {
+                    eprintln!("error: failed to read directory {}\n  {}", sub_crates.display(), e);
+                    process::exit(1);
+                }
+            };
+            for sub_crate in entries {
+                if let Ok(sub_crate) = sub_crate {
+                    let sub_crate = sub_crate.path();
+                    if fs::exists(sub_crate.join("Mist.toml")).unwrap_or_default() {
+                        transpile(&sub_crate);
+                    }
+                }
+            }
+        } else {
+            transpile(incl);
+        }
+    }
+}
+
+bool ends_with_star(Path& path)
+{
+    path.file_name().and_then((name) => name.to_str()).is_some_and((name) => name.ends_with("*"))
 }
 
 impl modules::Module
 {
-    (bool, String) transpile(&self, PathBuf& parent_dir, MistConfig mut& config)
+    (bool, String) transpile(&self, PathBuf& parent_dir, MistConfig mut& config, String mut& main_mods)
     {
         if !self.path.is_dir() && self.path.extension().and_then((v) => v.to_str()) != Some("mist") {
             let file_name = self.path.file_name().and_then((s) => s.to_str()).expect("Failed to get file name");
@@ -93,7 +122,7 @@ impl modules::Module
         let mut child_changed = false;
         for child in &self.children {
             if !config.should_ignore(&child.path) {
-                let out = child.transpile(&dir, config);
+                let out = child.transpile(&dir, config, main_mods);
                 if out.0 {
                     child_changed = true;
                 }
@@ -101,9 +130,9 @@ impl modules::Module
             }
         }
         if self.path == config.package {
-            config.main_mods = output.clone();
+            *main_mods = output.clone();
         } else if config.should_ignore(&self.path) {
-            output.push_str(&config.main_mods)
+            output.push_str(main_mods)
         }
         self.write_transpile(output, parent_dir, child_changed)
     }
