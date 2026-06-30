@@ -476,7 +476,7 @@ dependencies = [
 
 [[package]]
 name = "mist-analyzer"
-version = "0.3.7-alpha.0"
+version = "0.3.7-alpha.1"
 dependencies = [
  "cargo_metadata",
  "dashmap 6.1.0",
@@ -495,7 +495,7 @@ dependencies = [
 
 [[package]]
 name = "mist-api"
-version = "0.3.7-alpha.0"
+version = "0.3.7-alpha.1"
 dependencies = [
  "cargo_metadata",
  "mist-codegen",
@@ -507,7 +507,7 @@ dependencies = [
 
 [[package]]
 name = "mist-codegen"
-version = "0.3.7-alpha.0"
+version = "0.3.7-alpha.1"
 dependencies = [
  "bytecount",
  "mist-parser",
@@ -515,7 +515,7 @@ dependencies = [
 
 [[package]]
 name = "mist-lang"
-version = "0.3.7-alpha.0"
+version = "0.3.7-alpha.1"
 dependencies = [
  "mist-analyzer",
  "mist-api",
@@ -523,7 +523,7 @@ dependencies = [
 
 [[package]]
 name = "mist-parser"
-version = "0.3.7-alpha.0"
+version = "0.3.7-alpha.1"
 dependencies = [
  "pest",
  "pest_derive",
