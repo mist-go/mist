@@ -63,6 +63,7 @@ impl Default for MistConfig
 
 pub void transpile(Path& root)
 {
+    println!("\x1b[32m\nTranspiling\x1b[0m \x1b[94m{:?}\x1b[0m", root.file_name().unwrap_or_default());
     let start = time::Instant::now();
     let toml_path = root.join("Mist.toml");
     let src = root.join("src");
@@ -76,8 +77,7 @@ pub void transpile(Path& root)
     let master = modules::Module::new(config.package.clone(), &config);
     master.transpile(&out, &mut config, &mut String::new());
     let elapsed = start.elapsed();
-    println!("\x1b[32m\nTranspile successful\x1b[0m in \x1b[34m{:.2?}\x1b[0m",
-        elapsed);
+    println!("\x1b[32m\nTranspile successful\x1b[0m in \x1b[34m{:.2?}\x1b[0m", elapsed);
     for incl in &config.include {
         if ends_with_star(&incl) {
             let sub_crates = incl.parent().expect("Failed to get parent");
@@ -90,7 +90,10 @@ pub void transpile(Path& root)
             };
             for sub_crate in entries {
                 if let Ok(sub_crate) = sub_crate {
-                    transpile(&sub_crate.path());
+                    let sub_crate = sub_crate.path();
+                    if fs::exists(sub_crate.join("Mist.toml")).unwrap_or_default() {
+                        transpile(&sub_crate);
+                    }
                 }
             }
         } else {
