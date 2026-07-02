@@ -167,6 +167,26 @@ impl GenMist for TopLevelKind {
     fn gen_mist(&self, ctx: &mut Context, cg: &mut MistCodegen) {
         match self {
             Self::ModAttribute => {}
+            Self::StaticDecl(decl) => {
+                cg.add("static ");
+                decl.decl.gen_mist(ctx, cg);
+
+                if let Some(init) = &decl.init {
+                    cg.add(" = ");
+                    init.gen_mist(ctx, cg);
+                }
+                cg.add(";");
+            }
+            Self::ConstDecl(decl) => {
+                cg.add("const ");
+                decl.decl.gen_mist(ctx, cg);
+
+                if let Some(init) = &decl.init {
+                    cg.add(" = ");
+                    init.gen_mist(ctx, cg);
+                }
+                cg.add(";");
+            }
             Self::Import(vis, path) => {
                 cg.addln(&format!("{}use {};", vis.get_mist(), path.get_mist()))
             }

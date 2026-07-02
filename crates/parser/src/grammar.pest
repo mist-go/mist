@@ -34,6 +34,7 @@ keyword = {
   | "loop"
   | "unsafe"
   | "override"
+  | "const"
 }
 
 identifier = @{
@@ -363,12 +364,18 @@ function_decl = {
 }
 
 // ======================================================
+// CONSTANTS / STATIC
+// ======================================================
+const_decl  = { "const" ~ var_decl_statement ~ ";" }
+static_decl = { "static" ~ var_decl_statement ~ ";" }
+
+// ======================================================
 // TOP LEVEL
 // ======================================================
 
 top_level = {
     mod_attribute
-  | (attributes ~ (import | impl_for_decl | impl_decl | trait_decl | struct_decl | enum_decl | class_decl | declare_module | function_decl))
+  | (attributes ~ (import | impl_for_decl | impl_decl | trait_decl | struct_decl | enum_decl | class_decl | declare_module | function_decl | const_decl | static_decl))
 }
 
 // ======================================================
