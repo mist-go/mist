@@ -10,14 +10,15 @@ impl GenRust for Block {
         cg.indent += 1;
 
         for stmt in &self.statements {
-            ctx.expr_ensure_semicolon = true;
             cg.add_indented("");
             stmt.gen_rust(ctx, cg);
+            if stmt.item.is_semicolon_required() {
+                cg.add(";");
+            }
             cg.addln("");
         }
 
         if let Some(soft_return) = &self.soft_return {
-            ctx.expr_ensure_semicolon = false;
             cg.add_indented("");
             soft_return.gen_rust(ctx, cg);
             cg.addln("");
@@ -86,14 +87,12 @@ impl GenRust for Statement {
                 else_branch,
             } => {
                 cg.add("if ");
-                ctx.expr_ensure_semicolon = false;
                 initial.condition.gen_rust(ctx, cg);
                 cg.add(" ");
                 initial.body.gen_rust(ctx, cg);
 
                 for else_if_branch in else_if {
                     cg.add(" else if ");
-                    ctx.expr_ensure_semicolon = false;
                     else_if_branch.condition.gen_rust(ctx, cg);
                     cg.add(" ");
                     else_if_branch.body.gen_rust(ctx, cg);
@@ -126,17 +125,18 @@ impl GenRust for Statement {
                 cg.addln("{");
                 cg.indent += 1;
 
-                ctx.expr_ensure_semicolon = true;
-
                 cg.add_indented("");
 
                 init.gen_rust(ctx, cg);
+
+                if init.is_semicolon_required() {
+                    cg.add(";");
+                }
 
                 cg.addln("");
 
                 cg.add_indented("while ");
 
-                ctx.expr_ensure_semicolon = false;
                 condition.gen_rust(ctx, cg);
 
                 cg.add(" ");
@@ -144,11 +144,13 @@ impl GenRust for Statement {
                 cg.add("{");
                 cg.indent += 1;
 
-                ctx.expr_ensure_semicolon = true;
-
                 body.gen_rust(ctx, cg);
 
                 update.gen_rust(ctx, cg);
+
+                if update.is_semicolon_required() {
+                    cg.add(";");
+                }
 
                 cg.addln("");
 

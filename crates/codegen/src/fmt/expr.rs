@@ -4,13 +4,6 @@ use crate::fmt::{Context, GenMist, GetMist, MistCodegen};
 
 impl GenMist for Expression {
     fn gen_mist(&self, ctx: &mut Context, cg: &mut MistCodegen) {
-        let ensure_semicolon = if ctx.expr_ensure_semicolon {
-            ctx.expr_ensure_semicolon = false;
-            true
-        } else {
-            false
-        };
-
         match self {
             Expression::Path(path) => cg.add(&path.get_mist()),
             Expression::Literal(literal) => literal.gen_mist(ctx, cg),
@@ -73,13 +66,6 @@ impl GenMist for Expression {
                 } else {
                     body.gen_mist(ctx, cg);
                 }
-            }
-        }
-
-        if ensure_semicolon {
-            ctx.expr_ensure_semicolon = true;
-            if !self.is_block() {
-                cg.add(";");
             }
         }
     }
