@@ -136,12 +136,37 @@ impl modules::Module
     }
     (bool, String) write_transpile(&self, String output, PathBuf& parent_dir, bool child_changed)
     {
-        if self.path.is_dir() {
+        if self.path.is_dir() || self.is_package() {
             let output_file = self.output_path(parent_dir, &None);
-            if output.len() == 0 {
-                return (true, String::new());
-            }
-            let res = fs::write(&output_file, output);
+            let final_output = if self.is_package() {
+                let source = match fs::read_to_string(&self.path) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!("error: failed to read file {}\n  {}", self.path.display(), e);
+                        process::exit(1);
+                    }
+                };
+                let curr_mod_decl = mist_parser::parse_module(&source).expect("Failed parsing module");
+                let (result_path, gc, rust_code) = match transpile_code(&self.path, &source, output_file.clone(), &output, &curr_mod_decl) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        decode_err(&e, &self.path);
+                        process::exit(1);
+                    }
+                };
+                let map_path = result_path.with_extension("map.json");
+                if let Some(parent) = map_path.parent() {
+                    let _ = fs::create_dir_all(parent);
+                }
+                fs::write(&map_path, serde_json::to_string(&gc.mapping).unwrap()).expect("Failed to write map file");
+                rust_code
+            } else {
+                if output.len() == 0 {
+                    return (true, String::new());
+                }
+                output
+            };
+            let res = fs::write(&output_file, final_output);
             if res.is_err() {
                 eprintln!("error: failed to write output {}\n  {}",
                     output_file.display(),
