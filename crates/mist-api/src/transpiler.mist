@@ -222,13 +222,16 @@ pub void transpile_file(PathBuf& path, str& source, PathBuf output_file, str& mo
             process::exit(1);
         }
     };
+    if let Some(parent) = output_file.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
     let res = fs::write(&output_file, output);
     let output_file_map = output_file.with_extension("map.json");
     let res_map = fs::write(&output_file_map, serde_json::to_string(&gc.mapping).unwrap());
     if res_map.is_err() {
         eprintln!("error: failed to write mapping output {}\n  {}",
             output_file_map.display(),
-            res.as_ref().unwrap_err(),);
+            res_map.as_ref().unwrap_err(),);
     }
     if res.is_err() {
         eprintln!("error: failed to write output {}\n  {}",
