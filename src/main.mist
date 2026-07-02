@@ -74,24 +74,24 @@ void modify_args(Vec<String> mut& args, std::path::PathBuf mut& root)
 void print_usage()
 {
     println!("Mist - the mist compiler\n");
-    println!("󰖟 View our documentation! \x1b[35mhttps://mist.selimaj.dev\x1b[0m");
-    println!(" Follow us on github!    \x1b[35mhttps://github.com/mist-go\x1b[0m\n");
+    println!("󰖟 View our documentation! \x1b[95mhttps://mist.selimaj.dev\x1b[0m");
+    println!(" Follow us on github!    \x1b[95mhttps://github.com/mist-go\x1b[0m\n");
     println!("usage:");
-    println!(" \x1b[36m mist run\x1b[0m,\x1b[36m r\x1b[0m            run the project\n");
-    println!(" \x1b[36m mist build\x1b[0m,\x1b[36m b\x1b[0m          build the project\n");
-    println!(" \x1b[36m mist test\x1b[0m              test the project\n");
-    println!(" \x1b[36m mist publish\x1b[0m           publish the project\n");
-    println!(" \x1b[36m mist bench\x1b[0m             benchmark the project\n");
-    println!(" \x1b[36m mist doc\x1b[0m               build documentation\n");
-    println!(" \x1b[36m mist fix\x1b[0m               automatically fix warnings\n");
-    println!(" \x1b[36m mist clippy\x1b[0m            lint the project\n");
-    println!(" \x1b[36m mist check\x1b[0m,\x1b[36m c\x1b[0m          check the project\n");
-    println!(" \x1b[36m mist clean\x1b[0m             clean build artifacts\n");
-    println!(" \x1b[36m mist transpile\x1b[0m,\x1b[36m t\x1b[0m      transpile the project\n");
-    println!(" \x1b[36m mist init\x1b[0m              initialize a project in the current folder\n");
-    println!(" \x1b[36m mist new\x1b[0m               create a new project\n");
-    println!(" \x1b[36m mist version \x1b[0m          print the compiler version\n");
-    println!(" \x1b[36m mist help\x1b[0m              print this message\n");
+    println!(" \x1b[96m mist run\x1b[0m,\x1b[96m r\x1b[0m            run the project\n");
+    println!(" \x1b[96m mist build\x1b[0m,\x1b[96m b\x1b[0m          build the project\n");
+    println!(" \x1b[96m mist test\x1b[0m              test the project\n");
+    println!(" \x1b[96m mist publish\x1b[0m           publish the project\n");
+    println!(" \x1b[96m mist bench\x1b[0m             benchmark the project\n");
+    println!(" \x1b[96m mist doc\x1b[0m               build documentation\n");
+    println!(" \x1b[96m mist fix\x1b[0m               automatically fix warnings\n");
+    println!(" \x1b[96m mist clippy\x1b[0m            lint the project\n");
+    println!(" \x1b[96m mist check\x1b[0m,\x1b[96m c\x1b[0m          check the project\n");
+    println!(" \x1b[96m mist clean\x1b[0m             clean build artifacts\n");
+    println!(" \x1b[96m mist transpile\x1b[0m,\x1b[96m t\x1b[0m      transpile the project\n");
+    println!(" \x1b[96m mist init\x1b[0m              initialize a project in the current folder\n");
+    println!(" \x1b[96m mist new\x1b[0m               create a new project\n");
+    println!(" \x1b[96m mist version \x1b[0m          print the compiler version\n");
+    println!(" \x1b[96m mist help\x1b[0m              print this message\n");
 }
 
 void init_project(Vec<String> mut args)
