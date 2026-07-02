@@ -51,6 +51,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Statement {
 
             Rule::block => Ok(Statement::Block(pair.try_into()?)),
 
+            Rule::top_level => Ok(Statement::TopLevel(Box::new(pair.try_into()?))),
+
             Rule::var_decl_statement => Ok(Statement::VarDecl(pair.try_into()?)),
 
             Rule::return_stmt => Ok(Statement::Return(

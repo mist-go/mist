@@ -94,7 +94,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for Expression {
             | Rule::basic_stmt
             | Rule::control_flow
             | Rule::block
-            | Rule::unsafe_block => Ok(Expression::Statement(Box::new(pair.try_into()?))),
+            | Rule::unsafe_block
+            | Rule::top_level => Ok(Expression::Statement(Box::new(pair.try_into()?))),
 
             _ => AstError::bug_unimplemented(pair),
         }

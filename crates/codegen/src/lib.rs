@@ -1,6 +1,5 @@
 pub mod class_decl;
 pub mod expr;
-pub mod fmt;
 pub mod statement;
 pub mod top_level;
 
@@ -12,7 +11,6 @@ use mist_parser::{
 };
 
 pub struct Context {
-    pub expr_ensure_semicolon: bool,
     pub expr_super: Option<ExprPath>,
 }
 
@@ -81,7 +79,6 @@ impl RustCodegen {
 
     pub fn generate(&mut self, toplevels: Vec<TopLevel>) -> String {
         let mut ctx = Context {
-            expr_ensure_semicolon: true,
             expr_super: None,
         };
 

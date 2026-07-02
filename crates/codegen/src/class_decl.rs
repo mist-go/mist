@@ -362,7 +362,6 @@ impl ClassProcessedData {
             if *i > 0 {
                 cg.add(", ");
             }
-            ctx.expr_ensure_semicolon = false;
             param.name.gen_rust(ctx, cg);
         }
         cg.addln(");");
@@ -599,7 +598,6 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
 
     for (_, param) in &params {
         cg.add(", ");
-        ctx.expr_ensure_semicolon = false;
         param.name.gen_rust(ctx, cg);
     }
 

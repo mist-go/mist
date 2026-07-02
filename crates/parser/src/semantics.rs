@@ -129,6 +129,7 @@ impl GetMutability for Block {
 impl GetMutability for Statement {
     fn get_mutability(&self) -> Vec<Identifier> {
         match self {
+            Statement::TopLevel(_) => Vec::new(),
             Statement::Block(body) | Statement::UnsafeBlock(body) => body.get_mutability(),
             Statement::If {
                 initial,

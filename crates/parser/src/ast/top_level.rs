@@ -30,6 +30,13 @@ pub enum TopLevelKind {
     Import(Visibility, Path),
     DeclareModule(Visibility, Identifier),
     ImplDecl(ImplDecl),
+    StaticDecl(VarDeclStmt),
+    ConstDecl(VarDeclStmt),
+    TypeAlias {
+        name: Identifier,
+        generics: Option<GenericsDecl>,
+        ty: TypeExpr,
+    },
     TraitDecl {
         visibility: Visibility,
         name: Identifier,

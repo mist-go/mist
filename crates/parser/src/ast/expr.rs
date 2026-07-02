@@ -96,16 +96,6 @@ pub enum Generic {
     Type(TypeExpr),
 }
 
-impl Expression {
-    pub fn is_block(&self) -> bool {
-        if let Expression::Statement(stmt) = self {
-            stmt.is_block()
-        } else {
-            false
-        }
-    }
-}
-
 impl From<Path> for ExprPath {
     fn from(path: Path) -> Self {
         Self(
@@ -117,5 +107,25 @@ impl From<Path> for ExprPath {
                 })
                 .collect(),
         )
+    }
+}
+
+impl Expression {
+    pub fn is_semicolon_required(&self) -> bool {
+        match self {
+            Self::Statement(v) => match &**v {
+                Statement::TopLevel(_) => false,
+                stmt => !stmt.is_block(),
+            },
+            _ => true,
+        }
+    }
+
+    pub fn is_block(&self) -> bool {
+        if let Expression::Statement(stmt) = self {
+            stmt.is_block()
+        } else {
+            false
+        }
     }
 }
