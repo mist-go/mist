@@ -1,5 +1,6 @@
 void main()
 {
+    use std::fmt;
     println!("running common tests...");
     common::test_package();
     common::expr_test::run_tests();

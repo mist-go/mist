@@ -24,6 +24,7 @@ keyword = {
   | "class"
   | "trait"
   | "impl"
+  | "use"
   | "pub"
   | "mut"
   | "let"
@@ -389,6 +390,7 @@ statement_list = {
 statement = _{
     control_flow
   | (expr ~ semicolon)
+  | top_level
 }
 
 // ------------------------------------------------------

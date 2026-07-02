@@ -31,12 +31,13 @@ impl GenRust for Block {
 impl GenRust for Statement {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         match self {
+            Statement::TopLevel(tl) => tl.gen_rust(ctx, cg),
+            Statement::Block(block) => block.gen_rust(ctx, cg),
+
             Statement::UnsafeBlock(block) => {
                 cg.add("unsafe ");
                 block.gen_rust(ctx, cg);
             }
-
-            Statement::Block(block) => block.gen_rust(ctx, cg),
 
             Statement::VarDecl(VarDeclStmt { decl, init }) => {
                 cg.add("let ");

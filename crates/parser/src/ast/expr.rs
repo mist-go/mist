@@ -119,3 +119,15 @@ impl From<Path> for ExprPath {
         )
     }
 }
+
+impl Expression {
+    pub fn is_semicolon_required(&self) -> bool {
+        match self {
+            Self::Statement(v) => match &**v {
+                Statement::TopLevel(_) => false,
+                _ => true,
+            },
+            _ => true,
+        }
+    }
+}

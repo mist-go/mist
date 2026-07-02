@@ -33,6 +33,7 @@ impl GenMist for Statement {
                 cg.add("unsafe ");
                 block.gen_mist(ctx, cg);
             }
+            Statement::TopLevel(tl) => tl.gen_mist(ctx, cg),
             Statement::Block(block) => block.gen_mist(ctx, cg),
             Statement::VarDecl(VarDeclStmt { decl, init }) => {
                 if decl.type_.is_some() {

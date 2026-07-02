@@ -12,6 +12,7 @@ pub struct Block {
 pub enum Statement {
     UnsafeBlock(Block),
     Block(Block),
+    TopLevel(Box<TopLevel>),
     If {
         initial: StatementBranch,
         else_if: Vec<StatementBranch>,
