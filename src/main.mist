@@ -99,12 +99,14 @@ void init_project(Vec<String> mut args)
 void inject_mist_target(bool is_lib)
 {
     String toml_content = fs::read_to_string("Cargo.toml").expect("Failed to read Cargo.toml");
-    str& inject = if is_lib {
-        "\n[lib]\nname = \"my_lib\"\npath = \".mist/src/lib.rs\"\n"
+    toml::Value parsed = toml::from_str(&toml_content).expect("Failed to parse Cargo.toml");
+    String name = parsed["package"]["name"].as_str().expect("Missing package.name in Cargo.toml").to_string();
+    String inject = if is_lib {
+        format!("\n[lib]\nname = \"{name}\"\npath = \".mist/src/lib.rs\"\n")
     } else {
-        "\n[[bin]]\nname = \"my_bin\"\npath = \".mist/src/main.rs\"\n"
+        format!("\n[[bin]]\nname = \"{name}\"\npath = \".mist/src/main.rs\"\n")
     };
-    fs::write("Cargo.toml", toml_content + inject).expect("Failed to inject to Cargo.toml");
+    fs::write("Cargo.toml", toml_content + &inject).expect("Failed to inject to Cargo.toml");
 }
 
 void add_mist_toml(bool is_lib)
