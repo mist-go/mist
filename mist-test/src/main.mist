@@ -1,3 +1,4 @@
+pub module main;
 void main()
 {
     println!("running common tests...");
