@@ -389,8 +389,8 @@ statement_list = {
 
 statement = _{
     control_flow
-  | (expr ~ semicolon)
   | top_level
+  | (expr ~ semicolon)
 }
 
 // ------------------------------------------------------
