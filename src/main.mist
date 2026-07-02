@@ -92,6 +92,7 @@ void init_project(Vec<String> mut args)
         fs::write("src/main.mist", "fn main() {\n    println!(\"Hello, World!\");\n}\n").expect("Failed to create src/main.mist");
     }
     inject_mist_target(is_lib);
+    add_mist_toml(is_lib);
     println!("\n\x1b[34minfo\x1b[0m: Please open Cargo.toml and adjust `\x1b[35mname\x1b[0m = ` as needed, Thank you for using Mist!\n");
 }
 
@@ -104,4 +105,14 @@ void inject_mist_target(bool is_lib)
         "\n[[bin]]\nname = \"my_bin\"\npath = \".mist/src/main.rs\"\n"
     };
     fs::write("Cargo.toml", toml_content + inject).expect("Failed to inject to Cargo.toml");
+}
+
+void add_mist_toml(bool is_lib)
+{
+    str& content = if is_lib {
+        "package = \"lib.mist\"\npackages = []\ninclude = []\n"
+    } else {
+        "package = \"main.mist\"\npackages = []\ninclude = []\n"
+    };
+    fs::write("Mist.toml", content).expect("Failed to add Mist.toml");
 }
