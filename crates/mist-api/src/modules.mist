@@ -76,7 +76,9 @@ pub class Module
 
     pub PathBuf output_path(&self, PathBuf& parent_dir, Option<(mist_parser::ast::Visibility, mist_parser::ast::Identifier)>& curr_mod_decl)
     {
-        let name = if let Some((_, name)) = curr_mod_decl {
+        let name = if self.path.is_dir() || self.is_package() {
+            &self.name
+        } else if let Some((_, name)) = curr_mod_decl {
             &name.0
         } else {
             &self.name

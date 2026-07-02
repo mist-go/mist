@@ -1,4 +1,5 @@
 pub module decl_test;
+pub module decl_test;
 
 pub void test_let_basic()
 {

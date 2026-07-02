@@ -10,14 +10,15 @@ use mist_api::transpiler;
 
 void main()
 {
-    Vec<String> args = env::args().collect();
+    Vec<String> mut args = env::args().collect();
     if args.len() < 2 {
         print_usage();
         process::exit(1);
     }
     match args[1].as_str() {
-        "run" | "build" | "check" | "r" | "b" | "c" => {
-            let root = env::current_dir().expect("Unable to find project root");
+        "run" | "build" | "check" | "test" | "publish" | "bench" | "doc" | "fix" | "clippy" | "r" | "b" | "c" => {
+            let mut root = env::current_dir().expect("Unable to find project root");
+            modify_args(&mut args, &mut root);
             transpiler::transpile(&root);
             println!("");
             if builder::build(args, root) {
@@ -27,11 +28,19 @@ void main()
             }
         }
         "transpile" | "t" => {
-            let root = env::current_dir().expect("Unable to find project root");
+            let mut root = env::current_dir().expect("Unable to find project root");
+            modify_args(&mut args, &mut root);
             transpiler::transpile(&root);
+        }
+        "clean" => {
+            args.remove(0);
+            process::Command::new("cargo").args(args).stdout(process::Stdio::inherit()).stderr(process::Stdio::inherit()).stdin(process::Stdio::inherit()).spawn().expect("Failed to run cargo").wait().expect("Unable to wait");
         }
         "init" => {
             init_project(args);
+        }
+        "new" => {
+            new_project(args);
         }
         "version" | "--version" | "-v" => {
             println!("mist {}", env!("CARGO_PKG_VERSION"));
@@ -47,44 +56,123 @@ void main()
     }
 }
 
+void modify_args(Vec<String> mut& args, std::path::PathBuf mut& root)
+{
+    if let Some(path_arg) = args.get(2) {
+        if path_arg == "--path" {
+            if args.len() > 3 {
+                let path_arg = args[3].clone();
+                *root = root.join(&path_arg);
+                args.remove(2);
+                args.remove(2);
+                args.push(format!("--manifest-path={}/Cargo.toml", root.display()));
+            }
+        }
+    }
+}
+
 void print_usage()
 {
     println!("Mist - the mist compiler\n");
-    println!("󰖟 View our documentation! \x1b[35mhttps://mist.selimaj.dev\x1b[0m");
-    println!(" Follow us on github!    \x1b[35mhttps://github.com/mist-go\x1b[0m\n");
+    println!("󰖟 View our documentation! \x1b[95mhttps://mist.selimaj.dev\x1b[0m");
+    println!(" Follow us on github!    \x1b[95mhttps://github.com/mist-go\x1b[0m\n");
     println!("usage:");
-    println!(" \x1b[36m mist run\x1b[0m,\x1b[36m r\x1b[0m            run the project in the current directory\n");
-    println!(" \x1b[36m mist build\x1b[0m,\x1b[36m b\x1b[0m          build the project in the current directory\n");
-    println!(" \x1b[36m mist transpile\x1b[0m,\x1b[36m t\x1b[0m      transpile the project in the current directory\n");
-    println!(" \x1b[36m mist check\x1b[0m,\x1b[36m c\x1b[0m          check the project in the current directory\n");
-    println!(" \x1b[36m mist init\x1b[0m              initialize a project in the current folder\n");
-    println!(" \x1b[36m mist version \x1b[0m          print the compiler version\n");
-    println!(" \x1b[36m mist help\x1b[0m              print this message\n");
+    println!(" \x1b[96m mist run\x1b[0m,\x1b[96m r\x1b[0m            run the project\n");
+    println!(" \x1b[96m mist build\x1b[0m,\x1b[96m b\x1b[0m          build the project\n");
+    println!(" \x1b[96m mist test\x1b[0m              test the project\n");
+    println!(" \x1b[96m mist publish\x1b[0m           publish the project\n");
+    println!(" \x1b[96m mist bench\x1b[0m             benchmark the project\n");
+    println!(" \x1b[96m mist doc\x1b[0m               build documentation\n");
+    println!(" \x1b[96m mist fix\x1b[0m               automatically fix warnings\n");
+    println!(" \x1b[96m mist clippy\x1b[0m            lint the project\n");
+    println!(" \x1b[96m mist check\x1b[0m,\x1b[96m c\x1b[0m          check the project\n");
+    println!(" \x1b[96m mist clean\x1b[0m             clean build artifacts\n");
+    println!(" \x1b[96m mist transpile\x1b[0m,\x1b[96m t\x1b[0m      transpile the project\n");
+    println!(" \x1b[96m mist init\x1b[0m              initialize a project in the current folder\n");
+    println!(" \x1b[96m mist new\x1b[0m               create a new project\n");
+    println!(" \x1b[96m mist version \x1b[0m          print the compiler version\n");
+    println!(" \x1b[96m mist help\x1b[0m              print this message\n");
 }
 
 void init_project(Vec<String> mut args)
 {
     args.remove(0);
-    process::Command::new("cargo").args(args).stdout(process::Stdio::inherit()).stderr(process::Stdio::inherit()).stdin(process::Stdio::inherit()).spawn().expect("Failed to run cargo").wait().expect("Unable to wait");
+    let status = process::Command::new("cargo").args(args).stdout(process::Stdio::inherit()).stderr(process::Stdio::inherit()).stdin(process::Stdio::inherit()).spawn().expect("Failed to run cargo").wait().expect("Unable to wait");
+    if !status.success() {
+        return;
+    }
     bool is_lib = fs::metadata("src/lib.rs").is_ok();
     if is_lib {
         fs::remove_file("src/lib.rs").expect("Failed to remove src/lib.rs");
-        fs::write("src/lib.mist", "fn test() {\n}").expect("Failed to create src/lib.mist");
+        fs::write("src/lib.mist", "void test() {\n}").expect("Failed to create src/lib.mist");
     } else {
         fs::remove_file("src/main.rs").expect("Failed to remove src/main.rs");
-        fs::write("src/main.mist", "fn main() {\n    println!(\"Hello, World!\");\n}\n").expect("Failed to create src/main.mist");
+        fs::write("src/main.mist", "void main() {\n    println!(\"Hello, World!\");\n}\n").expect("Failed to create src/main.mist");
     }
     inject_mist_target(is_lib);
-    println!("\n\x1b[34minfo\x1b[0m: Please open Cargo.toml and adjust `\x1b[35mname\x1b[0m = ` as needed, Thank you for using Mist!\n");
+    add_mist_toml(is_lib);
+    add_gitignore();
+    println!("Thank you for using Mist!\n");
+}
+
+void new_project(Vec<String> mut args)
+{
+    args.remove(0);
+    if args.len() < 2 {
+        eprintln!("error: missing project name\n");
+        print_usage();
+        process::exit(1);
+    }
+    String project_name = args[1].clone();
+    let status = process::Command::new("cargo").args(args).stdout(process::Stdio::inherit()).stderr(process::Stdio::inherit()).stdin(process::Stdio::inherit()).spawn().expect("Failed to run cargo").wait().expect("Unable to wait");
+    if !status.success() {
+        return;
+    }
+    std::path::PathBuf project_path = env::current_dir().expect("Unable to find project root").join(&project_name);
+    env::set_current_dir(&project_path).expect("Failed to change to project directory");
+    bool is_lib = fs::metadata("src/lib.rs").is_ok();
+    if is_lib {
+        fs::remove_file("src/lib.rs").expect("Failed to remove src/lib.rs");
+        fs::write("src/lib.mist", "void test() {\n}").expect("Failed to create src/lib.mist");
+    } else {
+        fs::remove_file("src/main.rs").expect("Failed to remove src/main.rs");
+        fs::write("src/main.mist", "void main() {\n    println!(\"Hello, World!\");\n}\n").expect("Failed to create src/main.mist");
+    }
+    inject_mist_target(is_lib);
+    add_mist_toml(is_lib);
+    add_gitignore();
+    println!("Thank you for using Mist!\n");
 }
 
 void inject_mist_target(bool is_lib)
 {
     String toml_content = fs::read_to_string("Cargo.toml").expect("Failed to read Cargo.toml");
-    str& inject = if is_lib {
-        "\n[lib]\nname = \"my_lib\"\npath = \".mist/src/lib.rs\"\n"
+    toml::Value parsed = toml::from_str(&toml_content).expect("Failed to parse Cargo.toml");
+    String name = parsed["package"]["name"].as_str().expect("Missing package.name in Cargo.toml").to_string();
+    String inject = if is_lib {
+        format!("\n[lib]\nname = \"{name}\"\npath = \".mist/src/lib.rs\"\n")
     } else {
-        "\n[[bin]]\nname = \"my_bin\"\npath = \".mist/src/main.rs\"\n"
+        format!("\n[[bin]]\nname = \"{name}\"\npath = \".mist/src/main.rs\"\n")
     };
-    fs::write("Cargo.toml", toml_content + inject).expect("Failed to inject to Cargo.toml");
+    fs::write("Cargo.toml", toml_content + &inject).expect("Failed to inject to Cargo.toml");
+}
+
+void add_mist_toml(bool is_lib)
+{
+    str& content = if is_lib {
+        "package = \"lib.mist\"\npackages = []\ninclude = []\n"
+    } else {
+        "package = \"main.mist\"\npackages = []\ninclude = []\n"
+    };
+    fs::write("Mist.toml", content).expect("Failed to add Mist.toml");
+}
+
+void add_gitignore()
+{
+    if fs::metadata(".gitignore").is_ok() {
+        String content = fs::read_to_string(".gitignore").expect("Failed to read .gitignore");
+        if !content.contains(".mist") {
+            fs::write(".gitignore", content + "\n.mist\n").expect("Failed to write .gitignore");
+        }
+    }
 }

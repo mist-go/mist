@@ -58,7 +58,7 @@ pub bool build(Vec<String> mut args, PathBuf root)
                             serde_json::from_str<rev_mapper::Mapping>(&map_str).expect("Failed to parse map file")
                         });
                         let mist_file = map.mist_path.strip_prefix(&root);
-                        let (_, rev_mapper::MistMap(line, column)) = map.find(&rev_mapper::RustMap(span.line_end, span.column_start)).expect("Unable to find mapping");
+                        let (_, rev_mapper::MistMap(line, column)) = map.find(&rev_mapper::RustMap(span.line_end, span.column_start)).unwrap_or_default();
                         let mist_msg = MistDiagnosticMessage {
                             message: format!("{}: {}",
                                 msg.message.message,

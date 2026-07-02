@@ -1,4 +1,5 @@
 pub module struct_test;
+pub module struct_test;
 
 struct Point
 {
