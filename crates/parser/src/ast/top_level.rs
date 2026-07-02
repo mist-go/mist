@@ -32,6 +32,11 @@ pub enum TopLevelKind {
     ImplDecl(ImplDecl),
     StaticDecl(VarDeclStmt),
     ConstDecl(VarDeclStmt),
+    TypeAlias {
+        name: Identifier,
+        generics: Option<GenericsDecl>,
+        ty: TypeExpr,
+    },
     TraitDecl {
         visibility: Visibility,
         name: Identifier,

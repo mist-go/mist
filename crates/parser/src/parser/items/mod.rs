@@ -125,6 +125,14 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
             Rule::const_decl => Ok(TopLevelKind::ConstDecl(inner.next().unwrap().try_into()?)),
             Rule::static_decl => Ok(TopLevelKind::StaticDecl(inner.next().unwrap().try_into()?)),
 
+            Rule::type_alias => Ok(TopLevelKind::TypeAlias {
+                name: inner.next().unwrap().try_into()?,
+                generics: consume_rule(&mut inner, Rule::generics_decl)
+                    .map(GenericsDecl::try_from)
+                    .transpose()?,
+                ty: inner.next().unwrap().try_into()?,
+            }),
+
             _ => AstError::bug_unimplemented(pair),
         }
     }

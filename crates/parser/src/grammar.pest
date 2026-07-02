@@ -35,6 +35,7 @@ keyword = {
   | "unsafe"
   | "override"
   | "const"
+  | "type"
 }
 
 identifier = @{
@@ -370,12 +371,17 @@ const_decl  = { "const" ~ var_decl_statement ~ ";" }
 static_decl = { "static" ~ var_decl_statement ~ ";" }
 
 // ======================================================
+// Type aliases
+// ======================================================
+type_alias = { "type" ~ identifier ~ generics_decl? ~ "=" ~ type_expr ~ ";" }
+
+// ======================================================
 // TOP LEVEL
 // ======================================================
 
 top_level = {
     mod_attribute
-  | (attributes ~ (import | impl_for_decl | impl_decl | trait_decl | struct_decl | enum_decl | class_decl | declare_module | function_decl | const_decl | static_decl))
+  | (attributes ~ (import | impl_for_decl | impl_decl | trait_decl | struct_decl | enum_decl | class_decl | declare_module | function_decl | const_decl | static_decl | type_alias))
 }
 
 // ======================================================

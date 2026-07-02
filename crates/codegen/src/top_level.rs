@@ -191,6 +191,16 @@ impl GenRust for TopLevelKind {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         match self {
             Self::ModAttribute => {}
+            Self::TypeAlias { name, generics, ty } => {
+                cg.add("type ");
+                name.gen_rust(ctx, cg);
+                if let Some(g) = generics {
+                    g.gen_rust(ctx, cg);
+                }
+                cg.add(" = ");
+                ty.gen_rust(ctx, cg);
+                cg.addln(";");
+            }
             Self::ConstDecl(decl) => {
                 cg.add("const ");
                 decl.decl.gen_rust(ctx, cg);
@@ -200,7 +210,7 @@ impl GenRust for TopLevelKind {
                     init.gen_rust(ctx, cg);
                 }
 
-                cg.add(";");
+                cg.addln(";");
             }
             Self::StaticDecl(decl) => {
                 cg.add("static ");
@@ -211,7 +221,7 @@ impl GenRust for TopLevelKind {
                     init.gen_rust(ctx, cg);
                 }
 
-                cg.add(";");
+                cg.addln(";");
             }
             Self::Import(vis, path) => {
                 cg.addln(&format!("{}use {};", vis.get_rust(), path.get_rust()))
