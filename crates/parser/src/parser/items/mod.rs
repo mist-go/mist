@@ -54,11 +54,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                     .transpose()
                     .map(|v| v.unwrap_or_default())?,
 
-                fields: inner
-                    .next()
-                    .map(|pair| collect_recovered(pair.into_inner()))
-                    .transpose()
-                    .map(|v| v.unwrap_or_default())?,
+                fields: collect_recovered(inner.next().unwrap().into_inner())?,
             }),
 
             Rule::class_decl => Ok(TopLevelKind::ClassDecl {

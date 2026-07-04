@@ -1,10 +1,9 @@
 pub module struct_test;
-pub module struct_test;
 
 struct Point
 {
-    i32 x,
-    i32 y,
+    i32 x;
+    i32 y;
 }
 
 pub void test_struct_create_access()
@@ -40,8 +39,8 @@ pub void test_struct_destructure()
 
 struct Line
 {
-    Point start,
-    Point end,
+    Point start;
+    Point end;
 }
 
 pub void test_struct_nested()

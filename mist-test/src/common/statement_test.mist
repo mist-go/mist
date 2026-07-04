@@ -1,5 +1,4 @@
 pub module statement_test;
-pub module statement_test;
 
 pub void test_var_decl()
 {

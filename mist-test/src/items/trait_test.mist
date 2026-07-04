@@ -1,5 +1,4 @@
 pub module trait_test;
-pub module trait_test;
 
 trait Speak
 {
@@ -13,7 +12,7 @@ trait Greet : Speak
 
 struct Dog
 {
-    String name,
+    String name;
 }
 
 impl Speak for Dog

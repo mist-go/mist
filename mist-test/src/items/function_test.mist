@@ -1,5 +1,4 @@
 pub module function_test;
-pub module function_test;
 
 void greet()
 {

@@ -2,7 +2,7 @@ use crate::{
     Rule,
     ast::*,
     error::{AstError, collect_recovered},
-    parser::consume_rule,
+    parser::{consume_rule, listen_rule},
 };
 
 impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDeclStmt {
@@ -55,7 +55,9 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDecl {
                     type_: consume_rule(&mut inner, Rule::type_expr)
                         .map(TypeExpr::try_from)
                         .transpose()?,
+                    true_type: listen_rule(&mut inner, Rule::as_kw),
                     name: Pattern::try_from(inner.next().unwrap())?,
+                    tuple_names: collect_recovered(inner)?,
                 })
             }
 

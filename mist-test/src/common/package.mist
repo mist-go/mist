@@ -1,4 +1,3 @@
-pub module package;
 pub module common;
 
 pub void test_package() {}

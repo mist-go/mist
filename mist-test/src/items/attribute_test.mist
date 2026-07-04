@@ -1,10 +1,9 @@
 pub module attribute_test;
-pub module attribute_test;
 
 #[derive(Debug)]
 pub struct Debuggable
 {
-    i32 value,
+    i32 value;
 }
 
 pub void test_derive_attribute()

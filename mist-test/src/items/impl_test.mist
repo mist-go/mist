@@ -1,10 +1,9 @@
 pub module impl_test;
-pub module impl_test;
 
 struct Vector2
 {
-    i32 x,
-    i32 y,
+    i32 x;
+    i32 y;
 }
 
 impl Vector2
