@@ -289,12 +289,8 @@ enum_field = _{
   | enum_named
 }
 
-enum_fields = _{
-    enum_field ~ ";"
-}
-
 enum_decl = {
-    visibility? ~ "enum" ~ identifier ~ generics_decl? ~ "{" ~ enum_fields? ~ "}"
+    visibility? ~ "enum" ~ identifier ~ generics_decl? ~ "{" ~ (enum_field ~ ";")* ~ "}"
 }
 
 // ======================================================
