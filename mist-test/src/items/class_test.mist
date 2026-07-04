@@ -1,5 +1,4 @@
 pub module class_test;
-pub module class_test;
 
 pub class Animal
 {

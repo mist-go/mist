@@ -1,5 +1,4 @@
 pub module trait_test;
-pub module trait_test;
 
 trait Speak
 {

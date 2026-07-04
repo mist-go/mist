@@ -1,5 +1,4 @@
 pub module types_test;
-pub module types_test;
 
 pub void test_integer_type() {
     i32 x = 42;

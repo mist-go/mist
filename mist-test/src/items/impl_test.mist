@@ -1,5 +1,4 @@
 pub module impl_test;
-pub module impl_test;
 
 struct Vector2
 {

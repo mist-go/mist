@@ -1,5 +1,4 @@
 pub module enum_test;
-pub module enum_test;
 
 enum OptionInt
 {

@@ -1,5 +1,4 @@
 pub module expr_test;
-pub module expr_test;
 
 pub void test_literals()
 {
