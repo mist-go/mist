@@ -155,6 +155,63 @@ pub void test_binary_assign()
     assert_eq!(x, 2);
 }
 
+pub void test_binary_assign_bit()
+{
+    let mut x = 10;
+    x &= 12;
+    assert_eq!(x, 8);
+    x |= 1;
+    assert_eq!(x, 9);
+    x ^= 3;
+    assert_eq!(x, 10);
+    let mut y = 8;
+    y <<= 2;
+    assert_eq!(y, 32);
+    y >>= 1;
+    assert_eq!(y, 16);
+}
+
+pub void test_empty_tuple()
+{
+    let t = ();
+    assert_eq!(t, ());
+}
+
+pub void test_empty_array()
+{
+    let arr = [0; 0];
+    assert_eq!(arr.len(), 0);
+}
+
+pub void test_range_inclusive()
+{
+    let mut sum = 0;
+    for i in 1 ..= 3 {
+        sum += i;
+    }
+    assert_eq!(sum, 6);
+}
+
+pub void test_closure_no_args()
+{
+    let f = () => 42;
+    assert_eq!(f(), 42);
+}
+
+pub void test_closure_with_typed_params()
+{
+    let add = (i32 a, i32 b) => a + b;
+    assert_eq!(add(3, 4), 7);
+}
+
+pub void test_mut_ref()
+{
+    let mut x = 42;
+    let r = &mut x;
+    *r = 100;
+    assert_eq!(x, 100);
+}
+
 pub void run_tests()
 {
     test_literals();
@@ -174,4 +231,11 @@ pub void run_tests()
     test_if_expr();
     test_range_expr();
     test_binary_assign();
+    test_binary_assign_bit();
+    test_empty_tuple();
+    test_empty_array();
+    test_range_inclusive();
+    test_closure_no_args();
+    test_closure_with_typed_params();
+    test_mut_ref();
 }

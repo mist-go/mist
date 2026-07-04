@@ -59,10 +59,55 @@ pub void test_struct_nested()
     assert_eq!(l.end.y, 10);
 }
 
+struct Empty {}
+
+pub void test_empty_struct()
+{
+    let e = Empty {};
+}
+
+struct Pair<T>
+{
+    T first;
+    T second;
+}
+
+pub void test_generic_struct()
+{
+    Pair<i32> p = Pair<i32> { first: 1, second: 2 };
+    assert_eq!(p.first, 1);
+    assert_eq!(p.second, 2);
+}
+
+pub void test_struct_partial_destructure()
+{
+    let p = Point {
+        x: 10,
+        y: 20,
+    };
+    let Point {x, ..} = p;
+    assert_eq!(x, 10);
+}
+
+pub void test_struct_destructure_rename()
+{
+    let p = Point {
+        x: 5,
+        y: 15,
+    };
+    let Point {x: a, y: b} = p;
+    assert_eq!(a, 5);
+    assert_eq!(b, 15);
+}
+
 pub void run_tests()
 {
     test_struct_create_access();
     test_struct_mut_field();
     test_struct_destructure();
     test_struct_nested();
+    test_empty_struct();
+    test_generic_struct();
+    test_struct_partial_destructure();
+    test_struct_destructure_rename();
 }

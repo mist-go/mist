@@ -52,6 +52,30 @@ pub void test_fn_return_type() {
     assert_eq!(add(3, 4), 7);
 }
 
+pub void test_generic_type() {
+    Option<i32> x = Option::Some(42);
+    assert_eq!(x.is_some(), true);
+}
+
+type MyInt = i32;
+
+pub void test_type_alias() {
+    MyInt x = 42;
+    assert_eq!(x, 42);
+}
+
+const i32 MY_CONST = 100;
+
+pub void test_const_decl() {
+    assert_eq!(MY_CONST, 100);
+}
+
+static i32 my_static = 200;
+
+pub void test_static_decl() {
+    assert_eq!(my_static, 200);
+}
+
 pub void run_tests() {
     test_integer_type();
     test_float_type();
@@ -62,4 +86,8 @@ pub void run_tests() {
     test_mut_ref_type();
     test_void_type();
     test_fn_return_type();
+    test_generic_type();
+    test_type_alias();
+    test_const_decl();
+    test_static_decl();
 }
