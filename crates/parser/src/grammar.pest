@@ -240,7 +240,7 @@ param = {
 }
 
 field_list = {
-    (field ~ ("," ~ field)* ~ ","?)?
+    (field ~ ";")*
 }
 
 param_list = {
@@ -264,7 +264,7 @@ declare_module = {
 // ======================================================
 
 struct_decl = {
-    visibility? ~ "struct" ~ identifier ~ generics_decl? ~ "{" ~ field_list? ~ "}"
+    visibility? ~ "struct" ~ identifier ~ generics_decl? ~ "{" ~ field_list ~ "}"
 }
 
 // ======================================================
@@ -290,7 +290,7 @@ enum_field = _{
 }
 
 enum_fields = _{
-    enum_field ~ ("," ~ enum_field)* ~ ","?
+    enum_field ~ ";"
 }
 
 enum_decl = {

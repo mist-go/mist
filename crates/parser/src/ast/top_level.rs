@@ -126,6 +126,7 @@ pub struct FieldDecl {
     pub visibility: Visibility,
     pub type_: TypeExpr,
     pub name: Identifier,
+    // pub tuple_names: Vec<Identifier>,
 }
 
 #[derive(Debug, Clone, Serialize)]
