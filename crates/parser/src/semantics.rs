@@ -46,10 +46,13 @@ pub fn check_class_semantics<'a>(top_level: &TopLevel) -> Result<(), Vec<Semanti
         if let Some(constructor) = constructor {
             let mut fields = fields
                 .iter()
-                .map(|field| Spanned {
-                    item: field.item.decl.name.clone(),
-                    line: field.line,
-                    column: field.column,
+                .filter_map(|field| match field.item.init {
+                    Some(_) => None,
+                    None => Some(Spanned {
+                        item: field.item.decl.name.clone(),
+                        line: field.line,
+                        column: field.column,
+                    }),
                 })
                 .collect::<Vec<_>>();
 
