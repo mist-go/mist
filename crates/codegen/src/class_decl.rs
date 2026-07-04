@@ -352,8 +352,9 @@ impl ClassProcessedData {
         for field in &self.fields {
             if let Some(init) = &field.item.init {
                 field.gen_span(cg);
-                cg.add_indentedln(&format!("this.{} = ", field.item.decl.name.get_rust()));
+                cg.add_indented(&format!("this.{} = ", field.item.decl.name.get_rust()));
                 init.gen_rust(ctx, cg);
+                cg.addln(";");
             }
         }
 
