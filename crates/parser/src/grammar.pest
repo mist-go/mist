@@ -225,9 +225,11 @@ attributes = {
 // ======================================================
 // DECLARATION HELPERS
 // ======================================================
+as_kw = { "as" }
+
 var_decl = {
     ("let" ~ pattern ~ ("," ~ pattern)*)
-  | type_expr ~ (!tuple_pattern ~ pattern ~ ("," ~ pattern)*)
+  | type_expr ~ as_kw? ~ (!tuple_pattern ~ pattern ~ ("," ~ pattern)*)
 }
 
 field = {

@@ -46,6 +46,7 @@ pub struct MatchItem(pub Vec<Pattern>, pub Expression);
 pub struct VarDecl {
     pub type_: Option<TypeExpr>,
     pub name: Pattern,
+    pub true_type: bool,
     pub tuple_names: Vec<Pattern>,
 }
 

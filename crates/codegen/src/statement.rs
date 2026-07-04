@@ -190,6 +190,17 @@ impl GenRust for VarDecl {
     fn gen_rust(&self, ctx: &mut Context, cg: &mut RustCodegen) {
         if self.tuple_names.is_empty() {
             self.name.gen_rust(ctx, cg);
+        } else {
+            cg.add("(");
+            self.name.gen_rust(ctx, cg);
+            for name in &self.tuple_names {
+                cg.add(", ");
+                name.gen_rust(ctx, cg);
+            }
+            cg.add(")");
+        }
+
+        if self.true_type {
             cg.add(
                 &self
                     .type_
@@ -198,15 +209,6 @@ impl GenRust for VarDecl {
                     .unwrap_or_default(),
             );
         } else {
-            cg.add("(");
-            self.name.gen_rust(ctx, cg);
-            for name in &self.tuple_names {
-                cg.add(", ");
-
-                name.gen_rust(ctx, cg);
-            }
-            cg.add(")");
-
             cg.add(
                 &self
                     .type_
