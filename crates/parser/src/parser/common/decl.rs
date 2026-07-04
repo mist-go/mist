@@ -56,6 +56,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for VarDecl {
                         .map(TypeExpr::try_from)
                         .transpose()?,
                     name: Pattern::try_from(inner.next().unwrap())?,
+                    tuple_names: collect_recovered(inner)?,
                 })
             }
 

@@ -6,6 +6,13 @@ pub void test_let_basic()
     assert_eq!(x, 42);
 }
 
+pub void test_let_repeat()
+{
+    let x, y = (42, 67);
+    assert_eq!(x, 42);
+    assert_eq!(y, 67);
+}
+
 pub void test_let_typed()
 {
     i32 x = 42;
@@ -16,6 +23,25 @@ pub void test_let_typed()
     assert_eq!(b, true);
     f64 f = 3.14;
     assert_eq!(f, 3.14);
+}
+
+pub void test_let_repeat_typed()
+{
+    i32 x, x1 = (42, 67);
+    assert_eq!(x, 42);
+    assert_eq!(x1, 67);
+
+    str& s, s1 = ("hello", "world");
+    assert_eq!(s, "hello");
+    assert_eq!(s1, "world");
+
+    bool b, b1 = (true, false);
+    assert_eq!(b, true);
+    assert_eq!(b1, false);
+
+    f64 f, f1 = (3.14, 5.5);
+    assert_eq!(f, 3.14);
+    assert_eq!(f1, 5.5);
 }
 
 pub void test_let_mut()
@@ -79,7 +105,9 @@ pub void test_let_bool()
 pub void run_tests()
 {
     test_let_basic();
+    test_let_repeat();
     test_let_typed();
+    test_let_repeat_typed();
     test_let_mut();
     test_let_tuple_destructure();
     test_let_nested_tuple();

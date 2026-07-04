@@ -226,8 +226,8 @@ attributes = {
 // DECLARATION HELPERS
 // ======================================================
 var_decl = {
-    ("let" ~ pattern)
-  | type_expr ~ (!tuple_pattern ~ pattern)
+    ("let" ~ pattern ~ ("," ~ pattern)*)
+  | type_expr ~ (!tuple_pattern ~ pattern ~ ("," ~ pattern)*)
 }
 
 field = {
