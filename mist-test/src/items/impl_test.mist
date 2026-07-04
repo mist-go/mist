@@ -72,9 +72,29 @@ pub void test_multiple_impls()
     assert_eq!(c.y, 6);
 }
 
+struct Wrapper<T>
+{
+    T value;
+}
+
+impl<T: Copy> Wrapper<T>
+{
+    pub T get(&self)
+    {
+        self.value
+    }
+}
+
+pub void test_impl_generic()
+{
+    Wrapper<i32> w = Wrapper { value: 42 };
+    assert_eq!(w.get(), 42);
+}
+
 pub void run_tests()
 {
     test_inherent_impl();
     test_trait_impl_block();
     test_multiple_impls();
+    test_impl_generic();
 }

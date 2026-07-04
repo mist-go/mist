@@ -22,8 +22,21 @@ pub void test_allow_attribute()
     assert_eq!(x, 42);
 }
 
+#[allow(dead_code)]
+pub struct Tagged
+{
+    i32 id;
+}
+
+pub void test_attribute_with_args()
+{
+    Tagged t = Tagged { id: 1 };
+    assert_eq!(t.id, 1);
+}
+
 pub void run_tests()
 {
     test_derive_attribute();
     test_allow_attribute();
+    test_attribute_with_args();
 }

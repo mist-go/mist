@@ -69,6 +69,17 @@ pub void test_recursive_fn()
     assert_eq!(factorial(5), 120);
 }
 
+T identity<T>(T x)
+{
+    x
+}
+
+pub void test_fn_generic()
+{
+    assert_eq!(identity(42), 42);
+    assert_eq!(identity("hello"), "hello");
+}
+
 pub void run_tests()
 {
     test_basic_function();
@@ -79,4 +90,5 @@ pub void run_tests()
     test_method_call();
     test_nested_fn_calls();
     test_recursive_fn();
+    test_fn_generic();
 }

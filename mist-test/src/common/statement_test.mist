@@ -160,6 +160,68 @@ pub void test_for_with_pattern_destructure()
     assert_eq!(keys, 3);
 }
 
+pub void test_c_for_loop()
+{
+    let mut sum = 0;
+    for (let mut i = 0; i < 4; i++) {
+        sum += i;
+    }
+    assert_eq!(sum, 6);
+}
+
+pub void test_unsafe_block()
+{
+    let mut x = 42;
+    unsafe {
+        let r = &mut x;
+        *r = 100;
+    }
+    assert_eq!(x, 100);
+}
+
+pub void test_match_parenthesized()
+{
+    let result;
+    match (2) {
+        1 => result = 10,
+        2 => result = 20,
+        _ => panic!(),
+    }
+    assert_eq!(result, 20);
+}
+
+pub void test_if_parenthesized()
+{
+    let mut x = 0;
+    if (true) {
+        x = 1;
+    }
+    assert_eq!(x, 1);
+}
+
+pub void test_while_parenthesized()
+{
+    let mut count = 0;
+    while (count < 3) {
+        count++;
+    }
+    assert_eq!(count, 3);
+}
+
+pub void test_loop_with_break_value()
+{
+    let mut x = 0;
+    let result;
+    loop {
+        if x >= 3 {
+            result = x;
+            break;
+        }
+        x++;
+    }
+    assert_eq!(result, 3);
+}
+
 pub void run_tests()
 {
     test_var_decl();
@@ -176,4 +238,10 @@ pub void run_tests()
     test_match_or_pattern();
     test_match_default();
     test_for_with_pattern_destructure();
+    test_c_for_loop();
+    test_unsafe_block();
+    test_match_parenthesized();
+    test_if_parenthesized();
+    test_while_parenthesized();
+    test_loop_with_break_value();
 }

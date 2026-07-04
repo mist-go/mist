@@ -90,10 +90,40 @@ pub void test_enum_eq()
     }
 }
 
+enum Option<T>
+{
+    None;
+    Some(T);
+}
+
+pub void test_generic_enum()
+{
+    Option<i32> x = Option::Some(42);
+    match x {
+        Option::Some(v) => {
+            assert_eq!(v, 42);
+        }
+        _ => {
+            assert_eq!(0, 1);
+        }
+    }
+
+    Option<bool> y = Option::None;
+    match y {
+        Option::None => {
+            assert_eq!(1, 1);
+        }
+        _ => {
+            assert_eq!(0, 1);
+        }
+    }
+}
+
 pub void run_tests()
 {
     test_enum_named();
     test_enum_tuple();
     test_enum_struct();
     test_enum_eq();
+    test_generic_enum();
 }

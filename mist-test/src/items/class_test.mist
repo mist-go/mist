@@ -59,10 +59,73 @@ pub class Dog : Mammal
     }
 }
 
+pub class Counter
+{
+    pub i32 count;
+
+    constructor()
+    {
+        self.count = 42;
+    }
+
+    i32 get_count(&self)
+    {
+        self.count
+    }
+
+    pub i32 static_fn()
+    {
+        99
+    }
+}
+
+pub void test_class_no_inheritance()
+{
+    Counter c = Counter::new();
+    assert_eq!(c.get_count(), 42);
+}
+
+pub class WithDefault
+{
+    pub String name = "default".to_string();
+    pub i32 value = 42;
+
+    constructor()
+    {
+    }
+
+    pub String get_name(&self)
+    {
+        self.name.clone()
+    }
+}
+
+pub void test_class_field_default()
+{
+    WithDefault w = WithDefault::new();
+    assert_eq!(w.get_name(), "default");
+    assert_eq!(w.value, 42);
+}
+
+pub class EmptyClass
+{
+    constructor()
+    {
+    }
+}
+
+pub void test_class_empty()
+{
+    EmptyClass e = EmptyClass::new();
+}
+
 pub void run_tests()
 {
     let dawg = Dog::new();
     dawg.args_test(10, "hello");
     dawg.test_speak();
     assert_eq!(format!("{dawg}"), "🐾 Rex");
+    test_class_no_inheritance();
+    test_class_field_default();
+    test_class_empty();
 }

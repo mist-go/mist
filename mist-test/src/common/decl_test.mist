@@ -106,6 +106,27 @@ pub void test_let_bool()
     assert_eq!(t, !f);
 }
 
+pub void test_let_decl_only()
+{
+    let x;
+    x = 42;
+    assert_eq!(x, 42);
+}
+
+pub void test_let_typed_decl_only()
+{
+    i32 x;
+    x = 100;
+    assert_eq!(x, 100);
+}
+
+pub void test_let_decl_mut_no_init()
+{
+    let mut x;
+    x = 5;
+    assert_eq!(x, 5);
+}
+
 pub void run_tests()
 {
     test_let_basic();
@@ -120,4 +141,7 @@ pub void run_tests()
     test_let_with_type_and_init();
     test_string_literal();
     test_let_bool();
+    test_let_decl_only();
+    test_let_typed_decl_only();
+    test_let_decl_mut_no_init();
 }
