@@ -5,7 +5,7 @@ Originally this readme was part of the Carbon Language project, licensed with Ap
 -->
 
 <p align="center">
-  <a href="https://mist.selimaj.dev">Documentation</a>
+  <a href="https://mist.selimaj.dev/docs">Documentation</a> ∙ <a href="https://mist.selimaj.dev/blog">Blog</a> ∙ <a href="https://mist.selimaj.dev/faq">FAQ</a>
 </p>
 
 
