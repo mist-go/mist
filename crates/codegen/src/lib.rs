@@ -78,9 +78,7 @@ impl RustCodegen {
     }
 
     pub fn generate(&mut self, toplevels: Vec<TopLevel>) -> String {
-        let mut ctx = Context {
-            expr_super: None,
-        };
+        let mut ctx = Context { expr_super: None };
 
         for tl in toplevels {
             tl.gen_rust(&mut ctx, self);
@@ -274,6 +272,13 @@ impl GetRust for TypeExpr {
                         .join(", "),
                     return_type.get_rust(),
                 )
+            }
+            Self::Array(ty, count) => {
+                if let Some(count) = count {
+                    format!("[{}; {count}]", ty.get_rust())
+                } else {
+                    format!("[{}]", ty.get_rust())
+                }
             }
         }
     }

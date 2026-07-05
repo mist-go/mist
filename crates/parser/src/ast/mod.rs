@@ -48,6 +48,7 @@ pub enum TypeExpr {
         return_type: Box<TypeExpr>,
         params: Vec<TypeExpr>,
     },
+    Array(Box<TypeExpr>, Option<isize>)
 }
 
 #[derive(Debug, Clone, Serialize)]

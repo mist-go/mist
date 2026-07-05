@@ -24,6 +24,7 @@ pub enum ErrorCode {
     InvalidStatement,
     AstGenBug,
     Module,
+    NumberParse,
 }
 
 impl From<pest::error::Error<Rule>> for ParseError<'_> {

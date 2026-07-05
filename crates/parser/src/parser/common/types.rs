@@ -50,6 +50,25 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
                             };
                         }
 
+                        Rule::array_type => {
+                            ty = TypeExpr::Array(
+                                Box::new(ty),
+                                ref_inner
+                                    .next()
+                                    .map(|v| {
+                                        v.as_str().parse().map_err(|_| AstError {
+                                            span: v.as_span(),
+                                            error_code: crate::error::ErrorCode::NumberParse,
+                                            error_message: format!(
+                                                "Number exceeds isize limits: {}",
+                                                v.as_str()
+                                            ),
+                                        })
+                                    })
+                                    .transpose()?,
+                            )
+                        }
+
                         _ => AstError::bug_unimplemented(ref_pair)?,
                     }
                 }
