@@ -141,8 +141,12 @@ void_type = {
     "void"
 }
 
+array_type = {
+    "[" ~ integer? ~ "]"
+}
+
 type_expr = {
-    (void_type | path_type | tuple_type | dyn_type) ~ (unsafe_ref_type | ref_type | fn_type)*
+    (void_type | path_type | tuple_type | dyn_type) ~ (unsafe_ref_type | ref_type | fn_type | array_type)*
 }
 
 lifetime = {

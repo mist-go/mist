@@ -215,7 +215,11 @@ impl GenRust for VarDecl {
                     .as_ref()
                     .map(|t| {
                         let t = vec![t.get_rust(); self.tuple_names.len() + 1];
-                        format!(": ({})", t.join(", "))
+                        if self.tuple_names.is_empty() {
+                            format!(": {}", t.join(", "))
+                        } else {
+                            format!(": ({})", t.join(", "))
+                        }
                     })
                     .unwrap_or_default(),
             );
