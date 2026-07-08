@@ -138,6 +138,16 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 Path::try_from(inner.next().unwrap())?,
             )),
 
+            Rule::include_local => Ok(TopLevelKind::IncludeLocal(
+                inner
+                    .next()
+                    .unwrap()
+                    .into_inner()
+                    .next()
+                    .unwrap()
+                    .to_string(),
+            )),
+
             _ => AstError::bug_unimplemented(pair),
         }
     }

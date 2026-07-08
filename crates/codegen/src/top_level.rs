@@ -338,6 +338,11 @@ impl GenRust for TopLevelKind {
                     .or_insert(Vec::new())
                     .push(crate::Include::Use(vis.clone(), incl.clone()));
             }
+            Self::IncludeLocal(path) => {
+                cg.add("include!(\"");
+                cg.add(&path.replace(".mist", ".rs"));
+                cg.add("\");");
+            }
         }
     }
 }

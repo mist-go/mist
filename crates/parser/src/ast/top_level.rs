@@ -30,6 +30,7 @@ pub enum TopLevelKind {
     Import(Visibility, Path),
     IncludeGlobal(Path),
     IncludeUse(Visibility, Path),
+    IncludeLocal(String),
     DeclareModule(Visibility, Identifier),
     ImplDecl(ImplDecl),
     StaticDecl(VarDeclStmt),

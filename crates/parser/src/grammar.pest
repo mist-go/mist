@@ -266,6 +266,10 @@ include_use_global = {
     visibility? ~ "#" ~ "use" ~ static_path ~ semicolon
 }
 
+include_local = {
+    "#" ~ "include" ~ string_lit
+}
+
 import = {
     visibility? ~ "use" ~ static_path ~ semicolon
 }
@@ -392,7 +396,7 @@ type_alias = { "type" ~ identifier ~ generics_decl? ~ "=" ~ type_expr ~ ";" }
 
 top_level = {
     mod_attribute
-  | (attributes ~ (include_global | include_use_global | import | impl_for_decl | impl_decl | trait_decl | struct_decl | enum_decl | class_decl | declare_module | function_decl | const_decl | static_decl | type_alias))
+  | (attributes ~ (include_global | include_local | include_use_global | import | impl_for_decl | impl_decl | trait_decl | struct_decl | enum_decl | class_decl | declare_module | function_decl | const_decl | static_decl | type_alias))
 }
 
 // ======================================================
