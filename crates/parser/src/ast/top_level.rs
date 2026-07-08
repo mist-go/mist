@@ -29,6 +29,7 @@ pub enum TopLevelKind {
     ModAttribute,
     Import(Visibility, Path),
     IncludeGlobal(Path),
+    IncludeUse(Visibility, Path),
     DeclareModule(Visibility, Identifier),
     ImplDecl(ImplDecl),
     StaticDecl(VarDeclStmt),

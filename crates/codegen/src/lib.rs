@@ -26,10 +26,15 @@ pub trait GetRust {
     }
 }
 
+pub enum Include {
+    Glob(Path),
+    Use(Visibility, Path),
+}
+
 pub struct RustCodegen {
     output: String,
     indent: usize,
-    pub crates: HashMap<Identifier, Vec<Path>>,
+    pub crates: HashMap<Identifier, Vec<Include>>,
     pub mapping: Mapping,
     position: RustMap,
 }
@@ -101,8 +106,17 @@ impl RustCodegen {
 
             for item in items {
                 self.add_indented("pub use ");
-                item.gen_rust(&mut ctx, self);
-                self.addln("::*;");
+                match item {
+                    Include::Glob(item) => {
+                        item.gen_rust(&mut ctx, self);
+                        self.add("::*");
+                    }
+                    Include::Use(vis, item) => {
+                        vis.gen_rust(&mut ctx, self);
+                        item.gen_rust(&mut ctx, self);
+                    }
+                }
+                self.addln(";");
             }
 
             self.indent -= 1;

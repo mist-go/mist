@@ -330,7 +330,13 @@ impl GenRust for TopLevelKind {
                 cg.crates
                     .entry(incl.0[0].clone())
                     .or_insert(Vec::new())
-                    .push(incl.clone());
+                    .push(crate::Include::Glob(incl.clone()));
+            }
+            Self::IncludeUse(vis, incl) => {
+                cg.crates
+                    .entry(incl.0[0].clone())
+                    .or_insert(Vec::new())
+                    .push(crate::Include::Use(vis.clone(), incl.clone()));
             }
         }
     }
