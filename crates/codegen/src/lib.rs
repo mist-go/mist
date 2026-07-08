@@ -105,6 +105,7 @@ impl RustCodegen {
             self.addln(";");
 
             for item in items {
+                self.add_indentedln("#[doc(inline)]");
                 self.add_indented("pub use ");
                 match item {
                     Include::Glob(item) => {
