@@ -129,6 +129,25 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 ty: inner.next().unwrap().try_into()?,
             }),
 
+            Rule::include_global => Ok(TopLevelKind::IncludeGlobal(Path(collect_recovered(
+                &mut inner,
+            )?))),
+
+            Rule::include_use_global => Ok(TopLevelKind::IncludeUse(
+                Visibility::try_from(&mut inner)?,
+                Path::try_from(inner.next().unwrap())?,
+            )),
+
+            Rule::include_local => Ok(TopLevelKind::IncludeLocal(
+                inner
+                    .next()
+                    .unwrap()
+                    .into_inner()
+                    .next()
+                    .unwrap()
+                    .to_string(),
+            )),
+
             _ => AstError::bug_unimplemented(pair),
         }
     }
