@@ -129,6 +129,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 ty: inner.next().unwrap().try_into()?,
             }),
 
+            Rule::include_global => Ok(TopLevelKind::IncludeGlobal(Path(collect_recovered(&mut inner)?))),
+
             _ => AstError::bug_unimplemented(pair),
         }
     }

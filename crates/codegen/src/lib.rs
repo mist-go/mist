@@ -3,7 +3,7 @@ pub mod expr;
 pub mod statement;
 pub mod top_level;
 
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use mist_parser::{
     ast::*,
@@ -29,6 +29,7 @@ pub trait GetRust {
 pub struct RustCodegen {
     output: String,
     indent: usize,
+    pub crates: HashMap<Identifier, Vec<Path>>,
     pub mapping: Mapping,
     position: RustMap,
 }
@@ -38,6 +39,7 @@ impl RustCodegen {
         Self {
             output: String::new(),
             indent: 0,
+            crates: HashMap::new(),
             mapping: Mapping::new(mist_path),
             position: RustMap(1, 0),
         }
@@ -82,6 +84,29 @@ impl RustCodegen {
 
         for tl in toplevels {
             tl.gen_rust(&mut ctx, self);
+        }
+
+        let mut crates = HashMap::new();
+        std::mem::swap(&mut self.crates, &mut crates);
+
+        for (c, items) in crates {
+            self.add("mod ");
+            c.gen_rust(&mut ctx, self);
+            self.addln(" {");
+            self.indent += 1;
+
+            self.add_indented("extern crate ");
+            c.gen_rust(&mut ctx, self);
+            self.addln(";");
+
+            for item in items {
+                self.add_indented("pub use ");
+                item.gen_rust(&mut ctx, self);
+                self.addln("::*;");
+            }
+
+            self.indent -= 1;
+            self.addln("}");
         }
 
         self.output.clone()

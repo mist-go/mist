@@ -28,6 +28,7 @@ pub struct TopLevel(pub Spanned<TopLevelKind>, pub Vec<Attribute>);
 pub enum TopLevelKind {
     ModAttribute,
     Import(Visibility, Path),
+    IncludeGlobal(Path),
     DeclareModule(Visibility, Identifier),
     ImplDecl(ImplDecl),
     StaticDecl(VarDeclStmt),

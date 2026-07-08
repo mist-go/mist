@@ -326,6 +326,12 @@ impl GenRust for TopLevelKind {
                 constructor,
                 items,
             ),
+            Self::IncludeGlobal(incl) => {
+                cg.crates
+                    .entry(incl.0[0].clone())
+                    .or_insert(Vec::new())
+                    .push(incl.clone());
+            }
         }
     }
 }
