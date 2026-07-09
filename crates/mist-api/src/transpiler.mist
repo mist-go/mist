@@ -22,10 +22,10 @@ use serde::Deserialize;
 #[serde(default)]
 pub struct MistConfig
 {
-    pub PathBuf package,
-    pub Vec<PathBuf> packages,
-    pub Vec<PathBuf> include,
-    pub mist_parser::MistFmtConfig fmt,
+    pub PathBuf package;
+    pub Vec<PathBuf> packages;
+    pub Vec<PathBuf> include;
+    pub mist_parser::MistFmtConfig fmt;
 }
 
 impl MistConfig
@@ -209,8 +209,8 @@ std::io::Result<bool> is_source_newer(Path& source, Path& output)
 
 pub enum TranspileError<'a>
 {
-    Parse(error::ParseError<'a>),
-    Semantic(Vec<mist_parser::semantics::SemanticError>),
+    Parse(error::ParseError<'a>);
+    Semantic(Vec<mist_parser::semantics::SemanticError>);
 }
 
 pub Result<(PathBuf, mist_codegen::RustCodegen, String), TranspileError<'a>> transpile_code<'a>(PathBuf& path, str  'a& source, PathBuf mut output_file, str& mod_decl, Option<(mist_parser::ast::Visibility, mist_parser::ast::Identifier)>& curr_mod_decl)

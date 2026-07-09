@@ -19,19 +19,19 @@ use mist_parser::rev_mapper;
 #[derive(Debug, Clone)]
 pub struct MistDiagnosticMessage
 {
-    pub String message,
-    pub PathBuf file_path,
-    pub String file_name,
-    pub usize line,
-    pub usize column,
+    pub String message;
+    pub PathBuf file_path;
+    pub String file_name;
+    pub usize line;
+    pub usize column;
 }
 
 #[derive(Debug, Clone)]
 pub enum MistDiagnostic
 {
-    Error(MistDiagnosticMessage),
-    Warning(MistDiagnosticMessage),
-    Rust(CompilerMessage),
+    Error(MistDiagnosticMessage);
+    Warning(MistDiagnosticMessage);
+    Rust(CompilerMessage);
 }
 
 pub bool build(Vec<String> mut args, PathBuf root)
