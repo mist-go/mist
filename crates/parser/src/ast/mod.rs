@@ -41,7 +41,6 @@ pub enum TypeExpr {
     Path(Path, Option<Generics>),
     StaticFn(Vec<TypeExpr>, Option<Box<TypeExpr>>),
     Tuple(Vec<TypeExpr>),
-    Lifetime(Identifier),
     Void,
     Fn {
         kind: FnKind,
@@ -61,7 +60,7 @@ pub struct Spanned<T> {
 impl From<GenericDecl> for Generic {
     fn from(value: GenericDecl) -> Self {
         match value {
-            GenericDecl::Lifetime(life) => Generic::Lifetime(life),
+            GenericDecl::Lifetime(life, _) => Generic::Lifetime(life),
             GenericDecl::Type(ty, _) => Generic::Type(TypeExpr::Path(Path(vec![ty]), None)),
         }
     }

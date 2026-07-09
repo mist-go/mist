@@ -82,8 +82,8 @@ pub struct GenericsDecl(pub Vec<GenericDecl>);
 
 #[derive(Debug, Clone, Serialize)]
 pub enum GenericDecl {
-    Lifetime(Identifier),
-    Type(Identifier, Vec<TypeExpr>),
+    Lifetime(Identifier, Vec<Generic>),
+    Type(Identifier, Vec<Generic>),
 }
 
 #[derive(Debug, Clone, Serialize)]

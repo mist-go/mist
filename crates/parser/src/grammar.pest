@@ -90,7 +90,7 @@ mutable    = { "mut" }
 // ======================================================
 // GENERICS
 // ======================================================
-generic_decl  = { lifetime | (identifier ~ (":" ~ generic ~ ("+" ~ generic)*)?) }
+generic_decl  = { (lifetime | identifier) ~ (":" ~ generic ~ ("+" ~ generic)*)? }
 generics_decl = { "<" ~ (generic_decl ~ ("," ~ generic_decl)*)? ~ ">" }
 
 generic  = { lifetime | type_expr }
@@ -125,9 +125,9 @@ fn_kind_mut     = { "FnMut" }
 fn_kind = _{
     fn_kind_fn
   | fn_kind_unsafe
-  | fn_kind_closure
   | fn_kind_once
   | fn_kind_mut
+  | fn_kind_closure
 }
 
 fn_type = {

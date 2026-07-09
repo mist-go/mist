@@ -239,7 +239,6 @@ impl GetRust for TypeExpr {
                     path.get_rust()
                 }
             }
-            Self::Lifetime(name) => format!("'{}", name.get_rust()),
             Self::Tuple(types) => format!(
                 "({})",
                 types
