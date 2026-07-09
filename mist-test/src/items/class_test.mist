@@ -45,7 +45,7 @@ pub class Dog : Mammal
         super = Super::new();
     }
 
-    pub virtual String speak(&self) override(Animal)
+    pub String speak(&self) override(Animal)
     {
         "Woof!".to_string()
     }
