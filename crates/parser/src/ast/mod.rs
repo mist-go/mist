@@ -41,7 +41,6 @@ pub enum TypeExpr {
     Path(Path, Option<Generics>),
     StaticFn(Vec<TypeExpr>, Option<Box<TypeExpr>>),
     Tuple(Vec<TypeExpr>),
-    Lifetime(Identifier),
     Void,
     Fn {
         kind: FnKind,

@@ -75,7 +75,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TypeExpr {
 
                 Ok(ty)
             }
-            Rule::lifetime => Ok(TypeExpr::Lifetime(inner.next().unwrap().try_into()?)),
 
             Rule::void_type => Ok(TypeExpr::Void),
             Rule::tuple_type => Ok(TypeExpr::Tuple(collect_recovered(inner)?)),
