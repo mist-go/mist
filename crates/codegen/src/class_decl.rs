@@ -113,7 +113,7 @@ impl ClassProcessedData {
             cg.add(&get_type_from_path(inherits).get_rust());
             cg.addln(",");
         } else {
-            cg.add_indentedln("pub _vptr: &'static [*const std::ffi::c_void],");
+            cg.add_indentedln("pub _vptr: &'static [*const core::ffi::c_void],");
         }
 
         for field in &self.fields {
@@ -174,7 +174,7 @@ impl ClassProcessedData {
             self.v_table.len()
         ));
 
-        cg.add_indentedln("pub const __V_TABLE: &'static [*const std::ffi::c_void] = &{");
+        cg.add_indentedln("pub const __V_TABLE: &'static [*const core::ffi::c_void] = &{");
         cg.indent += 1;
 
         if has_parent {
@@ -193,7 +193,7 @@ impl ClassProcessedData {
                     .get_rust();
                 for (method_ident, is_virtual) in &overriden_method_idents.item {
                     cg.add_indentedln(&format!(
-                        "table[{}::__FN_{}] = {}::{} as *const std::ffi::c_void;",
+                        "table[{}::__FN_{}] = {}::{} as *const core::ffi::c_void;",
                         base_class_path,
                         method_ident.0.to_uppercase(),
                         self.self_path.get_rust(),
@@ -204,7 +204,7 @@ impl ClassProcessedData {
 
             for method_name in &self.v_table {
                 cg.add_indentedln(&format!(
-                    "table[Self::__FN_{}] = Self::__m_{} as *const std::ffi::c_void;",
+                    "table[Self::__FN_{}] = Self::__m_{} as *const core::ffi::c_void;",
                     method_name.0.to_uppercase(),
                     method_name.get_rust()
                 ));
@@ -216,7 +216,7 @@ impl ClassProcessedData {
             cg.indent += 1;
             for method_name in &self.v_table {
                 cg.add_indentedln(&format!(
-                    "Self::__m_{} as *const std::ffi::c_void,",
+                    "Self::__m_{} as *const core::ffi::c_void,",
                     method_name.get_rust()
                 ));
             }
@@ -593,9 +593,9 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
     cg.addln(" = std::mem::transmute(func_ptr);");
 
     if mutable_self {
-        cg.add_indented("func(self as *mut Self as *const std::ffi::c_void");
+        cg.add_indented("func(self as *mut Self as *const core::ffi::c_void");
     } else {
-        cg.add_indented("func(self as *const Self as *const std::ffi::c_void");
+        cg.add_indented("func(self as *const Self as *const core::ffi::c_void");
     }
 
     for (_, param) in &params {
