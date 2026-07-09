@@ -9,7 +9,7 @@ pub class Animal
         self.name = "Rex".to_string();
     }
 
-    pub String speak(&self)
+    pub virtual String speak(&self)
     {
         "Unknown".to_string()
     }
@@ -45,7 +45,7 @@ pub class Dog : Mammal
         super = Super::new();
     }
 
-    pub String speak(&self) override(Animal)
+    pub virtual String speak(&self) override(Animal)
     {
         "Woof!".to_string()
     }

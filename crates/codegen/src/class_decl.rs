@@ -51,7 +51,7 @@ impl ClassProcessedData {
             if matches!(method.item.visibility, Visibility::Public) {
                 match &method.item.is_override {
                     None => {
-                        if method.item.self_param.is_some() {
+                        if method.item.is_virtual && method.item.self_param.is_some() {
                             v_table.push(method.item.name.clone());
                         }
                     }
@@ -397,7 +397,7 @@ impl ClassProcessedData {
         for method in &self.methods {
             match method.item.visibility {
                 Visibility::Public => {
-                    if method.item.self_param.is_some() {
+                    if method.item.is_virtual && method.item.self_param.is_some() {
                         if method.item.is_override.is_none() {
                             gen_method_point(&method.item, ctx, cg);
                         }
