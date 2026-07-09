@@ -24,7 +24,21 @@ impl GetRust for GenericsDecl {
 impl GetRust for GenericDecl {
     fn get_rust(&self) -> String {
         match self {
-            GenericDecl::Lifetime(name) => format!("'{}", name.get_rust()),
+            GenericDecl::Lifetime(name, requirements) => {
+                format!("'{}", name.get_rust())
+                    + &(if requirements.len() != 0 {
+                        format!(
+                            ": {}",
+                            requirements
+                                .into_iter()
+                                .map(GetRust::get_rust)
+                                .collect::<Vec<_>>()
+                                .join("+")
+                        )
+                    } else {
+                        String::new()
+                    })
+            }
             GenericDecl::Type(name, requirements) => {
                 name.get_rust()
                     + &(if requirements.len() != 0 {
@@ -32,7 +46,7 @@ impl GetRust for GenericDecl {
                             ": {}",
                             requirements
                                 .into_iter()
-                                .map(TypeExpr::get_rust)
+                                .map(GetRust::get_rust)
                                 .collect::<Vec<_>>()
                                 .join("+")
                         )

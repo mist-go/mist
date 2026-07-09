@@ -131,6 +131,7 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for GenericDecl {
             if let Some(pair) = consume_rule(&mut inner, Rule::lifetime) {
                 Ok(GenericDecl::Lifetime(
                     pair.into_inner().next().unwrap().try_into()?,
+                    collect_recovered(inner)?,
                 ))
             } else {
                 Ok(GenericDecl::Type(
