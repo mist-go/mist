@@ -1,5 +1,9 @@
 pub module class_test;
 
+pub enum AnimalType {
+    Mammal;
+}
+
 pub class Animal
 {
     pub String name;
@@ -9,7 +13,11 @@ pub class Animal
         self.name = "Rex".to_string();
     }
 
-    pub String speak(&self)
+    pub virtual AnimalType get_animal_type(&self) {
+        panic!()
+    }
+
+    pub virtual String speak(&self)
     {
         "Unknown".to_string()
     }
@@ -29,6 +37,11 @@ pub class Mammal : Animal
     constructor() 
     {
         super = Super::new();
+    }
+
+    // override without a target assumes current super
+    pub AnimalType get_animal_type(&self) override {
+        AnimalType::Mammal
     }
 
     pub void args_test(&self, i32 x, str& y)
@@ -124,6 +137,7 @@ pub void run_tests()
     let dawg = Dog::new();
     dawg.args_test(10, "hello");
     dawg.test_speak();
+    dawg.get_animal_type();
     assert_eq!(format!("{dawg}"), "🐾 Rex");
     test_class_no_inheritance();
     test_class_field_default();

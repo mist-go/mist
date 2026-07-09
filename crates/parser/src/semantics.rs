@@ -102,6 +102,28 @@ pub fn check_class_semantics<'a>(top_level: &TopLevel) -> Result<(), Vec<Semanti
         }
 
         Ok(())
+    } else if let TopLevelKind::FunctionDecl(decl) = &top_level.0.item {
+        if decl.is_virtual && decl.is_override.is_some() {
+            Err(vec![SemanticError {
+                line: top_level.0.line,
+                column: top_level.0.column,
+                error_message: "virtual and override are only used in classes".to_string(),
+            }])
+        } else if decl.is_virtual {
+            Err(vec![SemanticError {
+                line: top_level.0.line,
+                column: top_level.0.column,
+                error_message: "virtual is only used in classes".to_string(),
+            }])
+        } else if decl.is_override.is_some() {
+            Err(vec![SemanticError {
+                line: top_level.0.line,
+                column: top_level.0.column,
+                error_message: "override is only used in classes".to_string(),
+            }])
+        } else {
+            Ok(())
+        }
     } else {
         Ok(())
     }

@@ -26,7 +26,7 @@ use crate::transpiler::{
 
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-const KEYWORDS: [&'static str; 22] = [
+const KEYWORDS: [&'static str; 23] = [
     "if",
     "else",
     "for",
@@ -49,6 +49,7 @@ const KEYWORDS: [&'static str; 22] = [
     "override",
     "module ",
     "void ",
+    "virtual ",
 ];
 
 fn keyword_completion_items() -> impl Iterator<Item = CompletionItem> {
@@ -1630,11 +1631,11 @@ fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<Completion
     // Struct/Class
     // =========================
 
-    if matches!(curr_scope, Scope::Struct) {
+    if matches!(curr_scope, Scope::Class) {
         items.push(CompletionItem {
-            label: "field".into(),
+            label: "virtual".into(),
             kind: Some(CompletionItemKind::SNIPPET),
-            insert_text: Some("$1 $2,".into()),
+            insert_text: Some("pub virtual $1 $2()\n{\n\t$3\n}".into()),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             sort_text: Some("0000".into()),
             preselect: Some(true),
@@ -1642,9 +1643,19 @@ fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<Completion
         });
 
         items.push(CompletionItem {
-            label: "pub field".into(),
+            label: "override".into(),
             kind: Some(CompletionItemKind::SNIPPET),
-            insert_text: Some("pub $1 $2,".into()),
+            insert_text: Some("$1 $2() override$3\n{\n\t$4\n}".into()),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
+            sort_text: Some("0000".into()),
+            preselect: Some(true),
+            ..Default::default()
+        });
+
+        items.push(CompletionItem {
+            label: "virtual override".into(),
+            kind: Some(CompletionItemKind::SNIPPET),
+            insert_text: Some("pub virtual $1 $2() override$3\n{\n\t$4\n}".into()),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             sort_text: Some("0000".into()),
             preselect: Some(true),
@@ -1652,7 +1663,8 @@ fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<Completion
         });
     }
 
-    if matches!(curr_scope, Scope::Class) {
+
+    if matches!(curr_scope, Scope::Class | Scope::Struct) {
         items.push(CompletionItem {
             label: "field".into(),
             kind: Some(CompletionItemKind::SNIPPET),
@@ -1682,7 +1694,7 @@ fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<Completion
         items.push(CompletionItem {
             label: "variant".into(),
             kind: Some(CompletionItemKind::SNIPPET),
-            insert_text: Some("$1,".into()),
+            insert_text: Some("$1;".into()),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             sort_text: Some("0000".into()),
             preselect: Some(true),
@@ -1692,7 +1704,7 @@ fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<Completion
         items.push(CompletionItem {
             label: "tuple variant".into(),
             kind: Some(CompletionItemKind::SNIPPET),
-            insert_text: Some("$1($2),".into()),
+            insert_text: Some("$1($2);".into()),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             sort_text: Some("0000".into()),
             preselect: Some(true),
@@ -1702,7 +1714,7 @@ fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<Completion
         items.push(CompletionItem {
             label: "struct variant".into(),
             kind: Some(CompletionItemKind::SNIPPET),
-            insert_text: Some("$1\n{\n\t$0\n},".into()),
+            insert_text: Some("$1\n{\n\t$0\n};".into()),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             sort_text: Some("0000".into()),
             preselect: Some(true),
@@ -2024,10 +2036,7 @@ fn compute_mod_decls(
                     let source = rope.to_string();
                     parse_module(&source).ok().flatten().map(|(_, name)| name.0)
                 })
-                .or_else(|| {
-                    file.file_stem()
-                        .and_then(|s| s.to_str().map(String::from))
-                });
+                .or_else(|| file.file_stem().and_then(|s| s.to_str().map(String::from)));
             if let Some(name) = mod_name {
                 mod_decl.push_str(&format!("pub mod {};\n", name));
             }

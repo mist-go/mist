@@ -16,7 +16,7 @@ pub struct ClassProcessedData {
     items: Vec<ClassItem>,
     methods: Vec<Spanned<FunctionDecl>>,
     v_table: Vec<Identifier>,
-    override_v_table: HashMap<Override, Spanned<Vec<Identifier>>>,
+    override_v_table: HashMap<Override, Spanned<Vec<(Identifier, bool)>>>,
 }
 
 impl ClassProcessedData {
@@ -51,7 +51,7 @@ impl ClassProcessedData {
             if matches!(method.item.visibility, Visibility::Public) {
                 match &method.item.is_override {
                     None => {
-                        if method.item.self_param.is_some() {
+                        if method.item.is_virtual && method.item.self_param.is_some() {
                             v_table.push(method.item.name.clone());
                         }
                     }
@@ -64,7 +64,7 @@ impl ClassProcessedData {
                                 item: Vec::new(),
                             })
                             .item
-                            .push(method.item.name.clone());
+                            .push((method.item.name.clone(), method.item.is_virtual));
                     }
                 }
             }
@@ -191,13 +191,13 @@ impl ClassProcessedData {
                     .as_ref()
                     .unwrap_or(self.inherits.as_ref().unwrap())
                     .get_rust();
-                for method_ident in &overriden_method_idents.item {
+                for (method_ident, is_virtual) in &overriden_method_idents.item {
                     cg.add_indentedln(&format!(
-                        "table[{}::__FN_{}] = {}::__m_{} as *const std::ffi::c_void;",
+                        "table[{}::__FN_{}] = {}::{} as *const std::ffi::c_void;",
                         base_class_path,
                         method_ident.0.to_uppercase(),
                         self.self_path.get_rust(),
-                        method_ident.get_rust()
+                        get_virtual_name(method_ident, *is_virtual)
                     ));
                 }
             }
@@ -380,6 +380,7 @@ impl ClassProcessedData {
             column: constructor.column,
             item: FunctionDecl {
                 visibility: constructor.item.visibility.clone(),
+                is_virtual: false,
                 is_override: None,
                 name: Identifier(String::from("constructor")),
                 generics: constructor.item.generics.clone(),
@@ -396,7 +397,7 @@ impl ClassProcessedData {
         for method in &self.methods {
             match method.item.visibility {
                 Visibility::Public => {
-                    if method.item.self_param.is_some() {
+                    if method.item.is_virtual && method.item.self_param.is_some() {
                         if method.item.is_override.is_none() {
                             gen_method_point(&method.item, ctx, cg);
                         }
@@ -616,4 +617,12 @@ pub fn get_type_from_path(path: &ExprPath) -> TypeExpr {
         Path(path.0.iter().map(|v| v.ident.clone()).collect::<Vec<_>>()),
         path.0.last().unwrap().generics.clone(),
     )
+}
+
+pub fn get_virtual_name(name: &Identifier, is_virtual: bool) -> String {
+    if is_virtual {
+        format!("__m_{}", name.get_rust())
+    } else {
+        name.get_rust()
+    }
 }
