@@ -380,6 +380,7 @@ impl ClassProcessedData {
             column: constructor.column,
             item: FunctionDecl {
                 visibility: constructor.item.visibility.clone(),
+                is_virtual: false,
                 is_override: None,
                 name: Identifier(String::from("constructor")),
                 generics: constructor.item.generics.clone(),

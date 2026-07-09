@@ -107,12 +107,13 @@ pub struct Override(pub Option<ExprPath>);
 #[derive(Debug, Clone, Serialize)]
 pub struct FunctionDecl {
     pub visibility: Visibility,
-    pub is_override: Option<Override>,
+    pub is_virtual: bool,
+    pub return_type: Option<TypeExpr>,
     pub name: Identifier,
     pub generics: GenericsDecl,
     pub self_param: Option<(bool, Option<Identifier>, bool)>,
     pub params: ParamList,
-    pub return_type: Option<TypeExpr>,
+    pub is_override: Option<Override>,
     pub body: Option<Block>,
 }
 
@@ -129,7 +130,6 @@ pub struct FieldDecl {
     pub visibility: Visibility,
     pub type_: TypeExpr,
     pub name: Identifier,
-    // pub tuple_names: Vec<Identifier>,
 }
 
 #[derive(Debug, Clone, Serialize)]

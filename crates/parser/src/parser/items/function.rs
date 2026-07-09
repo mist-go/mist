@@ -14,6 +14,8 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
         let mut inner = pair.into_inner();
             let visibility = Visibility::try_from(&mut inner)?;
 
+            let is_virtual = listen_rule(&mut inner, Rule::virtual_kw);
+
             let return_type = consume_rule(&mut inner, Rule::type_expr)
                 .map(TypeExpr::try_from)
                 .transpose()?;
@@ -45,12 +47,13 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for FunctionDecl {
 
             Ok(Self {
                 visibility: visibility,
-                is_override: is_override,
+                is_virtual: is_virtual,
                 return_type: return_type,
                 name: name,
                 generics: generics,
                 self_param: self_param,
                 params: params,
+                is_override: is_override,
                 body: body,
             })
         })
