@@ -3,12 +3,12 @@ use std::{collections::HashSet, path::PathBuf};
 use serde::{Deserialize, Serialize};
 
 #[derive(
-    Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
+    Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
 )]
 pub struct MistMap(pub usize, pub usize);
 
 #[derive(
-    Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
+    Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
 )]
 pub struct RustMap(pub usize, pub usize);
 

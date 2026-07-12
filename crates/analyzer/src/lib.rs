@@ -93,12 +93,12 @@ fn clean_lsp_url(path: &std::path::Path) -> Option<Url> {
 }
 
 fn lsp_pos_to_rust_map(pos: &Position) -> RustMap {
-    RustMap(pos.line as usize + 1, pos.character as usize)
+    RustMap(pos.line as usize, pos.character as usize)
 }
 
 fn mist_map_to_lsp_pos(map: &MistMap) -> Position {
     Position {
-        line: map.0.saturating_sub(1) as u32,
+        line: map.0 as u32,
         character: map.1 as u32,
     }
 }
@@ -391,7 +391,7 @@ impl Backend {
                 // Fallback: the source has a syntax error that prevents transpilation.
                 // Use the last known working Rust content + mapping to inject the
                 // marker at the nearest valid Rust position.
-                let mist_target = MistMap(line as usize + 1, character as usize);
+                let mist_target = MistMap(line as usize, character as usize);
                 let mut rust_path = crate::from_mist_to_rust(mist_path.to_path_buf());
                 if mist_path.file_name().and_then(|n| n.to_str()) == Some("package.mist") {
                     rust_path.set_file_name("mod.rs");
@@ -417,7 +417,7 @@ impl Backend {
                     .map(|(rust, _)| *rust);
 
                 let (modified_rust, rust_pos) = if let Some(next_rust) = rust_next {
-                    let lsp_line = (next_rust.0 - 1) as u32;
+                    let lsp_line = next_rust.0 as u32;
                     let lsp_col = next_rust.1 as u32;
                     let modified = inject_marker_at(&last_content, lsp_line, lsp_col, &marker)?;
                     let pos = find_marker_position(&modified, &marker)?;
@@ -1869,7 +1869,7 @@ async fn handle_ra_notifications(
                                     character: if mist_end_pos.line == mist_start_pos.line {
                                         mist_end_pos.character.max(mist_start_pos.character + 1)
                                     } else {
-                                        mist_end_pos.character.max(1)
+                                        mist_end_pos.character.max(0)
                                     },
                                 };
 

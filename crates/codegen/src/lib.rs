@@ -46,7 +46,7 @@ impl RustCodegen {
             indent: 0,
             crates: HashMap::new(),
             mapping: Mapping::new(mist_path),
-            position: RustMap(1, 0),
+            position: RustMap(0, 0),
         }
     }
 
@@ -186,7 +186,7 @@ impl<T> GenSpanTranslation for Spanned<T> {
     fn gen_span(&self, cg: &mut RustCodegen) {
         cg.mapping
             .map
-            .insert((cg.position, MistMap(self.line, self.column)));
+            .insert((cg.position, MistMap(self.line, self.column - 1)));
     }
 }
 
