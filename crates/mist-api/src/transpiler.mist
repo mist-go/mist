@@ -77,6 +77,7 @@ pub void transpile(Path& root)
     let elapsed = start.elapsed();
     println!("\x1b[32m\nTranspile successful\x1b[0m in \x1b[34m{:.2?}\x1b[0m", elapsed);
     for incl in &config.include {
+        let incl = if incl.is_relative() { root.join(incl) } else { incl.clone() };
         if ends_with_star(&incl) {
             let sub_crates = incl.parent().expect("Failed to get parent");
             let entries = match fs::read_dir(sub_crates) {
@@ -95,7 +96,7 @@ pub void transpile(Path& root)
                 }
             }
         } else {
-            transpile(incl);
+            transpile(&incl);
         }
     }
 }
