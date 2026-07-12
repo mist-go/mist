@@ -1218,6 +1218,11 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
 
+        let trigger_char: Option<String> = params
+            .context
+            .as_ref()
+            .and_then(|c| c.trigger_character.clone());
+
         let comp_params = CompletionParams {
             text_document_position: TextDocumentPositionParams {
                 text_document: TextDocumentIdentifier { uri: rust_uri },
@@ -1245,13 +1250,13 @@ impl LanguageServer for Backend {
 
         match completion_result {
             Ok(Some(CompletionResponse::Array(mut items))) => {
-                mist_ify_completions(&source, &mist_pos, &mut items);
+                mist_ify_completions(&source, &mist_pos, &mut items, trigger_char.as_deref());
 
                 Ok(Some(CompletionResponse::Array(items)))
             }
 
             Ok(Some(CompletionResponse::List(mut list))) => {
-                mist_ify_completions(&source, &mist_pos, &mut list.items);
+                mist_ify_completions(&source, &mist_pos, &mut list.items, trigger_char.as_deref());
 
                 Ok(Some(CompletionResponse::List(list)))
             }
@@ -1546,10 +1551,8 @@ impl LanguageServer for Backend {
     }
 }
 
-fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<CompletionItem>) {
-    let existing: HashSet<String> = items.iter().map(|item| item.label.clone()).collect();
-
-    items.extend(keyword_completion_items().filter(|item| !existing.contains(&item.label)));
+fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<CompletionItem>, trigger_char: Option<&str>) {
+    let is_scoping_trigger = matches!(trigger_char, Some("." | ":"));
 
     for item in items.iter_mut() {
         item.text_edit = None;
@@ -1560,6 +1563,14 @@ fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<Completion
             item.sort_text = Some("zzzz".to_string());
         }
     }
+
+    if is_scoping_trigger {
+        return;
+    }
+
+    let existing: HashSet<String> = items.iter().map(|item| item.label.clone()).collect();
+
+    items.extend(keyword_completion_items().filter(|item| !existing.contains(&item.label)));
 
     let curr_scope = current_scope(&source, pos.line, pos.character);
 
