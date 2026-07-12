@@ -58,28 +58,36 @@ pub bool build(Vec<String> mut args, PathBuf root)
                             serde_json::from_str<rev_mapper::Mapping>(&map_str).expect("Failed to parse map file")
                         });
                         let mist_file = map.mist_path.strip_prefix(&root);
-                        let (_, rev_mapper::MistMap(line, column)) = map.find(&rev_mapper::RustMap(span.line_end, span.column_start)).unwrap_or_default();
-                        let mist_msg = MistDiagnosticMessage {
-                            message: format!("{}: {}",
-                                msg.message.message,
-                                span.label.clone().unwrap_or_default()),
-                            file_name: if let Ok(mist_file) = mist_file {
-                                mist_file.to_string_lossy().to_string()
-                            } else {
-                                map.mist_path.to_string_lossy().to_string()
-                            },
-                            file_path: map.mist_path.clone(),
-                            line: line,
-                            column: column,
-                        };
-                        match msg.message.level {
-                            cargo_metadata::diagnostic::DiagnosticLevel::Error => {
-                                diagnostics.push(MistDiagnostic::Error(mist_msg))
+                        let rust_lookup = rev_mapper::RustMap(span.line_end - 1, span.column_start - 1);
+                        match map.find(&rust_lookup) {
+                            Some((_, rev_mapper::MistMap(line, column))) => {
+                                let mist_msg = MistDiagnosticMessage {
+                                    message: format!("{}: {}",
+                                        msg.message.message,
+                                        span.label.clone().unwrap_or_default()),
+                                    file_name: if let Ok(mist_file) = mist_file {
+                                        mist_file.to_string_lossy().to_string()
+                                    } else {
+                                        map.mist_path.to_string_lossy().to_string()
+                                    },
+                                    file_path: map.mist_path.clone(),
+                                    line: line,
+                                    column: column,
+                                };
+                                match msg.message.level {
+                                    cargo_metadata::diagnostic::DiagnosticLevel::Error => {
+                                        diagnostics.push(MistDiagnostic::Error(mist_msg))
+                                    }
+                                    cargo_metadata::diagnostic::DiagnosticLevel::Warning => {
+                                        diagnostics.push(MistDiagnostic::Warning(mist_msg))
+                                    }
+                                    _ => {
+                                    }
+                                }
                             }
-                            cargo_metadata::diagnostic::DiagnosticLevel::Warning => {
-                                diagnostics.push(MistDiagnostic::Warning(mist_msg))
-                            }
-                            _ => {
+                            None => {
+                                diagnostics.push(MistDiagnostic::Rust(msg));
+                                break;
                             }
                         }
                     }
@@ -110,8 +118,8 @@ pub void print_diagnostics(Vec<MistDiagnostic>& diagnostics)
                 let line = get_line(&mut files, &msg);
                 println!("\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}",
                     msg.file_name,
-                    msg.line,
-                    msg.column,
+                    msg.line + 1,
+                    msg.column + 1,
                     msg.message,
                     line.unwrap_or_default(),)
             }
@@ -119,8 +127,8 @@ pub void print_diagnostics(Vec<MistDiagnostic>& diagnostics)
                 let line = get_line(&mut files, &msg);
                 println!("\n{}:{}:{}\n \x1b[33mWarning\x1b[0m: {}\n\t{}",
                     msg.file_name,
-                    msg.line,
-                    msg.column,
+                    msg.line + 1,
+                    msg.column + 1,
                     msg.message,
                     line.unwrap_or_default(),)
             }
@@ -135,5 +143,5 @@ pub Option<String> get_line(HashMap<PathBuf, Vec<String>> mut& files, MistDiagno
     let lines = files.entry(src_path.clone()).or_insert_with(() => {
         fs::read_to_string(src_path).expect("Unable to read mist file").lines().into_iter().map(String::from).collect()
     });
-    lines.get(msg.line - 1).map((v) => v.trim().to_string())
+    lines.get(msg.line).map((v) => v.trim().to_string())
 }

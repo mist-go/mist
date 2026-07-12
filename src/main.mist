@@ -16,15 +16,32 @@ void main()
         process::exit(1);
     }
     match args[1].as_str() {
-        "run" | "build" | "check" | "test" | "publish" | "bench" | "doc" | "fix" | "clippy" | "r" | "b" | "c" => {
+        "run" | "build" | "check" | "test" | "bench" | "doc" | "fix" | "clippy" | "r" | "b" | "c" => {
             let mut root = env::current_dir().expect("Unable to find project root");
             modify_args(&mut args, &mut root);
             transpiler::transpile(&root);
+
             println!("");
             if builder::build(args, root) {
                 println!("\x1b[32m\nBuild successful\x1b[0m");
             } else {
                 println!("\x1b[31m\nBuild failed\x1b[0m");
+            }
+        }
+        "publish" => {
+            let mut root = env::current_dir().expect("Unable to find project root");
+            modify_args(&mut args, &mut root);
+            transpiler::transpile(&root);
+
+            let status = std::process::Command::new("cargo")
+                .args(args)
+                .status()
+                .expect("Failed to run cargo");
+
+            if status.success() {
+                println!("\x1b[32m\nPublished successfully\x1b[0m");
+            } else {
+                println!("\x1b[31m\nFailed to publish\x1b[0m");
             }
         }
         "transpile" | "t" => {

@@ -93,12 +93,12 @@ fn clean_lsp_url(path: &std::path::Path) -> Option<Url> {
 }
 
 fn lsp_pos_to_rust_map(pos: &Position) -> RustMap {
-    RustMap(pos.line as usize + 1, pos.character as usize)
+    RustMap(pos.line as usize, pos.character as usize)
 }
 
 fn mist_map_to_lsp_pos(map: &MistMap) -> Position {
     Position {
-        line: map.0.saturating_sub(1) as u32,
+        line: map.0 as u32,
         character: map.1 as u32,
     }
 }
@@ -391,7 +391,7 @@ impl Backend {
                 // Fallback: the source has a syntax error that prevents transpilation.
                 // Use the last known working Rust content + mapping to inject the
                 // marker at the nearest valid Rust position.
-                let mist_target = MistMap(line as usize + 1, character as usize);
+                let mist_target = MistMap(line as usize, character as usize);
                 let mut rust_path = crate::from_mist_to_rust(mist_path.to_path_buf());
                 if mist_path.file_name().and_then(|n| n.to_str()) == Some("package.mist") {
                     rust_path.set_file_name("mod.rs");
@@ -417,7 +417,7 @@ impl Backend {
                     .map(|(rust, _)| *rust);
 
                 let (modified_rust, rust_pos) = if let Some(next_rust) = rust_next {
-                    let lsp_line = (next_rust.0 - 1) as u32;
+                    let lsp_line = next_rust.0 as u32;
                     let lsp_col = next_rust.1 as u32;
                     let modified = inject_marker_at(&last_content, lsp_line, lsp_col, &marker)?;
                     let pos = find_marker_position(&modified, &marker)?;
@@ -604,6 +604,59 @@ impl Backend {
             None => return,
         };
 
+        // Prune documents whose source files no longer exist on disk.
+        // Without this, deleted .mist files linger in the in-memory map
+        // and compute_mod_decls keeps generating stale pub mod declarations.
+        // Also clean up stale synthetic package.mist entries and generated
+        // mod.rs output files for directories with no remaining source children.
+        {
+            let mut docs = self.documents.lock().await;
+            let stale: Vec<PathBuf> = docs
+                .keys()
+                .filter(|p| !p.exists())
+                .cloned()
+                .collect();
+            for path in &stale {
+                docs.remove(path);
+                if path.extension().and_then(|e| e.to_str()) == Some("mist") {
+                    let rust_path = mist_to_rust_path(path);
+                    let _ = std::fs::remove_file(&rust_path);
+                    let map_path = rust_path.with_extension("map.json");
+                    let _ = std::fs::remove_file(&map_path);
+                }
+            }
+
+            // Also remove synthetic package.mist entries whose directories
+            // no longer contain any real .mist source files.
+            let synthetic: Vec<PathBuf> = docs
+                .keys()
+                .filter(|p| {
+                    p.file_name().and_then(|n| n.to_str()) == Some("package.mist")
+                        && !p.exists()
+                })
+                .cloned()
+                .collect();
+            for path in &synthetic {
+                docs.remove(path);
+            }
+
+            drop(docs);
+
+            // Clean up auxiliary state for deleted files
+            let mut versions = self.doc_versions.lock().await;
+            let mut contents = self.last_rust_contents.lock().await;
+            let mut diags = self.previous_diagnostics.lock().await;
+            let all_stale: Vec<PathBuf> = stale.into_iter().chain(synthetic).collect();
+            let stale_set: std::collections::HashSet<_> = all_stale.iter().collect();
+            versions.retain(|k, _| !stale_set.contains(k));
+            contents.retain(|k, _| !stale_set.contains(k));
+            for path in &all_stale {
+                if let Some(uri) = clean_lsp_url(path) {
+                    diags.remove(&uri);
+                }
+            }
+        }
+
         self.ensure_implicit_packages().await;
 
         // Collect sources first to avoid holding locks during transpile
@@ -619,7 +672,11 @@ impl Backend {
                 let package_mist = read_mist_package(crate_root);
                 let mod_decls = compute_mod_decls(&docs, &src_root, &package_mist);
                 for (path, decl) in mod_decls {
-                    if !decl.is_empty() {
+                    // Include files that have mod declarations OR that are
+                    // already known package/directory entries in the doc map.
+                    // The latter case covers parents whose children were
+                    // deleted — they need a regenerated (empty) mod.rs.
+                    if !decl.is_empty() || docs.contains_key(&path) {
                         if let Some(source) = docs.get(&path) {
                             result.push((path.clone(), source.to_string(), decl));
                         }
@@ -1161,6 +1218,11 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
 
+        let trigger_char: Option<String> = params
+            .context
+            .as_ref()
+            .and_then(|c| c.trigger_character.clone());
+
         let comp_params = CompletionParams {
             text_document_position: TextDocumentPositionParams {
                 text_document: TextDocumentIdentifier { uri: rust_uri },
@@ -1188,13 +1250,13 @@ impl LanguageServer for Backend {
 
         match completion_result {
             Ok(Some(CompletionResponse::Array(mut items))) => {
-                mist_ify_completions(&source, &mist_pos, &mut items);
+                mist_ify_completions(&source, &mist_pos, &mut items, trigger_char.as_deref());
 
                 Ok(Some(CompletionResponse::Array(items)))
             }
 
             Ok(Some(CompletionResponse::List(mut list))) => {
-                mist_ify_completions(&source, &mist_pos, &mut list.items);
+                mist_ify_completions(&source, &mist_pos, &mut list.items, trigger_char.as_deref());
 
                 Ok(Some(CompletionResponse::List(list)))
             }
@@ -1489,10 +1551,8 @@ impl LanguageServer for Backend {
     }
 }
 
-fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<CompletionItem>) {
-    let existing: HashSet<String> = items.iter().map(|item| item.label.clone()).collect();
-
-    items.extend(keyword_completion_items().filter(|item| !existing.contains(&item.label)));
+fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<CompletionItem>, trigger_char: Option<&str>) {
+    let is_scoping_trigger = matches!(trigger_char, Some("." | ":"));
 
     for item in items.iter_mut() {
         item.text_edit = None;
@@ -1503,6 +1563,14 @@ fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<Completion
             item.sort_text = Some("zzzz".to_string());
         }
     }
+
+    if is_scoping_trigger {
+        return;
+    }
+
+    let existing: HashSet<String> = items.iter().map(|item| item.label.clone()).collect();
+
+    items.extend(keyword_completion_items().filter(|item| !existing.contains(&item.label)));
 
     let curr_scope = current_scope(&source, pos.line, pos.character);
 
@@ -1869,7 +1937,7 @@ async fn handle_ra_notifications(
                                     character: if mist_end_pos.line == mist_start_pos.line {
                                         mist_end_pos.character.max(mist_start_pos.character + 1)
                                     } else {
-                                        mist_end_pos.character.max(1)
+                                        mist_end_pos.character.max(0)
                                     },
                                 };
 
