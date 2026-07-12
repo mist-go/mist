@@ -604,6 +604,59 @@ impl Backend {
             None => return,
         };
 
+        // Prune documents whose source files no longer exist on disk.
+        // Without this, deleted .mist files linger in the in-memory map
+        // and compute_mod_decls keeps generating stale pub mod declarations.
+        // Also clean up stale synthetic package.mist entries and generated
+        // mod.rs output files for directories with no remaining source children.
+        {
+            let mut docs = self.documents.lock().await;
+            let stale: Vec<PathBuf> = docs
+                .keys()
+                .filter(|p| !p.exists())
+                .cloned()
+                .collect();
+            for path in &stale {
+                docs.remove(path);
+                if path.extension().and_then(|e| e.to_str()) == Some("mist") {
+                    let rust_path = mist_to_rust_path(path);
+                    let _ = std::fs::remove_file(&rust_path);
+                    let map_path = rust_path.with_extension("map.json");
+                    let _ = std::fs::remove_file(&map_path);
+                }
+            }
+
+            // Also remove synthetic package.mist entries whose directories
+            // no longer contain any real .mist source files.
+            let synthetic: Vec<PathBuf> = docs
+                .keys()
+                .filter(|p| {
+                    p.file_name().and_then(|n| n.to_str()) == Some("package.mist")
+                        && !p.exists()
+                })
+                .cloned()
+                .collect();
+            for path in &synthetic {
+                docs.remove(path);
+            }
+
+            drop(docs);
+
+            // Clean up auxiliary state for deleted files
+            let mut versions = self.doc_versions.lock().await;
+            let mut contents = self.last_rust_contents.lock().await;
+            let mut diags = self.previous_diagnostics.lock().await;
+            let all_stale: Vec<PathBuf> = stale.into_iter().chain(synthetic).collect();
+            let stale_set: std::collections::HashSet<_> = all_stale.iter().collect();
+            versions.retain(|k, _| !stale_set.contains(k));
+            contents.retain(|k, _| !stale_set.contains(k));
+            for path in &all_stale {
+                if let Some(uri) = clean_lsp_url(path) {
+                    diags.remove(&uri);
+                }
+            }
+        }
+
         self.ensure_implicit_packages().await;
 
         // Collect sources first to avoid holding locks during transpile
@@ -619,7 +672,11 @@ impl Backend {
                 let package_mist = read_mist_package(crate_root);
                 let mod_decls = compute_mod_decls(&docs, &src_root, &package_mist);
                 for (path, decl) in mod_decls {
-                    if !decl.is_empty() {
+                    // Include files that have mod declarations OR that are
+                    // already known package/directory entries in the doc map.
+                    // The latter case covers parents whose children were
+                    // deleted — they need a regenerated (empty) mod.rs.
+                    if !decl.is_empty() || docs.contains_key(&path) {
                         if let Some(source) = docs.get(&path) {
                             result.push((path.clone(), source.to_string(), decl));
                         }
