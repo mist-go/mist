@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use mist_codegen::RustCodegen;
 use mist_parser::rev_mapper::Mapping;
-use mist_parser::{MistFmtConfig, parse};
+use mist_parser::{MistFmtConfig, parse, parse_module};
 
 pub struct TranspiledFile {
     pub mist_path: PathBuf,
@@ -28,6 +28,21 @@ pub fn transpile_mist<'a>(
     // .rs files, and the parent module declaration looks for <dir>/mod.rs).
     if mist_path.file_name().and_then(|n| n.to_str()) == Some("package.mist") {
         rust_path.set_file_name("mod.rs");
+    }
+
+    // Prioritize the module declaration from the source over the file stem.
+    // Every transpile re-parses so we always pick up the current declaration.
+    if let Ok(Some((_, ref name))) = parse_module(source) {
+        if rust_path.file_name().map(|v| v.to_str()).unwrap_or_default() != Some("mod.rs") {
+            if let Some(ext) = rust_path.extension().map(|e| e.to_owned()) {
+                let mut new_name = std::ffi::OsString::from(&name.0);
+                new_name.push(".");
+                new_name.push(ext);
+                rust_path.set_file_name(new_name);
+            } else {
+                rust_path.set_file_name(&name.0);
+            }
+        }
     }
 
     let parsed = parse(source).map_err(TranspileError::Parse)?;
@@ -64,6 +79,21 @@ pub fn transpile_mist_no_sem(
     // .rs files, and the parent module declaration looks for <dir>/mod.rs).
     if mist_path.file_name().and_then(|n| n.to_str()) == Some("package.mist") {
         rust_path.set_file_name("mod.rs");
+    }
+
+    // Prioritize the module declaration from the source over the file stem.
+    // Every transpile re-parses so we always pick up the current declaration.
+    if let Ok(Some((_, ref name))) = parse_module(source) {
+        if rust_path.file_name().map(|v| v.to_str()).unwrap_or_default() != Some("mod.rs") {
+            if let Some(ext) = rust_path.extension().map(|e| e.to_owned()) {
+                let mut new_name = std::ffi::OsString::from(&name.0);
+                new_name.push(".");
+                new_name.push(ext);
+                rust_path.set_file_name(new_name);
+            } else {
+                rust_path.set_file_name(&name.0);
+            }
+        }
     }
 
     let parsed = parse(source).map_err(|e| format!("parse error: {e:?}"))?;
