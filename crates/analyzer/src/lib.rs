@@ -21,7 +21,8 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::rust_analyzer::RustAnalyzer;
 use crate::transpiler::{
-    TranspileError, TranspiledFile, format_mist, transpile_mist, transpile_mist_no_sem,
+    TranspileError, TranspiledFile, format_mist, resolve_rust_path, transpile_mist,
+    transpile_mist_no_sem,
 };
 
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -392,10 +393,13 @@ impl Backend {
                 // Use the last known working Rust content + mapping to inject the
                 // marker at the nearest valid Rust position.
                 let mist_target = MistMap(line as usize, character as usize);
-                let mut rust_path = crate::from_mist_to_rust(mist_path.to_path_buf());
-                if mist_path.file_name().and_then(|n| n.to_str()) == Some("package.mist") {
-                    rust_path.set_file_name("mod.rs");
-                }
+                let source_for_path = self
+                    .documents
+                    .lock()
+                    .await
+                    .get(mist_path)
+                    .map(|r| r.to_string());
+                let rust_path = resolve_rust_path(mist_path, source_for_path.as_deref());
 
                 let (last_mapping, last_content, original_version) = {
                     let map_guard = self.mapping.lock().await;
@@ -617,9 +621,10 @@ impl Backend {
                 .cloned()
                 .collect();
             for path in &stale {
+                let source_for_path = docs.get(path).map(|r| r.to_string());
                 docs.remove(path);
                 if path.extension().and_then(|e| e.to_str()) == Some("mist") {
-                    let rust_path = mist_to_rust_path(path);
+                    let rust_path = resolve_rust_path(path, source_for_path.as_deref());
                     let _ = std::fs::remove_file(&rust_path);
                     let map_path = rust_path.with_extension("map.json");
                     let _ = std::fs::remove_file(&map_path);
@@ -1175,9 +1180,13 @@ impl LanguageServer for Backend {
             }
         };
 
+        let source_for_path = {
+            let docs = self.documents.lock().await;
+            docs.get(&mist_path).map(|r| r.to_string())
+        };
         self.documents.lock().await.remove(&mist_path);
 
-        let rust_path = mist_to_rust_path(&mist_path);
+        let rust_path = resolve_rust_path(&mist_path, source_for_path.as_deref());
 
         if let Some(rust_uri) = clean_lsp_url(&rust_path) {
             let _ = self.rust_analyzer.lock().await.did_close(rust_uri).await;
