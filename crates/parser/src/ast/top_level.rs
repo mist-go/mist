@@ -59,6 +59,12 @@ pub enum TopLevelKind {
         generics: GenericsDecl,
         fields: Vec<Spanned<FieldDecl>>,
     },
+    StructDeclTupleUnit {
+        visibility: Visibility,
+        name: Identifier,
+        generics: GenericsDecl,
+        unit: Option<Vec<Spanned<TypeExpr>>>,
+    },
     FunctionDecl(FunctionDecl),
     ClassDecl {
         visibility: Visibility,

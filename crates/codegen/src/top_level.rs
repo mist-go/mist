@@ -266,6 +266,33 @@ impl GenRust for TopLevelKind {
                 cg.indent -= 1;
                 cg.addln("}\n");
             }
+            Self::StructDeclTupleUnit {
+                visibility,
+                name,
+                generics,
+                unit,
+            } => {
+                cg.addln(&format!(
+                    "{}struct {}{}",
+                    visibility.get_rust(),
+                    name.get_rust(),
+                    generics.get_rust()
+                ));
+                cg.indent += 1;
+
+                if let Some(unit) = unit {
+                    cg.add(" (");
+                    for unit in unit {
+                        cg.add_indented("");
+                        unit.gen_rust(ctx, cg);
+                        cg.add(", ");
+                    }
+                    cg.add(")");
+                }
+
+                cg.indent -= 1;
+                cg.addln(";\n");
+            }
             Self::EnumDecl {
                 visibility,
                 name,
