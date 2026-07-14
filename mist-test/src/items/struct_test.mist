@@ -100,6 +100,9 @@ pub void test_struct_destructure_rename()
     assert_eq!(b, 15);
 }
 
+struct TuplePoint(i32, i32);
+struct Unit;
+
 pub void run_tests()
 {
     test_struct_create_access();

@@ -57,6 +57,21 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                 fields: collect_recovered(inner.next().unwrap().into_inner())?,
             }),
 
+            Rule::tuple_struct_decl => Ok(TopLevelKind::StructDeclTupleUnit {
+                visibility: Visibility::try_from(&mut inner)?,
+
+                name: inner.next().unwrap().try_into()?,
+
+                generics: consume_rule(&mut inner, Rule::generics_decl)
+                    .map(GenericsDecl::try_from)
+                    .transpose()
+                    .map(|v| v.unwrap_or_default())?,
+
+                unit: consume_rule(&mut inner, Rule::tuple_type)
+                    .map(|v| collect_recovered(v.into_inner()))
+                    .transpose()?,
+            }),
+
             Rule::class_decl => Ok(TopLevelKind::ClassDecl {
                 visibility: Visibility::try_from(&mut inner)?,
 
@@ -147,7 +162,6 @@ impl<'a> TryFrom<pest::iterators::Pair<'a, Rule>> for TopLevelKind {
                     .unwrap()
                     .to_string(),
             )),
-
             _ => AstError::bug_unimplemented(pair),
         }
     }

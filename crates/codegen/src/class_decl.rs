@@ -593,7 +593,7 @@ pub fn gen_method_point(method: &FunctionDecl, ctx: &mut Context, cg: &mut RustC
     cg.addln(" = core::mem::transmute(func_ptr);");
 
     if mutable_self {
-        cg.add_indented("func(self as *mut Self as *const core::ffi::c_void");
+        cg.add_indented("func(self as *mut Self as *mut core::ffi::c_void");
     } else {
         cg.add_indented("func(self as *const Self as *const core::ffi::c_void");
     }

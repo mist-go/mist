@@ -21,7 +21,8 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use crate::rust_analyzer::RustAnalyzer;
 use crate::transpiler::{
-    TranspileError, TranspiledFile, format_mist, transpile_mist, transpile_mist_no_sem,
+    TranspileError, TranspiledFile, format_mist, resolve_rust_path, transpile_mist,
+    transpile_mist_no_sem,
 };
 
 static MARKER_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -98,7 +99,7 @@ fn lsp_pos_to_rust_map(pos: &Position) -> RustMap {
 
 fn mist_map_to_lsp_pos(map: &MistMap) -> Position {
     Position {
-        line: map.0 as u32,
+        line: map.0.saturating_sub(1) as u32,
         character: map.1 as u32,
     }
 }
@@ -186,6 +187,10 @@ fn find_marker_position(content: &str, marker: &str) -> Option<Position> {
     let last_nl = before.rfind('\n').map(|i| i + 1).unwrap_or(0);
     let character = before[last_nl..].chars().count() as u32;
     Some(Position { line, character })
+}
+
+fn is_mist_file(path: &Path) -> bool {
+    path.extension().and_then(|e| e.to_str()) == Some("mist")
 }
 
 fn mist_to_rust_path(mist_path: &Path) -> PathBuf {
@@ -392,10 +397,13 @@ impl Backend {
                 // Use the last known working Rust content + mapping to inject the
                 // marker at the nearest valid Rust position.
                 let mist_target = MistMap(line as usize, character as usize);
-                let mut rust_path = crate::from_mist_to_rust(mist_path.to_path_buf());
-                if mist_path.file_name().and_then(|n| n.to_str()) == Some("package.mist") {
-                    rust_path.set_file_name("mod.rs");
-                }
+                let source_for_path = self
+                    .documents
+                    .lock()
+                    .await
+                    .get(mist_path)
+                    .map(|r| r.to_string());
+                let rust_path = resolve_rust_path(mist_path, source_for_path.as_deref());
 
                 let (last_mapping, last_content, original_version) = {
                     let map_guard = self.mapping.lock().await;
@@ -611,15 +619,12 @@ impl Backend {
         // mod.rs output files for directories with no remaining source children.
         {
             let mut docs = self.documents.lock().await;
-            let stale: Vec<PathBuf> = docs
-                .keys()
-                .filter(|p| !p.exists())
-                .cloned()
-                .collect();
+            let stale: Vec<PathBuf> = docs.keys().filter(|p| !p.exists()).cloned().collect();
             for path in &stale {
+                let source_for_path = docs.get(path).map(|r| r.to_string());
                 docs.remove(path);
                 if path.extension().and_then(|e| e.to_str()) == Some("mist") {
-                    let rust_path = mist_to_rust_path(path);
+                    let rust_path = resolve_rust_path(path, source_for_path.as_deref());
                     let _ = std::fs::remove_file(&rust_path);
                     let map_path = rust_path.with_extension("map.json");
                     let _ = std::fs::remove_file(&map_path);
@@ -631,8 +636,7 @@ impl Backend {
             let synthetic: Vec<PathBuf> = docs
                 .keys()
                 .filter(|p| {
-                    p.file_name().and_then(|n| n.to_str()) == Some("package.mist")
-                        && !p.exists()
+                    p.file_name().and_then(|n| n.to_str()) == Some("package.mist") && !p.exists()
                 })
                 .cloned()
                 .collect();
@@ -1089,6 +1093,18 @@ impl LanguageServer for Backend {
                 return;
             }
         };
+
+        // Non-.mist files pass through directly to rust-analyzer.
+        if !is_mist_file(&mist_path) {
+            let _ = self
+                .rust_analyzer
+                .lock()
+                .await
+                .did_open(uri, &params.text_document.text)
+                .await;
+            return;
+        }
+
         let source = params.text_document.text;
 
         self.documents
@@ -1110,6 +1126,18 @@ impl LanguageServer for Backend {
                 return;
             }
         };
+
+        if !is_mist_file(&mist_path) {
+            if let Some(change) = params.content_changes.into_iter().last() {
+                let _ = self
+                    .rust_analyzer
+                    .lock()
+                    .await
+                    .did_change(uri, &change.text, params.text_document.version)
+                    .await;
+            }
+            return;
+        }
 
         if let Some(change) = params.content_changes.into_iter().last() {
             let source = change.text;
@@ -1143,6 +1171,11 @@ impl LanguageServer for Backend {
                 .expect("Failed to read file")
         };
 
+        if !is_mist_file(&mist_path) {
+            let _ = self.rust_analyzer.lock().await.did_save(uri, &text).await;
+            return;
+        }
+
         self.documents
             .lock()
             .await
@@ -1175,9 +1208,18 @@ impl LanguageServer for Backend {
             }
         };
 
+        if !is_mist_file(&mist_path) {
+            let _ = self.rust_analyzer.lock().await.did_close(uri).await;
+            return;
+        }
+
+        let source_for_path = {
+            let docs = self.documents.lock().await;
+            docs.get(&mist_path).map(|r| r.to_string())
+        };
         self.documents.lock().await.remove(&mist_path);
 
-        let rust_path = mist_to_rust_path(&mist_path);
+        let rust_path = resolve_rust_path(&mist_path, source_for_path.as_deref());
 
         if let Some(rust_uri) = clean_lsp_url(&rust_path) {
             let _ = self.rust_analyzer.lock().await.did_close(rust_uri).await;
@@ -1195,6 +1237,25 @@ impl LanguageServer for Backend {
             Ok(p) => p,
             Err(_) => return Ok(None),
         };
+
+        // Non-.mist files pass through directly to rust-analyzer.
+        if !is_mist_file(&mist_path) {
+            let result = self
+                .rust_analyzer
+                .lock()
+                .await
+                .request::<lsp_types::request::Completion>(params)
+                .await;
+
+            return match result {
+                Ok(r) => Ok(r),
+                Err(e) => {
+                    eprintln!("completion error (passthrough): {e}");
+                    Ok(None)
+                }
+            };
+        }
+
         let source = match self.documents.lock().await.get(&mist_path) {
             Some(r) => r.to_string(),
             None => return Ok(None),
@@ -1272,7 +1333,7 @@ impl LanguageServer for Backend {
         &self,
         params: GotoDefinitionParams,
     ) -> tower_lsp::jsonrpc::Result<Option<GotoDefinitionResponse>> {
-        let mist_uri = params.text_document_position_params.text_document.uri;
+        let mist_uri = &params.text_document_position_params.text_document.uri;
         let mist_pos = params.text_document_position_params.position;
         eprintln!(
             "[goto_definition] entered at mist ({}, {})",
@@ -1283,6 +1344,25 @@ impl LanguageServer for Backend {
             Ok(p) => p,
             Err(_) => return Ok(None),
         };
+
+        // Non-.mist files pass through directly to rust-analyzer.
+        if !is_mist_file(&mist_path) {
+            let result = self
+                .rust_analyzer
+                .lock()
+                .await
+                .request::<lsp_types::request::GotoDefinition>(params)
+                .await;
+
+            return match result {
+                Ok(r) => Ok(r),
+                Err(e) => {
+                    eprintln!("goto_definition error (passthrough): {e}");
+                    Ok(None)
+                }
+            };
+        }
+
         let source = match self.documents.lock().await.get(&mist_path) {
             Some(r) => r.to_string(),
             None => return Ok(None),
@@ -1452,13 +1532,32 @@ impl LanguageServer for Backend {
     }
 
     async fn hover(&self, params: HoverParams) -> tower_lsp::jsonrpc::Result<Option<Hover>> {
-        let mist_uri = params.text_document_position_params.text_document.uri;
+        let mist_uri = &params.text_document_position_params.text_document.uri;
         let mist_pos = params.text_document_position_params.position;
 
         let mist_path = match mist_uri.to_file_path() {
             Ok(p) => p,
             Err(_) => return Ok(None),
         };
+
+        // Non-.mist files pass through directly to rust-analyzer.
+        if !is_mist_file(&mist_path) {
+            let result = self
+                .rust_analyzer
+                .lock()
+                .await
+                .request::<lsp_types::request::HoverRequest>(params)
+                .await;
+
+            return match result {
+                Ok(r) => Ok(r),
+                Err(e) => {
+                    eprintln!("hover error (passthrough): {e}");
+                    Ok(None)
+                }
+            };
+        }
+
         let source = match self.documents.lock().await.get(&mist_path) {
             Some(r) => r.to_string(),
             None => return Ok(None),
@@ -1522,6 +1621,24 @@ impl LanguageServer for Backend {
             .to_file_path()
             .map_err(|_| tower_lsp::jsonrpc::Error::internal_error())?;
 
+        // Non-.mist files pass through directly to rust-analyzer.
+        if !is_mist_file(&mist_path) {
+            let result = self
+                .rust_analyzer
+                .lock()
+                .await
+                .request::<lsp_types::request::Formatting>(params)
+                .await;
+
+            return match result {
+                Ok(r) => Ok(r),
+                Err(e) => {
+                    eprintln!("formatting error (passthrough): {e}");
+                    Ok(None)
+                }
+            };
+        }
+
         let docs = self.documents.lock().await;
 
         let old_text = docs
@@ -1551,7 +1668,12 @@ impl LanguageServer for Backend {
     }
 }
 
-fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<CompletionItem>, trigger_char: Option<&str>) {
+fn mist_ify_completions(
+    source: &str,
+    pos: &Position,
+    items: &mut Vec<CompletionItem>,
+    trigger_char: Option<&str>,
+) {
     let is_scoping_trigger = matches!(trigger_char, Some("." | ":"));
 
     for item in items.iter_mut() {
@@ -1730,7 +1852,6 @@ fn mist_ify_completions(source: &str, pos: &Position, items: &mut Vec<Completion
             ..Default::default()
         });
     }
-
 
     if matches!(curr_scope, Scope::Class | Scope::Struct) {
         items.push(CompletionItem {
