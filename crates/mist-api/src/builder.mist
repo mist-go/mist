@@ -118,8 +118,8 @@ pub void print_diagnostics(Vec<MistDiagnostic>& diagnostics)
                 let line = get_line(&mut files, &msg);
                 println!("\n{}:{}:{}\n \x1b[31mError\x1b[0m: {}\n\t{}",
                     msg.file_name,
-                    msg.line + 1,
-                    msg.column + 1,
+                    msg.line,
+                    msg.column,
                     msg.message,
                     line.unwrap_or_default(),)
             }
@@ -127,8 +127,8 @@ pub void print_diagnostics(Vec<MistDiagnostic>& diagnostics)
                 let line = get_line(&mut files, &msg);
                 println!("\n{}:{}:{}\n \x1b[33mWarning\x1b[0m: {}\n\t{}",
                     msg.file_name,
-                    msg.line + 1,
-                    msg.column + 1,
+                    msg.line,
+                    msg.column,
                     msg.message,
                     line.unwrap_or_default(),)
             }
@@ -143,5 +143,5 @@ pub Option<String> get_line(HashMap<PathBuf, Vec<String>> mut& files, MistDiagno
     let lines = files.entry(src_path.clone()).or_insert_with(() => {
         fs::read_to_string(src_path).expect("Unable to read mist file").lines().into_iter().map(String::from).collect()
     });
-    lines.get(msg.line).map((v) => v.trim().to_string())
+    lines.get(msg.line.saturating_sub(1)).map((v) => v.trim().to_string())
 }
