@@ -22,6 +22,8 @@ pub class Animal
         "Unknown".to_string()
     }
 
+    pub virtual void speak_mut(&mut self){}
+
     pub void test_speak<'a>(&'a self)
     {
         assert_eq!(self.speak(), "Woof!");
