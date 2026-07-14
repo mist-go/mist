@@ -98,7 +98,7 @@ fn lsp_pos_to_rust_map(pos: &Position) -> RustMap {
 
 fn mist_map_to_lsp_pos(map: &MistMap) -> Position {
     Position {
-        line: map.0 as u32,
+        line: map.0.saturating_sub(1) as u32,
         character: map.1 as u32,
     }
 }
